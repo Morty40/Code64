@@ -1,0 +1,17 @@
+            .org $1000
+            adc $02,x
+            and $02,x
+            asl $02,x
+            cmp $02,x
+            dec $02,x
+            eor $02,x
+            inc $02,x
+            lda $02,x
+            ldy $02,x
+            lsr $02,x
+            ora $02,x
+            rol $02,x
+            ror $02,x
+            sbc $02,x
+            sta $02,x
+            sty $02,x

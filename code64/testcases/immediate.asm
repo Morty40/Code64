@@ -1,0 +1,12 @@
+            .org $1000
+            adc #$12
+            and #$12
+            cmp #$12
+            cpx #$12
+            cpy #$12
+            eor #$12
+            lda #$12
+            ldx #$12
+            ldy #$12
+            ora #$12
+            sbc #$12

@@ -1,0 +1,9 @@
+            .org $1000
+            adc ($12,x)
+            and ($12,x)
+            cmp ($12,x)
+            eor ($12,x)
+            lda ($12,x)
+            ora ($12,x)
+            sbc ($12,x)
+            sta ($12,x)

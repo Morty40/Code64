@@ -1,0 +1,10 @@
+            .org $1000
+            adc $1234,y
+            and $1234,y
+            cmp $1234,y
+            eor $1234,y
+            lda $1234,y
+            ldx $1234,y
+            ora $1234,y
+            sbc $1234,y
+            sta $1234,y

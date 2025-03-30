@@ -1,0 +1,26 @@
+            .org $1000
+            brk
+            clc
+            cld
+            cli
+            clv
+            dex
+            dey
+            inx
+            iny
+            nop
+            pha
+            php
+            pla
+            plp
+            rti
+            rts
+            sec
+            sed
+            sei
+            tax
+            tay
+            tsx
+            txa
+            txs
+            tya
