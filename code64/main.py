@@ -41,8 +41,12 @@ def main():
             outFile = arg
     
     if asmFile is not None:
-        assemble.multiPass(asmFile, outFile)
-
+        anyErrors = assemble.multiPass(asmFile, outFile)
+    
+    if anyErrors:
+        sys.exit(1)
+    else:
+        sys.exit(0)
 
 if __name__ == '__main__':
    main()

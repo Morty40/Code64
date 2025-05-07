@@ -390,7 +390,7 @@ def _saveMemoryToPrg(start: int, memory: dict, fileName: str):
     f.close()
 
 
-def multiPass(inFile, outFile):
+def multiPass(inFile, outFile) -> bool:
 
     path = os.path.dirname(inFile)
 
@@ -480,23 +480,24 @@ def multiPass(inFile, outFile):
         lastMemory = dict(context.memory)
         n += 1
 
-    # print memory use
-    context.printMemoryUse()
-
     # print warning and errors
     context.printAsmReport()    
 
-    if outFile is not None:
-        if len(context.errors) == 0:
-            # successfull assembly, all symbols resolved, no errors
+    # only save if no errors
+    anyErrors = len(context.errors) > 0
+    if not anyErrors:
+
+        # print memory use
+        context.printMemoryUse()
+
+        if outFile is not None:
             print(f'Saving program: {outFile}')
             start = defaultOrigin
             if len(context.memory) > 0:
                 start = min(context.memory.keys())
             _saveMemoryToPrg(start, context.memory, outFile)
-        else:
-            # failed to resolve some symbols
-            print(f'failed to save "{outFile}"')
+
+    return anyErrors
 multiPass.chunks = {} # function static variable
         
 
