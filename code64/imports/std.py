@@ -1,4 +1,6 @@
 
+CHAR_ROM = 0xd000
+
 def setb(address, value):
 	asm = ""
 	if type(value) is int:
