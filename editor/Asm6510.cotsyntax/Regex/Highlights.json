@@ -1,0 +1,270 @@
+{
+  "attributes" : [
+    {
+      "begin" : "^[a-zA-Z_][0-9a-zA-Z_]*\\b",
+      "regularExpression" : true
+    }
+  ],
+  "keywords" : [
+    {
+      "begin" : "adc",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "and",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "asl",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "bcc",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "bcs",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "beq",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "bit",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "bmi",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "bne",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "bpl",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "brk",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "bvc",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "bvs",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "clc",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "cld",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "cli",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "clv",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "cmp",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "cpx",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "cpy",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "dec",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "dex",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "dey",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "eor",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "inc",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "inx",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "iny",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "jmp",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "jsr",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "lda",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "ldx",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "ldy",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "lsr",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "nop",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "ora",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "pha",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "php",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "pla",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "plp",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "rol",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "ror",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "rti",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "rts",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "sbc",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "sec",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "sed",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "sei",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "sta",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "stx",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "sty",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "tax",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "tay",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "tsx",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "txa",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "txs",
+      "ignoreCase" : true
+    },
+    {
+      "begin" : "tya",
+      "ignoreCase" : true
+    }
+  ],
+  "commands" : [
+    {
+      "begin" : "\\.\\w+\\b",
+      "regularExpression" : true
+    },
+    {
+      "begin" : "\\@\\w+\\b",
+      "regularExpression" : true
+    }
+  ],
+  "numbers" : [
+    {
+      "begin" : "(\\b|[-+])[0-9][0-9]*\\b",
+      "description" : "decimal",
+      "ignoreCase" : true,
+      "regularExpression" : true
+    },
+    {
+      "begin" : "(\\b|[-+])[0-9][0-9_]*\\.([0-9][0-9_]*)?(e[-+]?[0-9][0-9_]*)?\\b",
+      "description" : "floating-point",
+      "ignoreCase" : true,
+      "regularExpression" : true
+    },
+    {
+      "begin" : "\\$[0-9a-fA-F][0-9a-fA-F]*\\b",
+      "description" : "hex with $ prefix",
+      "ignoreCase" : true,
+      "regularExpression" : true
+    },
+    {
+      "begin" : "\\%[0-1][0-1]*\\b",
+      "description" : "bin with % prefix",
+      "ignoreCase" : true,
+      "regularExpression" : true
+    }
+  ],
+}

@@ -1,0 +1,16 @@
+{
+  "fileMap" : {
+    "extensions" : [
+      "asm"
+    ]
+  },
+  "kind" : "code",
+  "metadata" : {
+    "author" : "Morten Perriard",
+    "description" : "6510 assembler syntax",
+    "distributionURL" : "https://github.com/Morty40/Code64",
+    "lastModified" : "2026-01-01",
+    "license" : "Same as CotEditor",
+    "version" : "1.0.0"
+  }
+}
