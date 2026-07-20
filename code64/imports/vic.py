@@ -77,7 +77,7 @@ VIC_COLOR_RAM = 0xd800
 
 vicSpritePointer = lambda a: (a>>6) & 0xff
 vicPackedColor = lambda a, b: (a & 0xf) | ((b & 0xf) << 4)
-vicPackedScreenCharsetPointer = lambda a, b: (((a & 0x3fff) >> 6) & 0xf0) | (((b & 0x3fff) >> 10) & 0x0e)
+vicScreenAndCharsetPointer = lambda a, b: (((a & 0x3fff) >> 6) & 0xf0) | (((b & 0x3fff) >> 10) & 0x0e)
 
 VIC_CHARSET_MEMORY_ALIGNMENT = 0x800
 VIC_SCREEN_MEMORY_ALIGNMENT  = 0x400
