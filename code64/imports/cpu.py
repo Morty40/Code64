@@ -3,21 +3,39 @@ CPU_IO_DATA_DIRECTION = 0x00
 CPU_IO_PORT           = 0x01
 
 def ldax(value):
-    return f"""
-    lda #lo({value})
-    ldx #hi({value})
-    """
+    a = lo(value)
+    x = hi(value)
+    if a == x:
+        return f"""
+        lda #{a}
+        tax
+        """
+    else:
+        return f"""
+        lda #{a}
+        ldx #{x}
+        """
 
 def lday(value):
-    return f"""
-    lda #lo({value})
-    ldy #hi({value})
-    """
+    a = lo(value)
+    y = hi(value)
+    if a == y:
+        return f"""
+        lda #{a}
+        tay
+        """
+    else:
+        return f"""
+        lda #{a}
+        ldy #{y}
+        """
 
 def ldxy(value):
+    x = lo(value)
+    y = hi(value)
     return f"""
-    ldx #lo({value})
-    ldy #hi({value})
+    ldx #{x}
+    ldy #{y}
     """
 
 def stax(address):
