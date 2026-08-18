@@ -2,6 +2,9 @@
 CPU_IO_DATA_DIRECTION = 0x00
 CPU_IO_PORT           = 0x01
 
+def nop(repeat):
+    return "nop\n" * repeat
+
 def ldax(value):
     a = lo(value)
     x = hi(value)
