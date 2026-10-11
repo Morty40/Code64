@@ -217,6 +217,9 @@ def _asmDirective(chunk: list, context: Context):
     # align the current memory location to n
     elif directive == 'align' and argTypes == [int]:
         arg = arguments[0]
+        if arg <= 0:
+            context.reportError(f'Alignment must be positive: {arg}')
+            arg = 1 # no alignment
         _ = context.symbols['_']
         mod = _ % arg 
         if mod > 0:
