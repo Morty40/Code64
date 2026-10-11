@@ -4,6 +4,8 @@ import re
 import shlex
 import unittest
 
+import cpu
+
 
 class Token:
     def __init__(self, string: str, fileName: str='', lineNumber: int=0):
@@ -20,7 +22,7 @@ def _fixPrefix(word):
     """ converts hex and binary prefixes $ and %, to 0x and 0b, and all strings to f-strings """
     if word.startswith('$'):
         word = '0x' + word[1:]
-    elif word.startswith('%'):
+    elif re.fullmatch(r'%[01]+', word):
         word = '0b' + word[1:]
     elif word.startswith('"') and word.endswith('"'):
         word = 'f' + word
@@ -54,8 +56,13 @@ def tokenize(text: str, fileName=''):
             lex.commenters = ';'
             lex.wordchars += '$%'
 
-            for token in lex:    
-                tokens.append(Token(_fixPrefix(token), fileName, lex.lineno))
+            prev = ['', ''] # previous two tokens, to tell modulo from binary prefix
+            for token in lex:
+                afterOperand = re.search(r'[\w)\]]$', prev[1]) and prev[0] != '.' and not cpu.isMnemonic(prev[1])
+                if not (token.startswith('%') and afterOperand):
+                    token = _fixPrefix(token)
+                tokens.append(Token(token, fileName, lex.lineno))
+                prev = [prev[1], token]
             tokens.append(Token('\n'))
 
     return tokens
@@ -96,6 +103,28 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(_fixPrefix('abc'), 'abc')
         self.assertEqual(_fixPrefix('$1234'), '0x1234')
         self.assertEqual(_fixPrefix('%010101'), '0b010101')
+        self.assertEqual(_fixPrefix('%'), '%') # modulo operator, not a binary prefix
+
+
+    def testModulo(self):
+        def strings(line):
+            return [t.string for t in tokenize(line) if t.string != '\n']
+        self.assertEqual(strings('7 % 4'),        ['7', '%', '4'])
+        self.assertEqual(strings('7%4'),          ['7%4'])
+        self.assertEqual(strings('10 %4'),        ['10', '%4'])
+        self.assertEqual(strings('x % 2'),        ['x', '%', '2'])
+        self.assertEqual(strings('6 % %11'),      ['6', '%', '0b11'])
+        self.assertEqual(strings('%101 % 3'),     ['0b101', '%', '3'])
+        self.assertEqual(strings('(%101) % 3'),   ['(', '0b101', ')', '%', '3'])
+        self.assertEqual(strings('7 %11'),        ['7', '%11'])
+        self.assertEqual(strings('x %10'),        ['x', '%10'])
+        self.assertEqual(strings('(5) %10'),      ['(', '5', ')', '%10'])
+        # binary prefix after directive, mnemonic and operators
+        self.assertEqual(strings('.byte %11'),    ['.', 'byte', '0b11'])
+        self.assertEqual(strings('.byte 1, %11'), ['.', 'byte', '1', ',', '0b11'])
+        self.assertEqual(strings('lda %11'),      ['lda', '0b11'])
+        self.assertEqual(strings('lda #%11'),     ['lda', '#', '0b11'])
+        self.assertEqual(strings('x = %11'),      ['x', '=', '0b11'])
 
 
     def testChunkSplit(self):
