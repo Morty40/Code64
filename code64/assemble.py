@@ -155,7 +155,7 @@ def _asmDirective(chunk: list, context: Context):
     elif directive == 'text' or directive == 'string':
         for arg in arguments:
             for char in arg:
-                o = text.ord(char)
+                o = text.ord(char, context.encoding)
                 if o is not None:
                     _store(o, context)
                 else:
@@ -164,7 +164,7 @@ def _asmDirective(chunk: list, context: Context):
                 _store(0, context)
 
     elif directive == 'encoding' and argTypes == [int]:
-        text.encoding = arguments[0]
+        context.encoding = arguments[0]
 
     # data directive: declare bits
     elif directive == 'bits':
@@ -395,7 +395,6 @@ def multiPass(inFile, outFile) -> bool:
     path = os.path.dirname(inFile)
 
     symbols = {'lo': lo, 'hi': hi,
-        'chr': text.chr, 'ord': text.ord,
         'ENCODING_SCREEN_UPPER': text.ENCODING_SCREEN_UPPER,
         'ENCODING_SCREEN_MIXED': text.ENCODING_SCREEN_MIXED,
         'ENCODING_PETSCII_UPPER': text.ENCODING_PETSCII_UPPER,

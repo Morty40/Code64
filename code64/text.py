@@ -9,8 +9,6 @@ ENCODING_SCREEN_MIXED = 1
 ENCODING_PETSCII_UPPER = 2
 ENCODING_PETSCII_MIXED = 3
 
-encoding = ENCODING_SCREEN_UPPER
-
 _chrScreenUpper = {
     0x00: '@', 0x01: 'A', 0x02: 'B', 0x03: 'C', 0x04: 'D', 0x05: 'E', 0x06: 'F', 0x07: 'G',
     0x08: 'H', 0x09: 'I', 0x0a: 'J', 0x0b: 'K', 0x0c: 'L', 0x0d: 'M', 0x0e: 'N', 0x0f: 'O',
@@ -82,57 +80,39 @@ _ord = {
     ENCODING_PETSCII_MIXED: _ordPetsciiMixed,
 }
 
-def chr(value: int) -> str:
-    """ from char to int """
+def chr(value: int, encoding: int) -> str:
+    """ from int to char """
     map = _chr[encoding]
     return map[value] if value in map else None
 
-def ord(char: str) -> int:
-    """ from int to char """
+def ord(char: str, encoding: int) -> int:
+    """ from char to int """
     map = _ord[encoding]
     return map[char] if char in map else None
 
 class TestPetscii(unittest.TestCase):
 
     def testChr_A(self):
-        global encoding
-        encoding = ENCODING_SCREEN_UPPER
-        self.assertEqual(chr(1), 'A')
-        encoding = ENCODING_SCREEN_MIXED
-        self.assertEqual(chr(65), 'A')
-        encoding = ENCODING_PETSCII_UPPER
-        self.assertEqual(chr(65), 'A')
-        encoding = ENCODING_PETSCII_MIXED
-        self.assertEqual(chr(97), 'A')
+        self.assertEqual(chr(1, ENCODING_SCREEN_UPPER), 'A')
+        self.assertEqual(chr(65, ENCODING_SCREEN_MIXED), 'A')
+        self.assertEqual(chr(65, ENCODING_PETSCII_UPPER), 'A')
+        self.assertEqual(chr(97, ENCODING_PETSCII_MIXED), 'A')
 
     def testChr_a(self):
-        global encoding
-        encoding = ENCODING_SCREEN_MIXED
-        self.assertEqual(chr(1), 'a')
-        encoding = ENCODING_PETSCII_MIXED
-        self.assertEqual(chr(65), 'a')
+        self.assertEqual(chr(1, ENCODING_SCREEN_MIXED), 'a')
+        self.assertEqual(chr(65, ENCODING_PETSCII_MIXED), 'a')
 
     def testOrd_A(self):
-        global encoding
-        encoding = ENCODING_SCREEN_UPPER
-        self.assertEqual(ord('A'), 1)
-        encoding = ENCODING_SCREEN_MIXED
-        self.assertEqual(ord('A'), 65)
-        encoding = ENCODING_PETSCII_UPPER
-        self.assertEqual(ord('A'), 65)
-        encoding = ENCODING_PETSCII_MIXED
-        self.assertEqual(ord('A'), 97)
+        self.assertEqual(ord('A', ENCODING_SCREEN_UPPER), 1)
+        self.assertEqual(ord('A', ENCODING_SCREEN_MIXED), 65)
+        self.assertEqual(ord('A', ENCODING_PETSCII_UPPER), 65)
+        self.assertEqual(ord('A', ENCODING_PETSCII_MIXED), 97)
 
     def testOrd_a(self):
-        global encoding
-        encoding = ENCODING_SCREEN_UPPER
-        self.assertEqual(ord('a'), None)
-        encoding = ENCODING_SCREEN_MIXED
-        self.assertEqual(ord('a'), 1)
-        encoding = ENCODING_PETSCII_UPPER
-        self.assertEqual(ord('a'), None)
-        encoding = ENCODING_PETSCII_MIXED
-        self.assertEqual(ord('a'), 65)
+        self.assertEqual(ord('a', ENCODING_SCREEN_UPPER), None)
+        self.assertEqual(ord('a', ENCODING_SCREEN_MIXED), 1)
+        self.assertEqual(ord('a', ENCODING_PETSCII_UPPER), None)
+        self.assertEqual(ord('a', ENCODING_PETSCII_MIXED), 65)
 
 if __name__ == '__main__':
     unittest.main()

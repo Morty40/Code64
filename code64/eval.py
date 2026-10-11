@@ -10,6 +10,7 @@ sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 #--
 
 from context import Context
+import text
 
 
 def expression(e: str, context: Context):
@@ -140,6 +141,16 @@ class TestEval(unittest.TestCase):
         self.assertEqual(isinstance(value, types.FunctionType), True)
         self.assertEqual(value(1), 3)
         self.assertEqual(len(context.warnings), 0)
+        self.assertEqual(len(context.errors), 0)
+
+
+    def testEncodingFunctions(self):
+        context = Context({})
+        self.assertEqual(expression('ord("A")', context), 1)
+        self.assertEqual(expression('chr(1)', context), 'A')
+        context.encoding = text.ENCODING_PETSCII_UPPER
+        self.assertEqual(expression('ord("A")', context), 65)
+        self.assertEqual(expression('chr(65)', context), 'A')
         self.assertEqual(len(context.errors), 0)
 
 

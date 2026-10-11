@@ -4,12 +4,16 @@ import math
 import os
 import unittest
 
+import text
+
 
 class Context:
     def __init__(self, symbols: dict):
         self.readPointerStack = []
         
         symbols.update(math.__dict__)
+        symbols['ord'] = lambda char: text.ord(char, self.encoding)
+        symbols['chr'] = lambda value: text.chr(value, self.encoding)
         self.symbols = symbols
         self.labels = set()
         self.memory = {}
@@ -19,6 +23,7 @@ class Context:
         self.macroDict = {}
         self.zpAddress = 2 # $0 and $1 are reserved
         self.path = ''
+        self.encoding = text.ENCODING_SCREEN_UPPER
 
 
     def readPointer(self):
