@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 import os
+import re
 import unittest
 import glob
 
@@ -19,6 +20,16 @@ from context import Context
 
 def lo(x): return x&0xff
 def hi(x): return (x>>8)&0xff
+
+
+def _join(tokens: list) -> str:
+    ''' joins tokens into an expression, with a space between adjacent words, e.g. "1 if x else 2" '''
+    s = ''
+    for t in tokens:
+        if re.fullmatch(r'\w\w', s[-1:] + t.string[:1]):
+            s += ' '
+        s += t.string
+    return s
 
 
 def _store(value: int, context: Context):
@@ -40,7 +51,7 @@ def _store(value: int, context: Context):
 
 def _asmInstruction(chunk: list, context: Context):
     mnemonic = chunk[0].string
-    operand = ''.join(map(lambda t: t.string, chunk[1:]))
+    operand = _join(chunk[1:])
         
     instruction = cpu.instructionWithMnemonic(mnemonic)
     opcodes = instruction.opcodes
@@ -110,7 +121,7 @@ def _asmInstruction(chunk: list, context: Context):
     
 def _asmAssignment(chunk: list, context: Context):
     symbol = chunk[0].string
-    expression = ''.join(map(lambda t: t.string, chunk[2:]))
+    expression = _join(chunk[2:])
     value = eval.expression(expression, context)
     if value is not None:
         context.symbols[symbol] = value
@@ -122,7 +133,7 @@ def _asmDirective(chunk: list, context: Context):
     advance = True # advance read pointer after this chunk
 
     directive = chunk[1].string
-    expression = ''.join(map(lambda t: t.string, chunk[2:]))
+    expression = _join(chunk[2:])
 
     # eval list of arguments
     if len(expression.strip()) > 0:
@@ -364,7 +375,7 @@ _asmDirective.pythonFiles = {}
 
 
 def _asmGenerator(chunk: list, context: Context):
-    generator = ''.join(map(lambda t: t.string, chunk[1:]))
+    generator = _join(chunk[1:])
     value = eval.expression(generator, context)
 
     context.advanceReadPointer()
