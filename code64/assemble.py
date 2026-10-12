@@ -178,7 +178,7 @@ def _asmDirective(chunk: list, context: Context):
         context.encoding = arguments[0]
 
     # data directive: declare bits
-    elif directive == 'bits':
+    elif directive == 'bits' and argTypes == [str]:
         for arg in arguments:
             # todo: check length
             arg = arg.replace(' ', '0')
@@ -522,6 +522,11 @@ class TestAssemble(unittest.TestCase):
 
     def testTest(self):
         pass
+
+    def testBitsWithInt(self):
+        context = Context({})
+        _asmDirective(lexer.tokenize('.bits 3')[:-1], context)
+        self.assertEqual(context.errors, ['error: Invalid directive: .bits 3'])
 
 if __name__ == '__main__':
     unittest.main()
