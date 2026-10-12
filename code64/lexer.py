@@ -29,9 +29,9 @@ def _fixPrefix(word):
     return word
 
 
-def _translateLocalLabels(tokens):    
+def translateLocalLabels(tokens, lastLabel=''):
+    """ prefixes local labels (starting with _) with the last global label """
     newTokens = []
-    lastLabel = ''
     for chunk in chunkSplit(tokens):
         
         if len(chunk) >= 2 and not chunk[0].string.startswith('_') and chunk[1].string == ':':
@@ -78,7 +78,7 @@ def tokenizeFile(fileName):
         pass
 
     tokens = tokenize(text, fileName)
-    tokens = _translateLocalLabels(tokens)    
+    tokens = translateLocalLabels(tokens)
 
     #for t in tokens:
     #    print(t.string, end=' ')

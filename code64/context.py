@@ -22,6 +22,7 @@ class Context:
         self.repeatStack = []
         self.macroDict = {}
         self.zpAddress = 2 # $0 and $1 are reserved
+        self.generatorCount = 0 # gives each generator call its own local label scope
         self.path = ''
         self.encoding = text.ENCODING_SCREEN_UPPER
 

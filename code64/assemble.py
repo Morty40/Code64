@@ -371,7 +371,9 @@ def _asmGenerator(chunk: list, context: Context):
 
     (fileName, lineIndex) = context.readPointer()
     generatorId = f"{fileName}:{lineIndex} @{generator}"
-    multiPass.chunks[generatorId] = list(lexer.chunkSplit(lexer.tokenize(value)))
+    context.generatorCount += 1
+    tokens = lexer.translateLocalLabels(lexer.tokenize(value), f'_gen{context.generatorCount}')
+    multiPass.chunks[generatorId] = list(lexer.chunkSplit(tokens))
 
     context.pushReadPointer( (generatorId, 0) )
 
