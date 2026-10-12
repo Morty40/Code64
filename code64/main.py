@@ -15,7 +15,7 @@ __version__ = '0.1'
 
 
 def printUsage():
-    print('Usage: Code64.py -a <asmFile> -d <disFile> -o <outFile>')
+    print('Usage: code64 -a <asmFile> -o <outFile>')
 
 
 def main():
@@ -27,7 +27,7 @@ def main():
     print(f'Code64 v{__version__}  (c) Morten Perriard 2021')
     
     try:
-        opts, args = getopt.getopt(argv, 'ha:d:o:')
+        opts, args = getopt.getopt(argv, 'ha:o:')
     except getopt.GetoptError:
         printUsage()
         sys.exit(2)
