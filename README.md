@@ -163,7 +163,7 @@ The symbol `_` on its own is the current address. Assigning to it moves the curr
 
 ### Assignments
 
-`name = expression` assigns the value of a Python expression to a symbol. Any Python value can be assigned, not only numbers, and a symbol can be assigned again.
+`name = expression` assigns the value of a Python expression to a symbol. Any Python value can be assigned, not only numbers.
 
 ```
 SCREEN = $0400
@@ -171,6 +171,22 @@ colors = [0, 11, 12, 15, 1]
 squares = [x * x for x in range(16)]
             .byte colors[2], squares[3]
 ```
+
+#### Constants
+
+Symbols in all upper case, such as `SCREEN` or `MAX_SPEED`, are constants: once a constant has a value, it can't be assigned a different value. Doing so is an error, and the constant keeps its first value. Symbols with any lower case letters, such as `speed` or `maxSpeed`, are variables, and can be assigned again freely.
+
+```
+MAX_SPEED = 4
+MAX_SPEED = 4               ; ok, the same value
+MAX_SPEED = 5               ; error: Constant "MAX_SPEED" cannot be changed from 4 to 5
+speed = 1
+speed = 2                   ; ok, a variable
+```
+
+The built-in symbols, such as `VIC_BORDER_COLOR`, are constants too, so they cannot be given a different value by mistake.
+
+Use a variable for a value that changes, for example in each round of a `.repeat` block. Also use a variable for a value calculated from labels that come later in the source, such as `codeSize = end - start`: while the assembler passes settle, such a value can change, which is an error for a constant.
 
 ### Expressions
 
@@ -441,7 +457,7 @@ Reports an error. The output file is not written.
 
 ## Built-in symbols
 
-The Python files in `code64/imports/` are imported automatically, and define symbols for the C64 hardware and a set of generators:
+The Python files in `code64/imports/` are imported automatically, and define symbols for the C64 hardware and a set of generators. The upper case symbols are [constants](#constants):
 
 | File | Contents |
 |---|---|

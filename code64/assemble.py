@@ -128,11 +128,19 @@ def _asmInstruction(chunk: list, context: Context):
 
     
 def _asmAssignment(chunk: list, context: Context):
-    """Assign an expression to a symbol: name = expression."""
+    """Assign an expression to a symbol: name = expression.
+
+    Upper case symbols are constants: once they have a value, they can't
+    be assigned a different value.
+    """
     symbol = chunk[0].string
     expression = _join(chunk[2:])
     value = eval.expression(expression, context)
     if value is not None:
+        if symbol.isupper():
+            if symbol in context.symbols and context.symbols[symbol] != value:
+                context.reportError(f'Constant "{symbol}" cannot be changed from {context.symbols[symbol]} to {value}')
+                return # the constant keeps its value
         context.symbols[symbol] = value
     
     
@@ -563,6 +571,24 @@ class TestAssemble(unittest.TestCase):
         anyErrors, output = self._assemble('a: nop\na: nop\n')
         self.assertTrue(anyErrors)
         self.assertIn('test.asm:2 error: Label was already defined: "a"', output)
+
+    def testConstants(self):
+        """Upper case symbols are constants, other symbols can be assigned again."""
+        anyErrors, output = self._assemble('MY_VALUE = 123\nMY_VALUE = 123\n'   # same value again is ok
+                                           'myValue = 1\nmyValue = 2\n'          # not constants
+                                           'MyValue = 1\nMyValue = 2\n')
+        self.assertFalse(anyErrors, output)
+
+        # only the assignment that changes the value is an error
+        anyErrors, output = self._assemble('MY_VALUE = 123\nMY_VALUE = 124\n')
+        errors = [line.split('/')[-1] for line in output.splitlines() if ' error: ' in line]
+        self.assertEqual(errors, ['test.asm:2 error: Constant "MY_VALUE" cannot be changed from 123 to 124'])
+
+        # built-in constants, from the imports folder
+        anyErrors, output = self._assemble('VIC_BORDER_COLOR = $d020\n')
+        self.assertFalse(anyErrors, output)
+        anyErrors, output = self._assemble('VIC_BORDER_COLOR = 1\n')
+        self.assertIn('test.asm:1 error: Constant "VIC_BORDER_COLOR" cannot be changed from 53280 to 1', output)
 
 if __name__ == '__main__':
     unittest.main()
