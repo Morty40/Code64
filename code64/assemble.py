@@ -1,7 +1,10 @@
 #! /usr/bin/env python3
 
+import contextlib
+import io
 import os
 import re
+import tempfile
 import unittest
 import glob
 
@@ -520,6 +523,16 @@ multiPass.chunks = {} # function static variable
 
 class TestAssemble(unittest.TestCase):
 
+    def _assemble(self, source: str):
+        ''' assembles source, and returns (anyErrors, printed output) '''
+        with tempfile.TemporaryDirectory() as directory:
+            fileName = os.path.join(directory, 'test.asm')
+            with open(fileName, 'w') as f:
+                f.write(source)
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                anyErrors = multiPass(fileName, None)
+        return anyErrors, output.getvalue()
+
     def testTest(self):
         pass
 
@@ -534,6 +547,11 @@ class TestAssemble(unittest.TestCase):
             context = Context({'_': 0x1000})
             _asmInstruction(lexer.tokenize(f'bne {target}')[:-1], context)
             self.assertEqual(context.errors, [f'error: Branch destination out of range [-128..127]: {dist}'])
+
+    def testDuplicateLabel(self):
+        anyErrors, output = self._assemble('a: nop\na: nop\n')
+        self.assertTrue(anyErrors)
+        self.assertIn('test.asm:2 error: Label was already defined: "a"', output)
 
 if __name__ == '__main__':
     unittest.main()
