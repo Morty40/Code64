@@ -593,6 +593,45 @@ class TestAssemble(unittest.TestCase):
         anyErrors, output = self._assemble('VIC_BORDER_COLOR = 1\n')
         self.assertIn('test.asm:1 error: Constant "VIC_BORDER_COLOR" cannot be changed from 53280 to 1', output)
 
+    def testMessages(self):
+        """Errors and warnings, each reported at the line that causes it."""
+        for source, message in [
+            ('.org $1000\n.byte 1\n.org $1000\n.byte 2\n', 'test.asm:4 warning: $1000 is overwritten ($01 to $02)'),
+            ('.org $ffff\n.byte 1, 2\n',            'test.asm:2 error: Destination memory address out of range: $10000'),
+            ('jmp ($10ff)\n',                        'test.asm:1 warning: Indirect address located on page boundary: $10ff'),
+            ('stx $100,y\n',                         'test.asm:1 error: Unknown instruction or address mode: stx 0x100,y'),
+            ('.text "a"\n',                          'test.asm:1 error: Unknown character "a" in text "a"'),
+            ('.align 0\n',                           'test.asm:1 error: Alignment must be positive: 0'),
+            ('.print 1 + 1\n',                       '\n2\n'),
+            ('.warning "careful"\n',                 'test.asm:1 warning: careful'),
+            ('.error "stop"\n',                      'test.asm:1 error: stop'),
+            ('.endr\n',                              'test.asm:1 error: End repeat without matching repeat'),
+            ('.py "1/0"\n',                          'test.asm:1 error: Failed to execute python code: "1/0"'),
+            ('.import "nothere.py"\n',               'test.asm:1 error: Failed to execute python code'),
+            ('.binary "nothere.bin"\n',              'test.asm:1 error: File not found: "nothere.bin"'),
+            ('.music "nothere.sid", "M"\n',          'test.asm:1 error: Music not loaded: "nothere.sid"'),
+            ('.sprite "nothere.bmp", 1\n',           'test.asm:1 error: Image not loaded: "nothere.bmp"'),
+            ('.zpbyte "a"\n.zpbyte "a"\n',           'test.asm:2 error: Label was already defined: "a"'),
+            ('.repeat "i", 127\n.zpword "v{i}"\n.endr\n.zpbyte "last"\n', # $02-$ff is full
+                                                     'test.asm:4 error: No space for zero page variable: "last"'),
+            ('hello world\n',                        'test.asm:1 error: Invalid syntax'),
+        ]:
+            with self.subTest(source=source):
+                anyErrors, output = self._assemble(source)
+                self.assertIn(message, output)
+
+    def testBrokenBuiltinImport(self):
+        """A built-in import that fails is reported, and assembly continues."""
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as directory:
+            fileName = os.path.join(directory, 'broken.py')
+            with open(fileName, 'w') as f:
+                f.write('1/0\n')
+            with mock.patch('glob.glob', return_value=[fileName]): # instead of the imports folder
+                anyErrors, output = self._assemble('nop\n')
+        self.assertFalse(anyErrors)
+        self.assertIn(f'failed to import: {fileName}', output)
+
 if __name__ == '__main__':
     unittest.main()
 

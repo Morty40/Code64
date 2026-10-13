@@ -135,6 +135,11 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(strings('x = %11'),      ['x', '=', '0b11'])
 
 
+    def testTokenRepr(self):
+        self.assertEqual(repr(Token('lda', 'a.asm', 3)), 'lda (a.asm:3)')
+        self.assertEqual(repr(Token('\n')), '\\n (:0)') # newline is shown escaped
+
+
     def testChunkSplit(self):
         tokens = [Token('a'), Token('\n'), Token('b'), Token('c'), Token('\n'), Token('\n'), Token('d')]
         for index, chunk in enumerate(chunkSplit(tokens)):
