@@ -8,6 +8,13 @@ import text
 
 
 class Context:
+    """The state of one assemble pass.
+
+    The read pointer stack has a (fileName, lineIndex) for each file
+    being assembled. The top is the current line, and an imported file
+    or generator is pushed on top of the file that uses it.
+    """
+
     def __init__(self, symbols: dict):
         self.readPointerStack = []
         
@@ -35,12 +42,14 @@ class Context:
 
         
     def jumpReadPointer(self, readPointer: tuple):
+        """Continue from another line. Used by .endr to repeat."""
         if len(self.readPointerStack) > 0:
             self.popReadPointer()
             self.pushReadPointer(readPointer)
 
         
     def pushReadPointer(self, readPointer: tuple):
+        """Start assembling another file, on top of the current one."""
         self.readPointerStack.append(readPointer)
         
         
@@ -52,6 +61,7 @@ class Context:
         
         
     def advanceReadPointer(self):
+        """Move to the next line, and return the new read pointer."""
         if len(self.readPointerStack) > 0:
             fileName, lineIndex = self.popReadPointer()
             readPointer = (fileName, lineIndex + 1)        

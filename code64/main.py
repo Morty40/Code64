@@ -19,6 +19,7 @@ def printUsage():
 
 
 def main():
+    """Assemble the file given on the command line. Exits with 1 on errors."""
     argv = sys.argv[1:]
     
     asmFile = None

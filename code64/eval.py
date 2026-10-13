@@ -14,6 +14,7 @@ import text
 
 
 def expression(e: str, context: Context):
+    """Evaluate a Python expression, or report an error and return None."""
     value = None
     try:
         value = builtins.eval(e, context.symbols)
@@ -23,6 +24,7 @@ def expression(e: str, context: Context):
 
 
 def intExpression(e: str, context: Context) -> int:
+    """Evaluate an int. Floats are truncated, other types give an error."""
     value = expression(e, context)
     if type(value) is float:
         intValue = int(value)
@@ -35,7 +37,8 @@ def intExpression(e: str, context: Context) -> int:
     return value
     
     
-def byteExpression(e: str, context: Context) -> int:    
+def byteExpression(e: str, context: Context) -> int:
+    """Evaluate a byte from -128 to 255, negative in two's complement."""
     value = intExpression(e, context)
     if value < -128 or value > 255:
         context.reportError(f'Byte value out of range: {value}')
@@ -43,6 +46,7 @@ def byteExpression(e: str, context: Context) -> int:
 
 
 def wordExpression(e: str, context: Context) -> int:
+    """Evaluate a word from -32768 to 65535, negative in two's complement."""
     value = intExpression(e, context)
     if value < -32768 or value > 65535:
         context.reportError(f'Word value out of range: {value}')
@@ -50,6 +54,7 @@ def wordExpression(e: str, context: Context) -> int:
 
 
 def lambdaExpression(e: str, context: Context):
+    """Evaluate a lambda written without the keyword, e.g. "x: x * 2"."""
     value = expression(f'lambda {e}', context)
     if not isinstance(value, types.FunctionType):
         context.reportError(f'Expected a function instead of: "{e}"')

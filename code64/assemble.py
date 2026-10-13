@@ -36,6 +36,7 @@ def _join(tokens: list) -> str:
 
 
 def _store(value: int, context: Context):
+    """Store a byte at the current address, and advance the address."""
     currentLocation = context.symbols['_']
     
     if currentLocation >= 0 and currentLocation <= 0xffff:
@@ -53,6 +54,10 @@ def _store(value: int, context: Context):
     
 
 def _asmInstruction(chunk: list, context: Context):
+    """Assemble an instruction, with the address mode given by the operand.
+
+    Zero page modes are chosen for addresses below $100.
+    """
     mnemonic = chunk[0].string
     operand = _join(chunk[1:])
         
@@ -123,6 +128,7 @@ def _asmInstruction(chunk: list, context: Context):
 
     
 def _asmAssignment(chunk: list, context: Context):
+    """Assign an expression to a symbol: name = expression."""
     symbol = chunk[0].string
     expression = _join(chunk[2:])
     value = eval.expression(expression, context)
@@ -130,7 +136,12 @@ def _asmAssignment(chunk: list, context: Context):
         context.symbols[symbol] = value
     
     
-def _asmDirective(chunk: list, context: Context):
+def _asmDirective(chunk: list, context: Context) -> bool:
+    """Assemble a directive, such as .byte or .org.
+
+    The arguments are evaluated as one expression, a tuple if several.
+    Returns False if the directive moved the read pointer (.import).
+    """
     c = chunk[1]
 
     advance = True # advance read pointer after this chunk
@@ -377,7 +388,12 @@ _asmDirective.imageFiles = {}
 _asmDirective.pythonFiles = {}
 
 
-def _asmGenerator(chunk: list, context: Context):
+def _asmGenerator(chunk: list, context: Context) -> bool:
+    """Assemble the code returned by a generator: @function(arguments).
+
+    Local labels get their own scope for each call. Returns False, as
+    the read pointer is moved to the generated code.
+    """
     generator = _join(chunk[1:])
     value = eval.expression(generator, context)
 
@@ -394,7 +410,8 @@ def _asmGenerator(chunk: list, context: Context):
     return False # don't advance
 
 
-def _saveMemoryToPrg(start: int, memory: dict, fileName: str):        
+def _saveMemoryToPrg(start: int, memory: dict, fileName: str):
+    """Save a .prg file: the load address, then memory from start to end."""
     f = open(fileName, 'wb')
 
     ints = [lo(start), hi(start)]
@@ -410,7 +427,11 @@ def _saveMemoryToPrg(start: int, memory: dict, fileName: str):
 
 
 def multiPass(inFile, outFile) -> bool:
+    """Assemble inFile, and save it to outFile if there are no errors.
 
+    Passes are repeated until the output stops changing (max. 9), so
+    labels can be used before they are defined. Returns True on errors.
+    """
     path = os.path.dirname(inFile)
 
     symbols = {'lo': lo, 'hi': hi,
@@ -438,11 +459,13 @@ def multiPass(inFile, outFile) -> bool:
 
     n = 1
     while n<10:
+        # a new context each pass, but symbols are kept from the last pass
         symbols['_'] = defaultOrigin
         context = Context(symbols)
         context.path = path
         context.pushReadPointer( (inFile, 0) )
 
+        # assemble line by line, from the file on top of the read pointer stack
         while True:
             readPointer = context.readPointer()
             #print(readPointer)
@@ -450,7 +473,7 @@ def multiPass(inFile, outFile) -> bool:
 
             fileName, lineIndex = readPointer
             
-            if not fileName in multiPass.chunks:
+            if not fileName in multiPass.chunks: # tokenized once, for all passes
                 print(f'Loading: {fileName}')
                 multiPass.chunks[fileName] = list(lexer.chunkSplit(lexer.tokenizeFile(fileName)))
 
@@ -489,8 +512,9 @@ def multiPass(inFile, outFile) -> bool:
                     context.advanceReadPointer()
                 
             else:
-                context.popReadPointer()
+                context.popReadPointer() # end of file, back to the importing file
                 
+        # done when there are no errors, and the output is unchanged
         if len(context.errors) == 0 and context.memory == lastMemory:
             break
 

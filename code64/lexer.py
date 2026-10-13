@@ -8,6 +8,8 @@ import cpu
 
 
 class Token:
+    """A word or symbol from the source, e.g. a mnemonic or a number."""
+
     def __init__(self, string: str, fileName: str='', lineNumber: int=0):
         self.string = string
         self.fileName = fileName
@@ -48,6 +50,11 @@ def translateLocalLabels(tokens, lastLabel=''):
 
 
 def tokenize(text: str, fileName=''):
+    """Split source code into tokens, with a newline token after each line.
+
+    Comments are removed, $ and % become 0x and 0b, and strings become
+    f-strings, so the tokens form valid Python expressions.
+    """
     tokens = []
 
     if type(text) is str:
@@ -69,6 +76,7 @@ def tokenize(text: str, fileName=''):
 
 
 def tokenizeFile(fileName):
+    """Tokenize a source file, and translate its local labels."""
     try:
         with open(fileName, 'r') as f:
             text = f.read()
