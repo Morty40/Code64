@@ -150,6 +150,16 @@ class TestEval(unittest.TestCase):
         self.assertEqual(len(context.errors), 0)
 
 
+    def testEvalLambdaExpressionError(self):
+        context = Context({})
+        value = lambdaExpression('1', context) # not a lambda: "lambda 1" is invalid syntax
+        self.assertEqual(isinstance(value, types.FunctionType), True)
+        self.assertEqual(value(5), 5) # falls back to the identity function
+        self.assertEqual(len(context.warnings), 0)
+        self.assertEqual(len(context.errors), 2) # the syntax error, and the expected function
+        self.assertEqual(context.errors[-1], 'error: Expected a function instead of: "1"')
+
+
     def testEncodingFunctions(self):
         context = Context({})
         self.assertEqual(expression('ord("A")', context), 1)

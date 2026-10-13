@@ -91,7 +91,7 @@ def ord(char: str, encoding: int) -> int:
     map = _ord[encoding]
     return map[char] if char in map else None
 
-class TestPetscii(unittest.TestCase):
+class TestText(unittest.TestCase):
 
     def testChr_A(self):
         self.assertEqual(chr(1, ENCODING_SCREEN_UPPER), 'A')
