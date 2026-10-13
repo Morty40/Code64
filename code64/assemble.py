@@ -528,6 +528,13 @@ class TestAssemble(unittest.TestCase):
         _asmDirective(lexer.tokenize('.bits 3')[:-1], context)
         self.assertEqual(context.errors, ['error: Invalid directive: .bits 3'])
 
+    def testBranchOutOfRange(self):
+        # one byte beyond +127 and -128, counted from $1002, the address after the branch
+        for target, dist in [('$1082', 128), ('$0f81', -129)]:
+            context = Context({'_': 0x1000})
+            _asmInstruction(lexer.tokenize(f'bne {target}')[:-1], context)
+            self.assertEqual(context.errors, [f'error: Branch destination out of range [-128..127]: {dist}'])
+
 if __name__ == '__main__':
     unittest.main()
 
