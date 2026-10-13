@@ -175,13 +175,13 @@ def _asmDirective(chunk: list, context: Context) -> bool:
     # data directive: declare a list of byte values
     if directive == 'byte':
         for arg in arguments:
-            value = eval.byteExpression(str(arg), context)
+            value = eval.byteExpression(repr(arg), context)
             _store(value, context)
 
     # data directive: declare a list of word values
     elif directive == 'word':
         for arg in arguments:
-            value = eval.wordExpression(str(arg), context)
+            value = eval.wordExpression(repr(arg), context)
             _store(lo(value), context)
             _store(hi(value), context)
         
@@ -230,9 +230,9 @@ def _asmDirective(chunk: list, context: Context) -> bool:
                 context.reportError(f'{str(exception).capitalize()}')
                 value = 0
             if directive == 'bytefill':
-                _store(eval.byteExpression(f'{value}', context), context)
+                _store(eval.byteExpression(repr(value), context), context)
             else:
-                value = eval.wordExpression(f'{value}', context)
+                value = eval.wordExpression(repr(value), context)
                 _store(lo(value), context)
                 _store(hi(value), context)
 
@@ -612,6 +612,13 @@ class TestAssemble(unittest.TestCase):
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(source)
                 self.assertIn(message, output)
+
+    def testByteWordString(self):
+        """A string is not a .byte or .word value, even if a symbol has that name."""
+        for source in ['.byte "B"', '.word "B"', '.bytefill 1, "x: \'B\'"', '.wordfill 1, "x: \'B\'"']:
+            with self.subTest(source=source):
+                anyErrors, output = self._assemble(f'B = 5\n{source}\n')
+                self.assertIn('test.asm:2 error:', output)
 
     def testMessages(self):
         """Errors and warnings, each reported at the line that causes it."""
