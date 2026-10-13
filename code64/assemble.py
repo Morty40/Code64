@@ -207,8 +207,8 @@ def _asmDirective(chunk: list, context: Context) -> bool:
         arg = arguments[0]
         context.symbols['_'] = arg
 
-    # fill memory with n bytes, optional lambda argument
-    elif directive == 'bytefill' and (argTypes == [int] or argTypes == [int, str]):
+    # fill memory with n bytes or words, optional lambda argument
+    elif directive in ['bytefill', 'wordfill'] and (argTypes == [int] or argTypes == [int, str]):
         n = arguments[0]
         if len(arguments) == 2:
             f = eval.lambdaExpression(arguments[1], context)
@@ -220,24 +220,12 @@ def _asmDirective(chunk: list, context: Context) -> bool:
             except Exception as exception:
                 context.reportError(f'{str(exception).capitalize()}')
                 value = 0
-            value = eval.byteExpression(f'{value}', context)
-            _store(value, context)
-
-    elif directive == 'wordfill' and (argTypes == [int] or argTypes == [int, str]):
-        n = arguments[0]
-        if len(arguments) == 2:
-            f = eval.lambdaExpression(arguments[1], context)
-        else:
-            f = lambda x: 0
-        for x in range(0, n):
-            try:
-                value = f(x)
-            except Exception as exception:
-                context.reportError(f'{str(exception).capitalize()}')
-                value = 0
-            value = eval.wordExpression(f'{value}', context)
-            _store(lo(value), context)
-            _store(hi(value), context)
+            if directive == 'bytefill':
+                _store(eval.byteExpression(f'{value}', context), context)
+            else:
+                value = eval.wordExpression(f'{value}', context)
+                _store(lo(value), context)
+                _store(hi(value), context)
 
     # align the current memory location to n
     elif directive == 'align' and argTypes == [int]:
@@ -301,7 +289,8 @@ def _asmDirective(chunk: list, context: Context) -> bool:
         if extension == ".py":
             try:
                 print(f'Loading: {fileName}')
-                py = open(fileName).read() # TODO: use _asmDirective.pythonFiles
+                with open(fileName) as f: # TODO: use _asmDirective.pythonFiles
+                    py = f.read()
                 exec(py, context.symbols)
             except:
                 context.reportError(f'Failed to execute python code: "{expression}"')
@@ -448,7 +437,8 @@ def multiPass(inFile, outFile) -> bool:
 
     for fileName in imports:
         try:
-            py = open(fileName).read()
+            with open(fileName) as f:
+                py = f.read()
             exec(py, symbols)
         except:
             print(f"failed to import: {fileName}")

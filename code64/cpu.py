@@ -24,35 +24,10 @@ class AddressMode(Enum):
 
 class Instruction:
 
-    def __init__(self, mnemonic,
-                absolute    = None,
-                absoluteX   = None,
-                absoluteY   = None,
-                accumulator = None,
-                immediate   = None,
-                implied     = None,
-                indirect    = None,
-                indirectX   = None,
-                indirectY   = None,
-                relative    = None,
-                zeroPage    = None,
-                zeroPageX   = None,
-                zeroPageY   = None):
+    def __init__(self, mnemonic, **opcodes):
+        """Opcodes are given by address mode name, e.g. immediate=0xa9."""
         self.mnemonic = mnemonic
-        self.opcodes = {}
-        if absolute    is not None: self.opcodes[AddressMode.absolute   ] = absolute
-        if absoluteX   is not None: self.opcodes[AddressMode.absoluteX  ] = absoluteX
-        if absoluteY   is not None: self.opcodes[AddressMode.absoluteY  ] = absoluteY
-        if accumulator is not None: self.opcodes[AddressMode.accumulator] = accumulator
-        if immediate   is not None: self.opcodes[AddressMode.immediate  ] = immediate
-        if implied     is not None: self.opcodes[AddressMode.implied    ] = implied
-        if indirect    is not None: self.opcodes[AddressMode.indirect   ] = indirect
-        if indirectX   is not None: self.opcodes[AddressMode.indirectX  ] = indirectX
-        if indirectY   is not None: self.opcodes[AddressMode.indirectY  ] = indirectY
-        if relative    is not None: self.opcodes[AddressMode.relative   ] = relative
-        if zeroPage    is not None: self.opcodes[AddressMode.zeroPage   ] = zeroPage
-        if zeroPageX   is not None: self.opcodes[AddressMode.zeroPageX  ] = zeroPageX
-        if zeroPageY   is not None: self.opcodes[AddressMode.zeroPageY  ] = zeroPageY
+        self.opcodes = {AddressMode[mode]: opcode for mode, opcode in opcodes.items()}
 
 
 instructionSet = {
