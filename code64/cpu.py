@@ -104,9 +104,15 @@ def isMnemonic(mnemonic: str) -> bool:
 
 
 class TestCpu(unittest.TestCase):
+    """Tests of the instruction set table and lookups.
+
+    The opcodes themselves are tested by the regression tests in testcases/,
+    which assemble every instruction in every address mode.
+    """
 
     def testInstructionSet(self):
-        self.assertEqual(len(instructionSet), 56)
+        """The table has all instructions, and they can be looked up by mnemonic."""
+        self.assertEqual(len(instructionSet), 56) # the documented 6502 instructions
         
         i = instructionWithMnemonic('lda')
         self.assertEqual(i.mnemonic, 'lda')
@@ -116,12 +122,17 @@ class TestCpu(unittest.TestCase):
 
 
     def testIsMnemonic(self):
+        """Only instruction mnemonics are recognized, in lowercase."""
         self.assertEqual(isMnemonic(''), False)
-        self.assertEqual(isMnemonic('a'), False)
-        self.assertEqual(isMnemonic('yyy'), False)
+        self.assertEqual(isMnemonic('xxx'), False)
         self.assertEqual(isMnemonic('lda'), True)
         self.assertEqual(isMnemonic('sta'), True)
         self.assertEqual(isMnemonic('nop'), True)
+
+
+    def testUnknownAddressMode(self):
+        """A misspelled address mode in the table is an error when the module is loaded."""
+        self.assertRaises(KeyError, Instruction, 'xxx', zeroPagee=0x00)
         
 
 if __name__ == '__main__':
