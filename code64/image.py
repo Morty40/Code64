@@ -4,7 +4,13 @@ import unittest
 import struct
 
 
-class Image:    
+class Image:
+    """An image converted to single colour sprites, in data.
+
+    The image is cut into blocks of 24x21 pixels, each stored as a 64-byte
+    sprite. Pixels are 8 to a byte, and any non-zero pixel is a set bit.
+    """
+
     def __init__(self, width: int, height: int, pixels: list):
         self.width = width
         self.height = height
@@ -28,6 +34,7 @@ class Image:
                     for xx in range(0, blockWidth, 8):
 
 
+                        # BMP rows are stored bottom up
                         index = (height - 1 - (y + yy)) * width + (x+xx)
                         byte = self.pixelsToByte(pixels[index:index+8])
 
@@ -53,6 +60,10 @@ class Image:
 
 
 def load(fileName: str, context):
+    """Load an 8 bits per pixel BMP file, with a width that is a multiple of 8.
+
+    Returns the Image, or None after reporting an error.
+    """
     image = None
 
     try:

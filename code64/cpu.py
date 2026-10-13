@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+"""The 6502 instruction set: the opcode of each instruction in each address mode."""
 
 # https://en.wikipedia.org/wiki/MOS_Technology_6502
 # https://www.masswerk.at/6502/6502_instruction_set.html
@@ -7,6 +8,8 @@ from enum import Enum
 import unittest
 
 class AddressMode(Enum):
+    """The 6502 address modes. The values are the operand syntax, for reference."""
+
     absolute    = 'absolute'
     absoluteX   = 'absolute,x'
     absoluteY   = 'absolute,y'
@@ -23,6 +26,7 @@ class AddressMode(Enum):
 
 
 class Instruction:
+    """An instruction mnemonic, and its opcode for each address mode it supports."""
 
     def __init__(self, mnemonic, **opcodes):
         """Opcodes are given by address mode name, e.g. immediate=0xa9."""
@@ -92,6 +96,7 @@ _mnemonicMap = {instruction.mnemonic: instruction for instruction in instruction
 
 
 def instructionWithMnemonic(mnemonic: str) -> Instruction:
+    """Return the instruction for a lower case mnemonic, e.g. 'lda', or None."""
     return _mnemonicMap[mnemonic] if mnemonic in _mnemonicMap else None
 
 

@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+"""Evaluation of Python expressions, with the assembler symbols as variables."""
 
 import builtins
 import unittest

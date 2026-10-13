@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+"""Text encodings: screen codes and PETSCII, in upper case and mixed case."""
 
 # https://en.wikipedia.org/wiki/PETSCII
 
@@ -81,12 +82,12 @@ _ord = {
 }
 
 def chr(value: int, encoding: int) -> str:
-    """ from int to char """
+    """Return the character for a value in the encoding, or None if there is none."""
     map = _chr[encoding]
     return map[value] if value in map else None
 
 def ord(char: str, encoding: int) -> int:
-    """ from char to int """
+    """Return the value of a character in the encoding, or None if it has none."""
     map = _ord[encoding]
     return map[char] if char in map else None
 

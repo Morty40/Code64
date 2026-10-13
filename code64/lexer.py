@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+"""The lexer: splits source code into tokens, one line at a time."""
 
 import re
 import shlex
@@ -65,6 +66,8 @@ def tokenize(text: str, fileName=''):
 
             prev = ['', ''] # previous two tokens, to tell modulo from binary prefix
             for token in lex:
+                # % is modulo after a number, name or closing bracket (7 % 4), and
+                # otherwise a binary prefix (%101), e.g. after a directive or mnemonic
                 afterOperand = re.search(r'[\w)\]]$', prev[1]) and prev[0] != '.' and not cpu.isMnemonic(prev[1])
                 if not (token.startswith('%') and afterOperand):
                     token = _fixPrefix(token)
@@ -88,9 +91,6 @@ def tokenizeFile(fileName):
     tokens = tokenize(text, fileName)
     tokens = translateLocalLabels(tokens)
 
-    #for t in tokens:
-    #    print(t.string, end=' ')
-        
     return tokens
 
 

@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+"""The assembler: assembles source files into memory, in multiple passes."""
 
 import contextlib
 import io
@@ -92,6 +93,7 @@ def _asmInstruction(chunk: list, context: Context):
 
     elif cpu.AddressMode.relative in opcodes: # TODO: give warning about branching across page boundary
         v = eval.wordExpression(operand, context)
+        # the offset counts from the address after the 2-byte branch instruction
         dist = v - context.symbols['_'] - 2
         if dist < -128 or dist > 127: # branch is out of range (signed byte)
             context.reportError(f'Branch destination out of range [-128..127]: {dist}')
@@ -155,7 +157,8 @@ def _asmDirective(chunk: list, context: Context) -> bool:
     directive = chunk[1].string
     expression = _join(chunk[2:])
 
-    # eval list of arguments
+    # the arguments are one Python expression: a tuple if there are several,
+    # e.g. .byte 1, 2. Directives check argTypes, e.g. [str, int] for .repeat
     if len(expression.strip()) > 0:
         arguments = eval.expression(expression, context)
     else:
@@ -259,7 +262,7 @@ def _asmDirective(chunk: list, context: Context) -> bool:
         error = arguments[0]
         context.reportError(error)
             
-    # repeat
+    # repeat: remember the .repeat line, and start the iterator at 0
     elif directive == 'repeat' and argTypes == [str, int]:
         iterator = arguments[0]
         count = arguments[1]
@@ -267,14 +270,15 @@ def _asmDirective(chunk: list, context: Context) -> bool:
         context.repeatStack.append( (iterator, count, readPointer) )
         context.symbols[iterator] = 0
 
-    # end repeat
+    # end repeat: count the iterator up, and jump back while it is below the count.
+    # The jump goes to the .repeat line, and as the read pointer then advances,
+    # assembly continues on the first line of the block.
     elif directive == 'endr' and argTypes == []:
         if len(context.repeatStack) > 0:
             iterator, count, readPointer = context.repeatStack[-1] # last repeat
             context.symbols[iterator] += 1 # increment iterator
             if context.symbols[iterator] < count: # branch condition
                 context.jumpReadPointer(readPointer)
-                ## TODO: readpointer is advanced so it works by coincidence
             else:
                 context.repeatStack.pop()
         else:
@@ -295,7 +299,7 @@ def _asmDirective(chunk: list, context: Context) -> bool:
         if extension == ".py":
             try:
                 print(f'Loading: {fileName}')
-                with open(fileName) as f: # TODO: use _asmDirective.pythonFiles
+                with open(fileName) as f:
                     py = f.read()
                 exec(py, context.symbols)
             except:
@@ -380,7 +384,6 @@ def _asmDirective(chunk: list, context: Context) -> bool:
 _asmDirective.binaryFiles = {} # function static variable
 _asmDirective.musicFiles = {}
 _asmDirective.imageFiles = {}
-_asmDirective.pythonFiles = {}
 
 
 def _asmGenerator(chunk: list, context: Context) -> bool:

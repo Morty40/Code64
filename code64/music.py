@@ -4,7 +4,9 @@ import unittest
 import struct
 
 
-class Music:    
+class Music:
+    """The music data from a SID file, and the addresses to load, init and play it."""
+
     def __init__(self, loadAddress, initAddress, playAddress, data):
         self.loadAddress = loadAddress
         self.initAddress = initAddress
@@ -13,6 +15,10 @@ class Music:
         
 
 def load(fileName: str, context):
+    """Load a SID file in PSID format, without its header.
+
+    Returns the Music, or None after reporting an error.
+    """
     music = None
     
     try:
