@@ -2,7 +2,6 @@
 """The assembler state: symbols, memory, messages and the current line."""
 
 import math
-import os
 import unittest
 
 import text
@@ -30,7 +29,6 @@ class Context:
         self.warnings = []
         self.errors = []
         self.repeatStack = [] # (iterator, count, readPointer) per open .repeat
-        self.macroDict = {}
         self.zpAddress = 2 # $0 and $1 are reserved
         self.generatorCount = 0 # gives each generator call its own local label scope
         self.path = '' # folder of the main source file, for .import and .binary

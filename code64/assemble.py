@@ -142,8 +142,6 @@ def _asmDirective(chunk: list, context: Context) -> bool:
     The arguments are evaluated as one expression, a tuple if several.
     Returns False if the directive moved the read pointer (.import).
     """
-    c = chunk[1]
-
     advance = True # advance read pointer after this chunk
 
     directive = chunk[1].string
@@ -458,7 +456,6 @@ def multiPass(inFile, outFile) -> bool:
         # assemble line by line, from the file on top of the read pointer stack
         while True:
             readPointer = context.readPointer()
-            #print(readPointer)
             if readPointer is None: break
 
             fileName, lineIndex = readPointer
