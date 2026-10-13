@@ -174,7 +174,7 @@ squares = [x * x for x in range(16)]
 
 #### Constants
 
-Symbols in all upper case, such as `SCREEN` or `MAX_SPEED`, are constants: once a constant has a value, it can't be assigned a different value. Doing so is an error, and the constant keeps its first value. Symbols with any lower case letters, such as `speed` or `maxSpeed`, are variables, and can be assigned again freely.
+Symbols in all upper case, such as `SCREEN` or `MAX_SPEED`, are constants: once a constant has a value, it can't be assigned a different value. Doing so is an error, and the constant keeps its first value. Symbols with any lower case letters, such as `speed` or `maxSpeed`, are variables, and can be assigned again, with a value of the same [type](#symbol-types).
 
 ```
 MAX_SPEED = 4
@@ -187,6 +187,27 @@ speed = 2                   ; ok, a variable
 The built-in symbols, such as `VIC_BORDER_COLOR`, are constants too, so they cannot be given a different value by mistake.
 
 Use a variable for a value that changes, for example in each round of a `.repeat` block. Also use a variable for a value calculated from labels that come later in the source, such as `codeSize = end - start`: while the assembler passes settle, such a value can change, which is an error for a constant.
+
+#### Symbol types
+
+A symbol keeps the type of its first value: an `int` can't become a `str`, a function can't become an `int`, and so on. Assigning a value of another type is an error, and the symbol keeps its old value. This applies to assignments, labels, `.zpbyte` and `.zpword` names, and `.repeat` counters, where the last three are always `int`.
+
+```
+count = 1
+count = 2                   ; ok, still an int
+count = "two"               ; error: Symbol "count" cannot change type from int to str
+```
+
+This also protects the symbols from Python's `math` module, so a label or assignment can't replace `e`, `pi` or `sin` by mistake:
+
+```
+pi = 3                      ; error: Symbol "pi" cannot change type from float to int
+sin:        nop             ; error: Symbol "sin" cannot change type from builtin_function_or_method to int
+```
+
+Note that `int`, `float` and `bool` are different types. To keep a value that can have decimals, start it as a `float`, e.g. `speed = 1.0`, rather than `speed = 1`.
+
+Symbols set by Python code, with `.py` or `.import` of a `.py` file, are not checked.
 
 ### Expressions
 
@@ -206,7 +227,7 @@ Besides the Python built-ins, these are available:
 | `_` | the current address |
 | `lo(x)`, `hi(x)` | the low and high byte of a 16-bit value |
 | `ord(char)`, `chr(value)` | convert between a character and its value, in the current text encoding |
-| `sin`, `cos`, `pi`, `floor`, ... | everything from Python's `math` module |
+| `sin`, `cos`, `pi`, `floor`, ... | everything from Python's `math` module, protected by the [symbol types](#symbol-types) |
 | `ENCODING_...` | the text encodings, see `.encoding` |
 
 Strings in double quotes are Python f-strings, so `{expression}` inside a string is replaced with its value:

@@ -35,6 +35,19 @@ class Context:
         self.encoding = text.ENCODING_SCREEN_UPPER
 
 
+    def setSymbol(self, name: str, value) -> bool:
+        """Set a symbol, which keeps its type, e.g. an int can't become a str.
+
+        Returns False, and keeps the old value, if the type would change.
+        """
+        if name in self.symbols and type(self.symbols[name]) != type(value):
+            oldType, newType = type(self.symbols[name]).__name__, type(value).__name__
+            self.reportError(f'Symbol "{name}" cannot change type from {oldType} to {newType}')
+            return False
+        self.symbols[name] = value
+        return True
+
+
     def readPointer(self):
         """Return the current (fileName, lineIndex), or None when done."""
         return self.readPointerStack[-1] if self.readPointerStack else None

@@ -143,7 +143,7 @@ def _asmAssignment(chunk: list, context: Context):
             if symbol in context.symbols and context.symbols[symbol] != value:
                 context.reportError(f'Constant "{symbol}" cannot be changed from {context.symbols[symbol]} to {value}')
                 return # the constant keeps its value
-        context.symbols[symbol] = value
+        context.setSymbol(symbol, value)
     
     
 def _asmDirective(chunk: list, context: Context) -> bool:
@@ -267,8 +267,8 @@ def _asmDirective(chunk: list, context: Context) -> bool:
         iterator = arguments[0]
         count = arguments[1]
         readPointer = context.readPointer()
-        context.repeatStack.append( (iterator, count, readPointer) )
-        context.symbols[iterator] = 0
+        if context.setSymbol(iterator, 0):
+            context.repeatStack.append( (iterator, count, readPointer) )
 
     # end repeat: count the iterator up, and jump back while it is below the count.
     # The jump goes to the .repeat line, and as the read pointer then advances,
@@ -341,9 +341,9 @@ def _asmDirective(chunk: list, context: Context) -> bool:
                 context.reportError(f'Music not loaded: "{fileName}"')
 
         if (mu := _asmDirective.musicFiles.get(fileName)) is not None:
-            context.symbols[prefix+'_LOAD'] = mu.loadAddress
-            context.symbols[prefix+'_INIT'] = mu.initAddress
-            context.symbols[prefix+'_PLAY'] = mu.playAddress
+            context.setSymbol(prefix+'_LOAD', mu.loadAddress)
+            context.setSymbol(prefix+'_INIT', mu.initAddress)
+            context.setSymbol(prefix+'_PLAY', mu.playAddress)
             for b in mu.data:
                 _store(b, context)
 
@@ -369,9 +369,9 @@ def _asmDirective(chunk: list, context: Context) -> bool:
         for arg in arguments:
             if context.zpAddress+size <= 0x100:
                 if arg not in context.labels:
-                    context.symbols[arg] = context.zpAddress
-                    context.labels.add(arg)
-                    context.zpAddress += size
+                    if context.setSymbol(arg, context.zpAddress):
+                        context.labels.add(arg)
+                        context.zpAddress += size
                 else:
                     context.reportError(f'Label was already defined: "{arg}"')
             else:
@@ -487,7 +487,7 @@ def multiPass(inFile, outFile) -> bool:
                     label = chunk[0].string
                     if label in context.labels:
                         context.reportError(f'Label was already defined: "{label}"')
-                    context.symbols[label] = context.symbols['_']
+                    context.setSymbol(label, context.symbols['_'])
                     context.labels.add(label)
                     chunk = chunk[2:]
 
@@ -592,6 +592,26 @@ class TestAssemble(unittest.TestCase):
         self.assertFalse(anyErrors, output)
         anyErrors, output = self._assemble('VIC_BORDER_COLOR = 1\n')
         self.assertIn('test.asm:1 error: Constant "VIC_BORDER_COLOR" cannot be changed from 53280 to 1', output)
+
+    def testSymbolTypes(self):
+        """A symbol keeps its type, e.g. an int can't become a str."""
+        anyErrors, output = self._assemble('x = 1\nx = 2\nname = "a"\nname = "b"\nf = lambda v: v\nf = lambda v: v + 1\n')
+        self.assertFalse(anyErrors, output)
+
+        for source, message in [
+            ('x = 1\nx = "a"\n',          'test.asm:2 error: Symbol "x" cannot change type from int to str'),
+            ('f = lambda v: v\nf = 1\n',  'test.asm:2 error: Symbol "f" cannot change type from function to int'),
+            ('x = "a"\nx: nop\n',         'test.asm:2 error: Symbol "x" cannot change type from str to int'),
+            ('.zpbyte "x"\nx = "a"\n',    'test.asm:2 error: Symbol "x" cannot change type from int to str'),
+            ('i = "a"\n.repeat "i", 2\n.endr\n', 'test.asm:2 error: Symbol "i" cannot change type from str to int'),
+            # the math module is protected
+            ('pi = 3\n',                  'test.asm:1 error: Symbol "pi" cannot change type from float to int'),
+            ('e: nop\n',                  'test.asm:1 error: Symbol "e" cannot change type from float to int'),
+            ('sin: nop\n',                'test.asm:1 error: Symbol "sin" cannot change type from builtin_function_or_method to int'),
+        ]:
+            with self.subTest(source=source):
+                anyErrors, output = self._assemble(source)
+                self.assertIn(message, output)
 
     def testMessages(self):
         """Errors and warnings, each reported at the line that causes it."""
