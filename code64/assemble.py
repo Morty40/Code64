@@ -13,6 +13,7 @@ import pathlib, sys
 sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 #--
 
+import assignments
 import cpu
 import directives
 import evaluate
@@ -24,23 +25,6 @@ from context import Context
 from cpu import lo, hi
 
 
-def _asmAssignment(chunk: list, context: Context):
-    """Assign an expression to a symbol: name = expression.
-
-    Upper case symbols are constants: once they have a value, they can't
-    be assigned a different value.
-    """
-    symbol = chunk[0].string
-    expression = lexer.join(chunk[2:])
-    value = evaluate.expression(expression, context)
-    if value is not None:
-        if symbol.isupper():
-            if symbol in context.symbols and context.symbols[symbol] != value:
-                context.reportError(f'Constant "{symbol}" cannot be changed from {context.symbols[symbol]} to {value}')
-                return # the constant keeps its value
-        context.setSymbol(symbol, value)
-    
-    
 def _saveMemoryToPrg(start: int, memory: dict, fileName: str):
     """Save a .prg file: the load address, then memory from start to end."""
     f = open(fileName, 'wb')
@@ -128,7 +112,7 @@ def multiPass(inFile, outFile) -> bool:
                     instructions.assemble(chunk, context)
 
                 elif len(chunk) >= 3 and chunk[1].string == '=':
-                    _asmAssignment(chunk, context)
+                    assignments.assemble(chunk, context)
 
                 elif len(chunk) >= 2 and chunk[0].string == '.':
                     advance = directives.assemble(chunk, context)
