@@ -106,7 +106,7 @@ All 56 documented 6502 instructions are supported. Mnemonics are written in lowe
 | Address mode | Syntax |
 |---|---|
 | implied | `rts` |
-| accumulator | `asl` |
+| accumulator | `asl` (no operand) |
 | immediate | `lda #value` |
 | zero page / absolute | `lda address` |
 | zero page,x / absolute,x | `lda address,x` |
@@ -117,6 +117,8 @@ All 56 documented 6502 instructions are supported. Mnemonics are written in lowe
 | relative | `bne label` |
 
 The zero page form is chosen automatically when the address is below `$100` and the instruction has a zero page form. A branch to a destination out of range is an error, and `jmp (address)` with the address on a page boundary (`$xxff`) gives a warning, as the 6502 does not cross the page.
+
+The accumulator mode of `asl`, `lsr`, `rol` and `ror` is written without an operand. The `asl a` syntax of some other assemblers is not supported: the operand `a` is an expression like any other, so `asl a` uses a symbol named `a` as a zero page or absolute address.
 
 ### Numbers
 
