@@ -394,6 +394,8 @@ def _asmGenerator(chunk: list, context: Context) -> bool:
     """
     generator = _join(chunk[1:])
     value = eval.expression(generator, context)
+    if type(value) is not str:
+        context.reportError(f'Generator must return a string, not {type(value).__name__}')
 
     context.advanceReadPointer()
 
@@ -619,6 +621,14 @@ class TestAssemble(unittest.TestCase):
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(f'B = 5\n{source}\n')
                 self.assertIn('test.asm:2 error:', output)
+
+    def testGeneratorNotString(self):
+        """A generator must return assembly code as a string, or it is an error."""
+        for source, line in [('@nop\n', 1),                                # forgot the parentheses
+                             ('.py "def emit(): pass"\n@emit()\n', 2)]:     # forgot to return the code
+            with self.subTest(source=source):
+                anyErrors, output = self._assemble(source)
+                self.assertIn(f'test.asm:{line} error:', output)
 
     def testMessages(self):
         """Errors and warnings, each reported at the line that causes it."""
