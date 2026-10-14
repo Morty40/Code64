@@ -15,90 +15,14 @@ sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 
 import cpu
 import directives
+import instructions
 import eval
 import lexer
 import text
 from context import Context
-
-def lo(x): return x&0xff
-def hi(x): return (x>>8)&0xff
+from cpu import lo, hi
 
 
-def _asmInstruction(chunk: list, context: Context):
-    """Assemble an instruction, with the address mode given by the operand.
-
-    Zero page modes are chosen for addresses below $100.
-    """
-    mnemonic = chunk[0].string
-    operand = lexer.join(chunk[1:])
-        
-    instruction = cpu.instructionWithMnemonic(mnemonic)
-    opcodes = instruction.opcodes
-        
-    bytes = []
-    
-    if cpu.AddressMode.accumulator in opcodes and not operand:
-        bytes = [opcodes[cpu.AddressMode.accumulator]]
-        
-    elif cpu.AddressMode.implied in opcodes and not operand:
-        bytes = [opcodes[cpu.AddressMode.implied]]
-        
-    elif cpu.AddressMode.immediate in opcodes and operand.startswith('#'):
-        v = eval.byteExpression(operand[1:], context)
-        bytes = [opcodes[cpu.AddressMode.immediate], v]
-        
-    elif cpu.AddressMode.indirectX in opcodes and operand.startswith('(') and operand.endswith(',x)'):
-        v = eval.byteExpression(operand[1:-3], context)
-        bytes = [opcodes[cpu.AddressMode.indirectX], v]
-
-    elif cpu.AddressMode.indirectY in opcodes and operand.startswith('(') and operand.endswith('),y'):
-        v = eval.byteExpression(operand[1:-3], context)
-        bytes = [opcodes[cpu.AddressMode.indirectY], v]
-
-    elif cpu.AddressMode.indirect in opcodes and operand.startswith('(') and operand.endswith(')'):
-        v = eval.wordExpression(operand[1:-1], context)
-        if lo(v) == 0xff:
-            context.reportWarning(f'Indirect address located on page boundary: ${v:04x}')
-        bytes = [opcodes[cpu.AddressMode.indirect], lo(v), hi(v)]
-
-    elif cpu.AddressMode.relative in opcodes: # TODO: give warning about branching across page boundary
-        v = eval.wordExpression(operand, context)
-        # the offset counts from the address after the 2-byte branch instruction
-        dist = v - context.symbols['_'] - 2
-        if dist < -128 or dist > 127: # branch is out of range (signed byte)
-            context.reportError(f'Branch destination out of range [-128..127]: {dist}')
-            dist = 0
-        bytes = [opcodes[cpu.AddressMode.relative], dist&0xff]
-
-    elif (cpu.AddressMode.zeroPageX in opcodes or cpu.AddressMode.absoluteX in opcodes) and operand.endswith(',x'):
-        v = eval.wordExpression(operand[:-2], context)
-        if cpu.AddressMode.zeroPageX in opcodes and hi(v) == 0:
-            bytes = [opcodes[cpu.AddressMode.zeroPageX], lo(v)]
-        elif cpu.AddressMode.absoluteX in opcodes:
-            bytes = [opcodes[cpu.AddressMode.absoluteX], lo(v), hi(v)]
-
-    elif (cpu.AddressMode.zeroPageY in opcodes or cpu.AddressMode.absoluteY in opcodes) and operand.endswith(',y'):
-        v = eval.wordExpression(operand[:-2], context)
-        if cpu.AddressMode.zeroPageY in opcodes and hi(v) == 0:
-            bytes = [opcodes[cpu.AddressMode.zeroPageY], lo(v)]
-        elif cpu.AddressMode.absoluteY in opcodes:
-            bytes = [opcodes[cpu.AddressMode.absoluteY], lo(v), hi(v)]
-
-    elif (cpu.AddressMode.zeroPage in opcodes or cpu.AddressMode.absolute in opcodes) and operand:
-        v = eval.wordExpression(operand, context)
-        if cpu.AddressMode.zeroPage in opcodes and hi(v) == 0:
-            bytes = [opcodes[cpu.AddressMode.zeroPage], lo(v)]
-        elif cpu.AddressMode.absolute in opcodes:
-            bytes = [opcodes[cpu.AddressMode.absolute], lo(v), hi(v)]
-
-    if len(bytes) <= 0:
-        context.reportError(f'Unknown instruction or address mode: {mnemonic} {operand}')
-        
-    # store the bytes
-    for b in bytes:
-        context.store(b)
-
-    
 def _asmAssignment(chunk: list, context: Context):
     """Assign an expression to a symbol: name = expression.
 
@@ -224,7 +148,7 @@ def multiPass(inFile, outFile) -> bool:
                     chunk = chunk[2:]
 
                 if len(chunk) >= 1 and cpu.isMnemonic(chunk[0].string):
-                    _asmInstruction(chunk, context)
+                    instructions.assemble(chunk, context)
 
                 elif len(chunk) >= 3 and chunk[1].string == '=':
                     _asmAssignment(chunk, context)
@@ -289,13 +213,6 @@ class TestAssemble(unittest.TestCase):
 
     def testTest(self):
         pass
-
-    def testBranchOutOfRange(self):
-        # one byte beyond +127 and -128, counted from $1002, the address after the branch
-        for target, dist in [('$1082', 128), ('$0f81', -129)]:
-            context = Context({'_': 0x1000})
-            _asmInstruction(lexer.tokenize(f'bne {target}')[:-1], context)
-            self.assertEqual(context.errors, [f'error: Branch destination out of range [-128..127]: {dist}'])
 
     def testDuplicateLabel(self):
         anyErrors, output = self._assemble('a: nop\na: nop\n')

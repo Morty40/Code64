@@ -7,6 +7,11 @@
 from enum import Enum
 import unittest
 
+# the low and high byte of a 16-bit value, the 6502 stores words low byte first
+def lo(x): return x&0xff
+def hi(x): return (x>>8)&0xff
+
+
 class AddressMode(Enum):
     """The 6502 address modes. The values are the operand syntax, for reference."""
 
