@@ -48,6 +48,30 @@ class Context:
         return True
 
 
+    def store(self, value: int):
+        """Store a byte at the current address, and advance the address."""
+        currentLocation = self.symbols['_']
+
+        if currentLocation >= 0 and currentLocation <= 0xffff:
+
+            if currentLocation in self.memory:
+                oldValue = self.memory[currentLocation]
+                self.reportWarning(f'${currentLocation:04x} is overwritten (${oldValue:02x} to ${value:02x})')
+
+            # store value in memory, and advance to next memory location
+            self.memory[currentLocation] = value
+            self.symbols['_'] += 1
+
+        else:
+            self.reportError(f'Destination memory address out of range: ${currentLocation:x}')
+
+
+    def storeWord(self, value: int):
+        """Store a 16-bit word, low byte first."""
+        self.store(value & 0xff)
+        self.store((value >> 8) & 0xff)
+
+
     def readPointer(self):
         """Return the current (fileName, lineIndex), or None when done."""
         return self.readPointerStack[-1] if self.readPointerStack else None

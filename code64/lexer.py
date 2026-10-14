@@ -50,6 +50,16 @@ def translateLocalLabels(tokens, lastLabel=''):
     return newTokens
 
 
+def join(tokens: list) -> str:
+    ''' joins tokens into an expression, with a space between adjacent words, e.g. "1 if x else 2" '''
+    s = ''
+    for t in tokens:
+        if re.fullmatch(r'\w\w', s[-1:] + t.string[:1]):
+            s += ' '
+        s += t.string
+    return s
+
+
 def tokenize(text: str, fileName=''):
     """Split source code into tokens, with a newline token after each line.
 

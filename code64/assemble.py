@@ -4,7 +4,6 @@
 import contextlib
 import io
 import os
-import re
 import tempfile
 import unittest
 import glob
@@ -15,10 +14,9 @@ sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 #--
 
 import cpu
+import directives
 import eval
-import image
 import lexer
-import music
 import text
 from context import Context
 
@@ -26,41 +24,13 @@ def lo(x): return x&0xff
 def hi(x): return (x>>8)&0xff
 
 
-def _join(tokens: list) -> str:
-    ''' joins tokens into an expression, with a space between adjacent words, e.g. "1 if x else 2" '''
-    s = ''
-    for t in tokens:
-        if re.fullmatch(r'\w\w', s[-1:] + t.string[:1]):
-            s += ' '
-        s += t.string
-    return s
-
-
-def _store(value: int, context: Context):
-    """Store a byte at the current address, and advance the address."""
-    currentLocation = context.symbols['_']
-    
-    if currentLocation >= 0 and currentLocation <= 0xffff:
-            
-        if currentLocation in context.memory:
-            oldValue = context.memory[currentLocation]
-            context.reportWarning(f'${currentLocation:04x} is overwritten (${oldValue:02x} to ${value:02x})')
-            
-        # store value in memory, and advance to next memory location
-        context.memory[currentLocation] = value
-        context.symbols['_'] += 1
-        
-    else:
-        context.reportError(f'Destination memory address out of range: ${currentLocation:x}')
-    
-
 def _asmInstruction(chunk: list, context: Context):
     """Assemble an instruction, with the address mode given by the operand.
 
     Zero page modes are chosen for addresses below $100.
     """
     mnemonic = chunk[0].string
-    operand = _join(chunk[1:])
+    operand = lexer.join(chunk[1:])
         
     instruction = cpu.instructionWithMnemonic(mnemonic)
     opcodes = instruction.opcodes
@@ -126,7 +96,7 @@ def _asmInstruction(chunk: list, context: Context):
         
     # store the bytes
     for b in bytes:
-        _store(b, context)
+        context.store(b)
 
     
 def _asmAssignment(chunk: list, context: Context):
@@ -136,7 +106,7 @@ def _asmAssignment(chunk: list, context: Context):
     be assigned a different value.
     """
     symbol = chunk[0].string
-    expression = _join(chunk[2:])
+    expression = lexer.join(chunk[2:])
     value = eval.expression(expression, context)
     if value is not None:
         if symbol.isupper():
@@ -146,253 +116,13 @@ def _asmAssignment(chunk: list, context: Context):
         context.setSymbol(symbol, value)
     
     
-def _asmDirective(chunk: list, context: Context) -> bool:
-    """Assemble a directive, such as .byte or .org.
-
-    The arguments are evaluated as one expression, a tuple if several.
-    Returns False if the directive moved the read pointer (.import).
-    """
-    advance = True # advance read pointer after this chunk
-
-    directive = chunk[1].string
-    expression = _join(chunk[2:])
-
-    # the arguments are one Python expression: a tuple if there are several,
-    # e.g. .byte 1, 2. Directives check argTypes, e.g. [str, int] for .repeat
-    if len(expression.strip()) > 0:
-        arguments = eval.expression(expression, context)
-    else:
-        arguments = None
-    if arguments is None:
-        arguments = []
-    elif type(arguments) is tuple:
-        arguments = list(arguments)
-    else:
-        arguments = [arguments]
-
-    argTypes = list(map(lambda x: type(x), arguments))
-
-    # data directive: declare a list of byte values
-    if directive == 'byte':
-        for arg in arguments:
-            value = eval.byteExpression(repr(arg), context)
-            _store(value, context)
-
-    # data directive: declare a list of word values
-    elif directive == 'word':
-        for arg in arguments:
-            value = eval.wordExpression(repr(arg), context)
-            _store(lo(value), context)
-            _store(hi(value), context)
-        
-    # data directive: declare a text string
-    elif directive == 'text' or directive == 'string':
-        for arg in arguments:
-            for char in arg:
-                o = text.ord(char, context.encoding)
-                if o is not None:
-                    _store(o, context)
-                else:
-                    context.reportError(f'Unknown character "{char}" in text "{arg}"')
-            if directive == 'string': # zero-terminated
-                _store(0, context)
-
-    elif directive == 'encoding' and argTypes == [int]:
-        context.encoding = arguments[0]
-
-    # data directive: declare bits
-    elif directive == 'bits' and argTypes == [str]:
-        for arg in arguments:
-            # todo: check length
-            arg = arg.replace(' ', '0')
-            arg = arg.replace('#', '1')
-            for binString in [arg[i:i+8] for i in range(0, len(arg), 8)]:
-                value = eval.byteExpression('0b'+binString, context)
-                if value is not None:
-                    _store(value, context)
-
-    # origin, sets the current memory location
-    elif directive == 'org' and argTypes == [int]:
-        arg = arguments[0]
-        context.symbols['_'] = arg
-
-    # fill memory with n bytes or words, optional lambda argument
-    elif directive in ['bytefill', 'wordfill'] and (argTypes == [int] or argTypes == [int, str]):
-        n = arguments[0]
-        if len(arguments) == 2:
-            f = eval.lambdaExpression(arguments[1], context)
-        else:
-            f = lambda x: 0
-        for x in range(0, n):
-            try:
-                value = f(x)
-            except Exception as exception:
-                context.reportError(f'{str(exception).capitalize()}')
-                value = 0
-            if directive == 'bytefill':
-                _store(eval.byteExpression(repr(value), context), context)
-            else:
-                value = eval.wordExpression(repr(value), context)
-                _store(lo(value), context)
-                _store(hi(value), context)
-
-    # align the current memory location to n
-    elif directive == 'align' and argTypes == [int]:
-        arg = arguments[0]
-        if arg <= 0:
-            context.reportError(f'Alignment must be positive: {arg}')
-            arg = 1 # no alignment
-        _ = context.symbols['_']
-        mod = _ % arg 
-        if mod > 0:
-            context.symbols['_'] = _ - mod + arg
-        
-    # print to terminal
-    elif directive == 'print' and len(arguments) >= 1:
-        for arg in arguments:
-            print(arg)
-    
-    # generate warning
-    elif directive == 'warning' and argTypes == [str]:
-        warning = arguments[0]
-        context.reportWarning(warning)
-
-    # generate error
-    elif directive == 'error' and argTypes == [str]:
-        error = arguments[0]
-        context.reportError(error)
-            
-    # repeat: remember the .repeat line, and start the iterator at 0
-    elif directive == 'repeat' and argTypes == [str, int]:
-        iterator = arguments[0]
-        count = arguments[1]
-        readPointer = context.readPointer()
-        if context.setSymbol(iterator, 0):
-            context.repeatStack.append( (iterator, count, readPointer) )
-
-    # end repeat: count the iterator up, and jump back while it is below the count.
-    # The jump goes to the .repeat line, and as the read pointer then advances,
-    # assembly continues on the first line of the block.
-    elif directive == 'endr' and argTypes == []:
-        if len(context.repeatStack) > 0:
-            iterator, count, readPointer = context.repeatStack[-1] # last repeat
-            context.symbols[iterator] += 1 # increment iterator
-            if context.symbols[iterator] < count: # branch condition
-                context.jumpReadPointer(readPointer)
-            else:
-                context.repeatStack.pop()
-        else:
-            context.reportError(f'End repeat without matching repeat')
-
-    # execute python code
-    elif directive == 'py' and argTypes == [str]:
-        expression = arguments[0]
-        try:
-            exec(expression, context.symbols)
-        except:
-            context.reportError(f'Failed to execute python code: "{expression}"')
-
-    # import source file
-    elif directive == 'import' and argTypes == [str]:
-        fileName = os.path.join(context.path, arguments[0])
-        extension = os.path.splitext(fileName)[1]
-        if extension == ".py":
-            try:
-                print(f'Loading: {fileName}')
-                with open(fileName) as f:
-                    py = f.read()
-                exec(py, context.symbols)
-            except:
-                context.reportError(f'Failed to execute python code: "{expression}"')
-        else:
-            context.advanceReadPointer()
-            context.pushReadPointer( (fileName, 0) )
-            advance = False
-    
-    # import binary file
-    elif directive == 'binary' and argTypes == [str]:
-        fileName = arguments[0]
-        
-        if not fileName in _asmDirective.binaryFiles:
-            try:
-                print(f'Loading: {fileName}')
-                with open(os.path.join(context.path, fileName), 'rb') as f:
-                    bytesRead = f.read()
-                    _asmDirective.binaryFiles[fileName] = bytesRead
-            except FileNotFoundError:
-                context.reportError(f'File not found: "{fileName}"')
-                
-        if fileName in _asmDirective.binaryFiles:
-            bytesRead = _asmDirective.binaryFiles[fileName]
-            for b in bytesRead:
-                _store(b, context)
-
-    # import music file
-    elif directive == 'music' and argTypes == [str, str]:
-        fileName = arguments[0]
-        prefix = arguments[1]
-        
-        if not fileName in _asmDirective.musicFiles:
-            mu = music.load(fileName, context)
-            if type(mu) is music.Music:
-                print(f'Loading: {fileName}')
-                _asmDirective.musicFiles[fileName] = mu
-            else:
-                context.reportError(f'Music not loaded: "{fileName}"')
-
-        if (mu := _asmDirective.musicFiles.get(fileName)) is not None:
-            context.setSymbol(prefix+'_LOAD', mu.loadAddress)
-            context.setSymbol(prefix+'_INIT', mu.initAddress)
-            context.setSymbol(prefix+'_PLAY', mu.playAddress)
-            for b in mu.data:
-                _store(b, context)
-
-    # import bitmap or sprite    
-    elif directive in ['bitmap', 'sprite'] and argTypes == [str, int]:
-        fileName = arguments[0]
-        bitsPerPixel = arguments[1]
-
-        if not fileName in _asmDirective.imageFiles:
-            im = image.load(fileName, context)
-            if type(im) is image.Image:
-                print(f'Loading: {fileName}')
-                _asmDirective.imageFiles[fileName] = im
-            else:
-                context.reportError(f'Image not loaded: "{fileName}"')
-
-        if (im := _asmDirective.imageFiles.get(fileName)) is not None:
-            for b in im.data:
-                _store(b, context)
-
-    elif directive in ['zpbyte', 'zpword'] and len(arguments) > 0:
-        size = {'zpbyte': 1, 'zpword': 2}[directive]
-        for arg in arguments:
-            if context.zpAddress+size <= 0x100:
-                if arg not in context.labels:
-                    if context.setSymbol(arg, context.zpAddress):
-                        context.labels.add(arg)
-                        context.zpAddress += size
-                else:
-                    context.reportError(f'Label was already defined: "{arg}"')
-            else:
-                context.reportError(f'No space for zero page variable: "{arg}"')
-
-    else:
-        context.reportError(f'Invalid directive: .{directive} {expression}')
-        
-    return advance
-_asmDirective.binaryFiles = {} # function static variable
-_asmDirective.musicFiles = {}
-_asmDirective.imageFiles = {}
-
-
 def _asmGenerator(chunk: list, context: Context) -> bool:
     """Assemble the code returned by a generator: @function(arguments).
 
     Local labels get their own scope for each call. Returns False, as
     the read pointer is moved to the generated code.
     """
-    generator = _join(chunk[1:])
+    generator = lexer.join(chunk[1:])
     value = eval.expression(generator, context)
     if type(value) is not str:
         context.reportError(f'Generator must return a string, not {type(value).__name__}')
@@ -500,7 +230,7 @@ def multiPass(inFile, outFile) -> bool:
                     _asmAssignment(chunk, context)
 
                 elif len(chunk) >= 2 and chunk[0].string == '.':
-                    advance = _asmDirective(chunk, context)
+                    advance = directives.assemble(chunk, context)
             
                 elif len(chunk) >= 2 and chunk[0].string == '@':
                     advance = _asmGenerator(chunk, context)
@@ -559,11 +289,6 @@ class TestAssemble(unittest.TestCase):
 
     def testTest(self):
         pass
-
-    def testBitsWithInt(self):
-        context = Context({})
-        _asmDirective(lexer.tokenize('.bits 3')[:-1], context)
-        self.assertEqual(context.errors, ['error: Invalid directive: .bits 3'])
 
     def testBranchOutOfRange(self):
         # one byte beyond +127 and -128, counted from $1002, the address after the branch
