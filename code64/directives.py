@@ -10,7 +10,7 @@ import inspect
 import os
 import unittest
 
-import eval
+import evaluate
 import image
 import lexer
 import music
@@ -54,7 +54,7 @@ def assemble(chunk: list, context: Context) -> bool:
     expression = lexer.join(chunk[2:])
 
     if len(expression.strip()) > 0:
-        arguments = eval.expression(expression, context)
+        arguments = evaluate.expression(expression, context)
     else:
         arguments = None
     if arguments is None:
@@ -78,14 +78,14 @@ def assemble(chunk: list, context: Context) -> bool:
 def byte(context, *values):
     """Store bytes."""
     for value in values:
-        context.store(eval.byteExpression(repr(value), context))
+        context.store(evaluate.byteExpression(repr(value), context))
 
 
 @directive('word')
 def word(context, *values):
     """Store 16-bit words, low byte first."""
     for value in values:
-        context.storeWord(eval.wordExpression(repr(value), context))
+        context.storeWord(evaluate.wordExpression(repr(value), context))
 
 
 @directive('text')
@@ -124,23 +124,23 @@ def bits(context, pattern: str):
     # todo: check length
     pattern = pattern.replace(' ', '0').replace('#', '1')
     for binString in [pattern[i:i+8] for i in range(0, len(pattern), 8)]:
-        context.store(eval.byteExpression('0b'+binString, context))
+        context.store(evaluate.byteExpression('0b'+binString, context))
 
 
 @directive('bytefill')
 def bytefill(context, n: int, function: str = None):
     """Store n bytes: zero, or the values of a lambda, e.g. "x: x * 2"."""
-    _fill(context, n, function, context.store, eval.byteExpression)
+    _fill(context, n, function, context.store, evaluate.byteExpression)
 
 
 @directive('wordfill')
 def wordfill(context, n: int, function: str = None):
     """Store n words: zero, or the values of a lambda, e.g. "x: x * 2"."""
-    _fill(context, n, function, context.storeWord, eval.wordExpression)
+    _fill(context, n, function, context.storeWord, evaluate.wordExpression)
 
 
 def _fill(context, n: int, function: str, store, valueExpression):
-    f = eval.lambdaExpression(function, context) if function is not None else lambda x: 0
+    f = evaluate.lambdaExpression(function, context) if function is not None else lambda x: 0
     for x in range(0, n):
         try:
             value = f(x)

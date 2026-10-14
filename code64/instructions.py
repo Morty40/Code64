@@ -4,7 +4,7 @@
 import unittest
 
 import cpu
-import eval
+import evaluate
 import lexer
 from context import Context
 from cpu import lo, hi
@@ -30,25 +30,25 @@ def assemble(chunk: list, context: Context):
         bytes = [opcodes[cpu.AddressMode.implied]]
         
     elif cpu.AddressMode.immediate in opcodes and operand.startswith('#'):
-        v = eval.byteExpression(operand[1:], context)
+        v = evaluate.byteExpression(operand[1:], context)
         bytes = [opcodes[cpu.AddressMode.immediate], v]
         
     elif cpu.AddressMode.indirectX in opcodes and operand.startswith('(') and operand.endswith(',x)'):
-        v = eval.byteExpression(operand[1:-3], context)
+        v = evaluate.byteExpression(operand[1:-3], context)
         bytes = [opcodes[cpu.AddressMode.indirectX], v]
 
     elif cpu.AddressMode.indirectY in opcodes and operand.startswith('(') and operand.endswith('),y'):
-        v = eval.byteExpression(operand[1:-3], context)
+        v = evaluate.byteExpression(operand[1:-3], context)
         bytes = [opcodes[cpu.AddressMode.indirectY], v]
 
     elif cpu.AddressMode.indirect in opcodes and operand.startswith('(') and operand.endswith(')'):
-        v = eval.wordExpression(operand[1:-1], context)
+        v = evaluate.wordExpression(operand[1:-1], context)
         if lo(v) == 0xff:
             context.reportWarning(f'Indirect address located on page boundary: ${v:04x}')
         bytes = [opcodes[cpu.AddressMode.indirect], lo(v), hi(v)]
 
     elif cpu.AddressMode.relative in opcodes: # TODO: give warning about branching across page boundary
-        v = eval.wordExpression(operand, context)
+        v = evaluate.wordExpression(operand, context)
         # the offset counts from the address after the 2-byte branch instruction
         dist = v - context.symbols['_'] - 2
         if dist < -128 or dist > 127: # branch is out of range (signed byte)
@@ -57,21 +57,21 @@ def assemble(chunk: list, context: Context):
         bytes = [opcodes[cpu.AddressMode.relative], dist&0xff]
 
     elif (cpu.AddressMode.zeroPageX in opcodes or cpu.AddressMode.absoluteX in opcodes) and operand.endswith(',x'):
-        v = eval.wordExpression(operand[:-2], context)
+        v = evaluate.wordExpression(operand[:-2], context)
         if cpu.AddressMode.zeroPageX in opcodes and hi(v) == 0:
             bytes = [opcodes[cpu.AddressMode.zeroPageX], lo(v)]
         elif cpu.AddressMode.absoluteX in opcodes:
             bytes = [opcodes[cpu.AddressMode.absoluteX], lo(v), hi(v)]
 
     elif (cpu.AddressMode.zeroPageY in opcodes or cpu.AddressMode.absoluteY in opcodes) and operand.endswith(',y'):
-        v = eval.wordExpression(operand[:-2], context)
+        v = evaluate.wordExpression(operand[:-2], context)
         if cpu.AddressMode.zeroPageY in opcodes and hi(v) == 0:
             bytes = [opcodes[cpu.AddressMode.zeroPageY], lo(v)]
         elif cpu.AddressMode.absoluteY in opcodes:
             bytes = [opcodes[cpu.AddressMode.absoluteY], lo(v), hi(v)]
 
     elif (cpu.AddressMode.zeroPage in opcodes or cpu.AddressMode.absolute in opcodes) and operand:
-        v = eval.wordExpression(operand, context)
+        v = evaluate.wordExpression(operand, context)
         if cpu.AddressMode.zeroPage in opcodes and hi(v) == 0:
             bytes = [opcodes[cpu.AddressMode.zeroPage], lo(v)]
         elif cpu.AddressMode.absolute in opcodes:

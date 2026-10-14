@@ -65,7 +65,7 @@ def lambdaExpression(e: str, context: Context):
 
 ################################################################################
 
-class TestEval(unittest.TestCase):
+class TestEvaluate(unittest.TestCase):
 
     def testEvalExpression(self):
         context = Context({})

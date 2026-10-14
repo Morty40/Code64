@@ -16,7 +16,7 @@ sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 import cpu
 import directives
 import instructions
-import eval
+import evaluate
 import lexer
 import text
 from context import Context
@@ -31,7 +31,7 @@ def _asmAssignment(chunk: list, context: Context):
     """
     symbol = chunk[0].string
     expression = lexer.join(chunk[2:])
-    value = eval.expression(expression, context)
+    value = evaluate.expression(expression, context)
     if value is not None:
         if symbol.isupper():
             if symbol in context.symbols and context.symbols[symbol] != value:
@@ -47,7 +47,7 @@ def _asmGenerator(chunk: list, context: Context) -> bool:
     the read pointer is moved to the generated code.
     """
     generator = lexer.join(chunk[1:])
-    value = eval.expression(generator, context)
+    value = evaluate.expression(generator, context)
     if type(value) is not str:
         context.reportError(f'Generator must return a string, not {type(value).__name__}')
 

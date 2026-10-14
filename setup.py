@@ -16,7 +16,7 @@ setup (
     include_package_data=True,
     keywords=[],
     scripts=[],
-    py_modules=['main', 'cpu', 'image', 'music', 'assemble', 'context', 'eval', 'lexer', 'petscii'],
+    py_modules=['main', 'cpu', 'image', 'music', 'assemble', 'context', 'evaluate', 'lexer', 'petscii'],
     entry_points={"console_scripts": ["code64=code64.main:main"]},
     zip_safe=False,
 )
