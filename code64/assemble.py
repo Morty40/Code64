@@ -15,8 +15,9 @@ sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 
 import cpu
 import directives
-import instructions
 import evaluate
+import generators
+import instructions
 import lexer
 import text
 from context import Context
@@ -40,30 +41,6 @@ def _asmAssignment(chunk: list, context: Context):
         context.setSymbol(symbol, value)
     
     
-def _asmGenerator(chunk: list, context: Context) -> bool:
-    """Assemble the code returned by a generator: @function(arguments).
-
-    Local labels get their own scope for each call. Returns False, as
-    the read pointer is moved to the generated code.
-    """
-    generator = lexer.join(chunk[1:])
-    value = evaluate.expression(generator, context)
-    if type(value) is not str:
-        context.reportError(f'Generator must return a string, not {type(value).__name__}')
-
-    context.advanceReadPointer()
-
-    (fileName, lineIndex) = context.readPointer()
-    generatorId = f"{fileName}:{lineIndex} @{generator}"
-    context.generatorCount += 1
-    tokens = lexer.translateLocalLabels(lexer.tokenize(value), f'_gen{context.generatorCount}')
-    multiPass.chunks[generatorId] = list(lexer.chunkSplit(tokens))
-
-    context.pushReadPointer( (generatorId, 0) )
-
-    return False # don't advance
-
-
 def _saveMemoryToPrg(start: int, memory: dict, fileName: str):
     """Save a .prg file: the load address, then memory from start to end."""
     f = open(fileName, 'wb')
@@ -157,7 +134,7 @@ def multiPass(inFile, outFile) -> bool:
                     advance = directives.assemble(chunk, context)
             
                 elif len(chunk) >= 2 and chunk[0].string == '@':
-                    advance = _asmGenerator(chunk, context)
+                    advance = generators.assemble(chunk, context, multiPass.chunks)
 
                 elif len(chunk) > 0:
                     context.reportError(f'Invalid syntax')
