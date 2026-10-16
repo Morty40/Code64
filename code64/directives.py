@@ -255,8 +255,8 @@ def py(context, code: str):
     """Execute Python code."""
     try:
         exec(code, context.symbols)
-    except:
-        context.reportError(f'Failed to execute python code: "{code}"')
+    except Exception as exception:
+        context.reportError(f'Failed to execute python code: "{code}" ({type(exception).__name__}: {exception})')
 
 
 @directive('import')
@@ -269,8 +269,8 @@ def importFile(context, fileName: str):
             with open(path) as f:
                 py = f.read()
             exec(py, context.symbols)
-        except:
-            context.reportError(f'Failed to execute python code: "{fileName}"')
+        except Exception as exception:
+            context.reportError(f'Failed to execute python code: "{fileName}" ({type(exception).__name__}: {exception})')
     else:
         context.advanceReadPointer()
         context.pushReadPointer( (path, 0) )
