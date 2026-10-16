@@ -271,5 +271,3 @@ class TestAssemble(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-# TODO: only load imports once!
