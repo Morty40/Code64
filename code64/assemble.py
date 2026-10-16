@@ -66,8 +66,8 @@ def multiPass(inFile, outFile) -> bool:
             with open(fileName) as f:
                 py = f.read()
             exec(py, symbols)
-        except:
-            print(f"failed to import: {fileName}")
+        except Exception as exception:
+            print(f"failed to import: {fileName} ({type(exception).__name__}: {exception})")
 
     lastMemory = {}
     
@@ -267,7 +267,7 @@ class TestAssemble(unittest.TestCase):
             with mock.patch('glob.glob', return_value=[fileName]): # instead of the imports folder
                 anyErrors, output = self._assemble('nop\n')
         self.assertFalse(anyErrors)
-        self.assertIn(f'failed to import: {fileName}', output)
+        self.assertIn(f'failed to import: {fileName} (ZeroDivisionError: division by zero)', output)
 
 if __name__ == '__main__':
     unittest.main()
