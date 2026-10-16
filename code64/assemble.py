@@ -172,9 +172,6 @@ class TestAssemble(unittest.TestCase):
                 anyErrors = multiPass(fileName, None)
         return anyErrors, output.getvalue()
 
-    def testTest(self):
-        pass
-
     def testDuplicateLabel(self):
         anyErrors, output = self._assemble('a: nop\na: nop\n')
         self.assertTrue(anyErrors)
