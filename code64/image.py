@@ -92,7 +92,7 @@ def load(fileName: str, context):
                 context.reportError(f'Not a valid bmp file: "{fileName}"')
 
     except FileNotFoundError:
-        context.reportError(f'File not found "{fileName}"')
+        context.reportError(f'File not found: "{fileName}"')
 
     return image
     

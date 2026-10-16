@@ -246,6 +246,8 @@ class TestAssemble(unittest.TestCase):
             ('.py "1/0"\n',                          'test.asm:1 error: Failed to execute python code: "1/0" (ZeroDivisionError: division by zero)'),
             ('.import "nothere.py"\n',               'test.asm:1 error: Failed to execute python code: "nothere.py" (FileNotFoundError: '),
             ('.binary "nothere.bin"\n',              'test.asm:1 error: File not found: "nothere.bin"'),
+            ('.music "nothere.sid", "M"\n',          'test.asm:1 error: File not found: "nothere.sid"'),
+            ('.sprite "nothere.bmp", 1\n',           'test.asm:1 error: File not found: "nothere.bmp"'),
             ('.music "nothere.sid", "M"\n',          'test.asm:1 error: Music not loaded: "nothere.sid"'),
             ('.sprite "nothere.bmp", 1\n',           'test.asm:1 error: Image not loaded: "nothere.bmp"'),
             ('.zpbyte "a"\n.zpbyte "a"\n',           'test.asm:2 error: Label was already defined: "a"'),
