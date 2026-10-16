@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""The assignments: assigns the value of a Python expression to a symbol, e.g. x = 1."""
+"""Assigns the value of a Python expression to a symbol, e.g. x = 1."""
 
 import unittest
 
@@ -8,14 +8,14 @@ import lexer
 from context import Context
 
 
-def assemble(chunk: list, context: Context):
+def assemble(tokens: list, context: Context):
     """Assign an expression to a symbol: name = expression.
 
     Upper case symbols are constants: once they have a value, they can't
     be assigned a different value.
     """
-    symbol = chunk[0].string
-    expression = lexer.join(chunk[2:])
+    symbol = tokens[0].string
+    expression = lexer.join(tokens[2:])
     value = evaluate.expression(expression, context)
     if value is not None:
         if symbol.isupper():
@@ -27,7 +27,7 @@ def assemble(chunk: list, context: Context):
 
 ################################################################################
 
-class TestAssignments(unittest.TestCase):
+class TestAssignment(unittest.TestCase):
 
     def _assemble(self, line: str, context: Context):
         assemble(lexer.tokenize(line)[:-1], context)

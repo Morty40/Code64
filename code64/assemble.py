@@ -13,7 +13,7 @@ import pathlib, sys
 sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 #--
 
-import assignments
+import assignment
 import cpu
 import directives
 import evaluate
@@ -112,7 +112,7 @@ def multiPass(inFile, outFile) -> bool:
                     instructions.assemble(chunk, context)
 
                 elif len(chunk) >= 3 and chunk[1].string == '=':
-                    assignments.assemble(chunk, context)
+                    assignment.assemble(chunk, context)
 
                 elif len(chunk) >= 2 and chunk[0].string == '.':
                     advance = directives.assemble(chunk, context)

@@ -8,14 +8,14 @@ import lexer
 from context import Context
 
 
-def assemble(chunk: list, context: Context, chunks: dict) -> bool:
+def assemble(tokens: list, context: Context, chunks: dict) -> bool:
     """Assemble the code returned by a generator: @function(arguments).
 
     The generated code is added to chunks, the tokenized files, and assembled
     like an imported file. Local labels get their own scope for each call.
     Returns False, as the read pointer is moved to the generated code.
     """
-    generator = lexer.join(chunk[1:])
+    generator = lexer.join(tokens[1:])
     value = evaluate.expression(generator, context)
     if type(value) is not str:
         context.reportError(f'Generator must return a string, not {type(value).__name__}')
@@ -25,8 +25,8 @@ def assemble(chunk: list, context: Context, chunks: dict) -> bool:
     (fileName, lineIndex) = context.readPointer()
     generatorId = f"{fileName}:{lineIndex} @{generator}"
     context.generatorCount += 1
-    tokens = lexer.translateLocalLabels(lexer.tokenize(value), f'_gen{context.generatorCount}')
-    chunks[generatorId] = list(lexer.chunkSplit(tokens))
+    generatedTokens = lexer.translateLocalLabels(lexer.tokenize(value), f'_gen{context.generatorCount}')
+    chunks[generatorId] = list(lexer.chunkSplit(generatedTokens))
 
     context.pushReadPointer( (generatorId, 0) )
 

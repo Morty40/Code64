@@ -44,14 +44,14 @@ def _matches(function, arguments: list) -> bool:
     return True
 
 
-def assemble(chunk: list, context: Context) -> bool:
+def assemble(tokens: list, context: Context) -> bool:
     """Assemble a directive line, e.g. .byte 1, 2.
 
     The arguments are evaluated as one expression, a tuple if several.
     Returns False if the directive moved the read pointer (.import).
     """
-    name = chunk[1].string
-    expression = lexer.join(chunk[2:])
+    name = tokens[1].string
+    expression = lexer.join(tokens[2:])
 
     if len(expression.strip()) > 0:
         arguments = evaluate.expression(expression, context)

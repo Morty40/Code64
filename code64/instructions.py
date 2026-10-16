@@ -10,13 +10,13 @@ from context import Context
 from cpu import lo, hi
 
 
-def assemble(chunk: list, context: Context):
+def assemble(tokens: list, context: Context):
     """Assemble an instruction, with the address mode given by the operand.
 
     Zero page modes are chosen for addresses below $100.
     """
-    mnemonic = chunk[0].string
-    operand = lexer.join(chunk[1:])
+    mnemonic = tokens[0].string
+    operand = lexer.join(tokens[1:])
         
     instruction = cpu.instructionWithMnemonic(mnemonic)
     opcodes = instruction.opcodes
