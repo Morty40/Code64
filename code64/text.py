@@ -83,13 +83,13 @@ _ord = {
 
 def chr(value: int, encoding: int) -> str:
     """Return the character for a value in the encoding, or None if there is none."""
-    map = _chr[encoding]
-    return map[value] if value in map else None
+    table = _chr[encoding]
+    return table[value] if value in table else None
 
 def ord(char: str, encoding: int) -> int:
     """Return the value of a character in the encoding, or None if it has none."""
-    map = _ord[encoding]
-    return map[char] if char in map else None
+    table = _ord[encoding]
+    return table[char] if char in table else None
 
 class TestText(unittest.TestCase):
 

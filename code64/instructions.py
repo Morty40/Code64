@@ -21,31 +21,31 @@ def assemble(tokens: list, context: Context):
     instruction = cpu.instructionWithMnemonic(mnemonic)
     opcodes = instruction.opcodes
         
-    bytes = []
+    data = []
     
     if cpu.AddressMode.accumulator in opcodes and not operand:
-        bytes = [opcodes[cpu.AddressMode.accumulator]]
+        data = [opcodes[cpu.AddressMode.accumulator]]
         
     elif cpu.AddressMode.implied in opcodes and not operand:
-        bytes = [opcodes[cpu.AddressMode.implied]]
+        data = [opcodes[cpu.AddressMode.implied]]
         
     elif cpu.AddressMode.immediate in opcodes and operand.startswith('#'):
         v = evaluate.byteExpression(operand[1:], context)
-        bytes = [opcodes[cpu.AddressMode.immediate], v]
+        data = [opcodes[cpu.AddressMode.immediate], v]
         
     elif cpu.AddressMode.indirectX in opcodes and operand.startswith('(') and operand.endswith(',x)'):
         v = evaluate.byteExpression(operand[1:-3], context)
-        bytes = [opcodes[cpu.AddressMode.indirectX], v]
+        data = [opcodes[cpu.AddressMode.indirectX], v]
 
     elif cpu.AddressMode.indirectY in opcodes and operand.startswith('(') and operand.endswith('),y'):
         v = evaluate.byteExpression(operand[1:-3], context)
-        bytes = [opcodes[cpu.AddressMode.indirectY], v]
+        data = [opcodes[cpu.AddressMode.indirectY], v]
 
     elif cpu.AddressMode.indirect in opcodes and operand.startswith('(') and operand.endswith(')'):
         v = evaluate.wordExpression(operand[1:-1], context)
         if lo(v) == 0xff:
             context.reportWarning(f'Indirect address located on page boundary: ${v:04x}')
-        bytes = [opcodes[cpu.AddressMode.indirect], lo(v), hi(v)]
+        data = [opcodes[cpu.AddressMode.indirect], lo(v), hi(v)]
 
     elif cpu.AddressMode.relative in opcodes: # TODO: give warning about branching across page boundary
         v = evaluate.wordExpression(operand, context)
@@ -54,34 +54,34 @@ def assemble(tokens: list, context: Context):
         if dist < -128 or dist > 127: # branch is out of range (signed byte)
             context.reportError(f'Branch destination out of range [-128..127]: {dist}')
             dist = 0
-        bytes = [opcodes[cpu.AddressMode.relative], dist&0xff]
+        data = [opcodes[cpu.AddressMode.relative], dist&0xff]
 
     elif (cpu.AddressMode.zeroPageX in opcodes or cpu.AddressMode.absoluteX in opcodes) and operand.endswith(',x'):
         v = evaluate.wordExpression(operand[:-2], context)
         if cpu.AddressMode.zeroPageX in opcodes and hi(v) == 0:
-            bytes = [opcodes[cpu.AddressMode.zeroPageX], lo(v)]
+            data = [opcodes[cpu.AddressMode.zeroPageX], lo(v)]
         elif cpu.AddressMode.absoluteX in opcodes:
-            bytes = [opcodes[cpu.AddressMode.absoluteX], lo(v), hi(v)]
+            data = [opcodes[cpu.AddressMode.absoluteX], lo(v), hi(v)]
 
     elif (cpu.AddressMode.zeroPageY in opcodes or cpu.AddressMode.absoluteY in opcodes) and operand.endswith(',y'):
         v = evaluate.wordExpression(operand[:-2], context)
         if cpu.AddressMode.zeroPageY in opcodes and hi(v) == 0:
-            bytes = [opcodes[cpu.AddressMode.zeroPageY], lo(v)]
+            data = [opcodes[cpu.AddressMode.zeroPageY], lo(v)]
         elif cpu.AddressMode.absoluteY in opcodes:
-            bytes = [opcodes[cpu.AddressMode.absoluteY], lo(v), hi(v)]
+            data = [opcodes[cpu.AddressMode.absoluteY], lo(v), hi(v)]
 
     elif (cpu.AddressMode.zeroPage in opcodes or cpu.AddressMode.absolute in opcodes) and operand:
         v = evaluate.wordExpression(operand, context)
         if cpu.AddressMode.zeroPage in opcodes and hi(v) == 0:
-            bytes = [opcodes[cpu.AddressMode.zeroPage], lo(v)]
+            data = [opcodes[cpu.AddressMode.zeroPage], lo(v)]
         elif cpu.AddressMode.absolute in opcodes:
-            bytes = [opcodes[cpu.AddressMode.absolute], lo(v), hi(v)]
+            data = [opcodes[cpu.AddressMode.absolute], lo(v), hi(v)]
 
-    if len(bytes) <= 0:
+    if len(data) <= 0:
         context.reportError(f'Unknown instruction or address mode: {mnemonic} {operand}')
         
     # store the bytes
-    for b in bytes:
+    for b in data:
         context.store(b)
 
 

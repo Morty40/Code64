@@ -23,16 +23,16 @@ def load(fileName: str, context):
     
     try:
         with open(fileName, 'rb') as f:
-            bytes = f.read()
+            fileData = f.read()
 
             headerFormat = '>4sHHHHHHHL32s32s32s'
             headerSize = struct.calcsize(headerFormat)
-            unpacked = struct.unpack(headerFormat, bytes[:headerSize])
-            (magicId, version, dataOffset, loadAddress, initAddress, playAddress, songs, startSong, speed, name, author, copyright) = unpacked
+            unpacked = struct.unpack(headerFormat, fileData[:headerSize])
+            (magicId, version, dataOffset, loadAddress, initAddress, playAddress, songs, startSong, speed, name, author, released) = unpacked
 
             if magicId == b'PSID':
       
-                data = bytes[dataOffset:]
+                data = fileData[dataOffset:]
 
                 # Memory location of data. Zero means the two first bytes of the data is the load address (lo, hi).
                 if loadAddress == 0 and len(data) >= 2:
