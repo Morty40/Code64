@@ -102,12 +102,12 @@ _mnemonicMap = {instruction.mnemonic: instruction for instruction in instruction
 
 def instructionWithMnemonic(mnemonic: str) -> Instruction:
     """Return the instruction for a lower case mnemonic, e.g. 'lda', or None."""
-    return _mnemonicMap[mnemonic] if mnemonic in _mnemonicMap else None
+    return _mnemonicMap.get(mnemonic)
 
 
 def isMnemonic(mnemonic: str) -> bool:
     """Check if a string is an instruction mnemonic."""
-    return instructionWithMnemonic(mnemonic) != None
+    return mnemonic in _mnemonicMap
 
 
 ################################################################################
