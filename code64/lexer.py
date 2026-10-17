@@ -22,7 +22,7 @@ class Token:
 
 
 def _fixPrefix(word):
-    """ converts hex and binary prefixes $ and %, to 0x and 0b, and all strings to f-strings """
+    """Convert hex and binary prefixes $ and % to 0x and 0b, and all strings to f-strings."""
     if word.startswith('$'):
         word = '0x' + word[1:]
     elif re.fullmatch(r'%[01]+', word):
@@ -33,7 +33,7 @@ def _fixPrefix(word):
 
 
 def translateLocalLabels(tokens, lastLabel=''):
-    """ prefixes local labels (starting with _) with the last global label """
+    """Prefix local labels (starting with _) with the last global label."""
     newTokens = []
     for chunk in chunkSplit(tokens):
         
@@ -51,7 +51,7 @@ def translateLocalLabels(tokens, lastLabel=''):
 
 
 def join(tokens: list) -> str:
-    ''' joins tokens into an expression, with a space between adjacent words, e.g. "1 if x else 2" '''
+    """Join tokens into an expression, with a space between adjacent words, e.g. "1 if x else 2"."""
     s = ''
     for t in tokens:
         if re.fullmatch(r'\w\w', s[-1:] + t.string[:1]):
@@ -105,7 +105,7 @@ def tokenizeFile(fileName):
 
 
 def chunkSplit(tokens):
-    """ a generator that splits a list of tokens by newlines """
+    """A generator that splits a list of tokens by newlines."""
     indices = [i for i, token in enumerate(tokens) if token.string=='\n']
     for start, end in zip([-1, *indices], [*indices, len(tokens)]):
         yield tokens[start+1:end]

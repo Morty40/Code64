@@ -106,7 +106,7 @@ def instructionWithMnemonic(mnemonic: str) -> Instruction:
 
 
 def isMnemonic(mnemonic: str) -> bool:
-    """ check if string is an instruction mnemonic """
+    """Check if a string is an instruction mnemonic."""
     return instructionWithMnemonic(mnemonic) != None
 
 

@@ -163,7 +163,7 @@ multiPass.chunks = {} # function static variable
 class TestAssemble(unittest.TestCase):
 
     def _assemble(self, source: str):
-        ''' assembles source, and returns (anyErrors, printed output) '''
+        """Assemble source, and return (anyErrors, printed output)."""
         with tempfile.TemporaryDirectory() as directory:
             fileName = os.path.join(directory, 'test.asm')
             with open(fileName, 'w') as f:
