@@ -90,37 +90,37 @@ def multiPass(inFile, outFile) -> bool:
             
             if not fileName in multiPass.chunks: # tokenized once, for all passes
                 print(f'Loading: {fileName}')
-                multiPass.chunks[fileName] = list(lexer.chunkSplit(lexer.tokenizeFile(fileName)))
+                multiPass.chunks[fileName] = list(lexer.splitByNewline(lexer.tokenizeFile(fileName)))
 
             allChunks = multiPass.chunks[fileName]
 
             if lineIndex < len(allChunks):
                 
-                chunk = allChunks[lineIndex]
+                lineTokens = allChunks[lineIndex]
                 advance = True
 
                 # label
-                if len(chunk) >= 2 and chunk[1].string == ':':
-                    label = chunk[0].string
+                if len(lineTokens) >= 2 and lineTokens[1].string == ':':
+                    label = lineTokens[0].string
                     if label in context.labels:
                         context.reportError(f'Label was already defined: "{label}"')
                     context.setSymbol(label, context.symbols['_'])
                     context.labels.add(label)
-                    chunk = chunk[2:]
+                    lineTokens = lineTokens[2:]
 
-                if len(chunk) >= 1 and cpu.isMnemonic(chunk[0].string):
-                    instructions.assemble(chunk, context)
+                if len(lineTokens) >= 1 and cpu.isMnemonic(lineTokens[0].string):
+                    instructions.assemble(lineTokens, context)
 
-                elif len(chunk) >= 3 and chunk[1].string == '=':
-                    assignment.assemble(chunk, context)
+                elif len(lineTokens) >= 3 and lineTokens[1].string == '=':
+                    assignment.assemble(lineTokens, context)
 
-                elif len(chunk) >= 2 and chunk[0].string == '.':
-                    advance = directives.assemble(chunk, context)
+                elif len(lineTokens) >= 2 and lineTokens[0].string == '.':
+                    advance = directives.assemble(lineTokens, context, multiPass.chunks)
             
-                elif len(chunk) >= 2 and chunk[0].string == '@':
-                    advance = generators.assemble(chunk, context, multiPass.chunks)
+                elif len(lineTokens) >= 2 and lineTokens[0].string == '@':
+                    advance = generators.assemble(lineTokens, context, multiPass.chunks)
 
-                elif len(chunk) > 0:
+                elif len(lineTokens) > 0:
                     context.reportError(f'Invalid syntax')
 
                 if advance:
@@ -205,7 +205,6 @@ class TestAssemble(unittest.TestCase):
             ('f = lambda v: v\nf = 1\n',  'test.asm:2 error: Symbol "f" cannot change type from function to int'),
             ('x = "a"\nx: nop\n',         'test.asm:2 error: Symbol "x" cannot change type from str to int'),
             ('.zpbyte "x"\nx = "a"\n',    'test.asm:2 error: Symbol "x" cannot change type from int to str'),
-            ('i = "a"\n.repeat "i", 2\n.endr\n', 'test.asm:2 error: Symbol "i" cannot change type from str to int'),
             # the math module is protected
             ('pi = 3\n',                  'test.asm:1 error: Symbol "pi" cannot change type from float to int'),
             ('e: nop\n',                  'test.asm:1 error: Symbol "e" cannot change type from float to int'),
@@ -230,6 +229,13 @@ class TestAssemble(unittest.TestCase):
                 anyErrors, output = self._assemble(source)
                 self.assertIn(f'test.asm:{line} error:', output)
 
+    def testForLoopLimit(self):
+        """A .for loop whose condition is never false is an error, not a hang."""
+        from unittest import mock
+        with mock.patch.object(directives, 'MAX_ITERATIONS', 100): # the real limit takes seconds
+            anyErrors, output = self._assemble('.for a=0, a>=0, a+=1\n.end\n')
+        self.assertIn('test.asm:2 error: For loop did not end after 100 iterations', output)
+
     def testMessages(self):
         """Errors and warnings, each reported at the line that causes it."""
         for source, message in [
@@ -242,7 +248,13 @@ class TestAssemble(unittest.TestCase):
             ('.print 1 + 1\n',                       '\n2\n'),
             ('.warning "careful"\n',                 'test.asm:1 warning: careful'),
             ('.error "stop"\n',                      'test.asm:1 error: stop'),
-            ('.endr\n',                              'test.asm:1 error: End repeat without matching repeat'),
+            ('.end\n',                               'test.asm:1 error: End without matching repeat or for'),
+            ('.repeat "i", 2\n.end\n',               'test.asm:1 error: Expected .repeat count'), # the old syntax
+            ('.repeat 0\n',                          'test.asm:1 error: Repeat without matching end'),
+            ('.for a=0, a<1\n',                      'test.asm:1 error: Expected .for initial, condition, step'),
+            ('.for a=0, a<0, a+=1\n',                'test.asm:1 error: For without matching end'),
+            ('.for a=, a<1, a+=1\n.end\n',           'test.asm:1 error: Failed to execute python code: "a="'),
+            ('.for a=0, a<1, b+=1\n.end\n',          'test.asm:2 error: Failed to execute python code: "b+=1"'),
             ('.py "1/0"\n',                          'test.asm:1 error: Failed to execute python code: "1/0" (ZeroDivisionError: division by zero)'),
             ('.import "nothere.py"\n',               'test.asm:1 error: Failed to execute python code: "nothere.py" (FileNotFoundError: '),
             ('.binary "nothere.bin"\n',              'test.asm:1 error: File not found: "nothere.bin"'),
@@ -251,7 +263,7 @@ class TestAssemble(unittest.TestCase):
             ('.music "nothere.sid", "M"\n',          'test.asm:1 error: Music not loaded: "nothere.sid"'),
             ('.bitmap "nothere.bmp", 1\n',           'test.asm:1 error: Image not loaded: "nothere.bmp"'),
             ('.zpbyte "a"\n.zpbyte "a"\n',           'test.asm:2 error: Label was already defined: "a"'),
-            ('.repeat "i", 127\n.zpword "v{i}"\n.endr\n.zpbyte "last"\n', # $02-$ff is full
+            ('.for i=0, i<127, i+=1\n.zpword "v{i}"\n.end\n.zpbyte "last"\n', # $02-$ff is full
                                                      'test.asm:4 error: No space for zero page variable: "last"'),
             ('hello world\n',                        'test.asm:1 error: Invalid syntax'),
         ]:

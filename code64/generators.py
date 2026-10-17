@@ -26,7 +26,7 @@ def assemble(tokens: list, context: Context, chunks: dict) -> bool:
     generatorId = f"{fileName}:{lineIndex} @{generator}"
     context.generatorCount += 1
     generatedTokens = lexer.translateLocalLabels(lexer.tokenize(value), f'_gen{context.generatorCount}')
-    chunks[generatorId] = list(lexer.chunkSplit(generatedTokens))
+    chunks[generatorId] = list(lexer.splitByNewline(generatedTokens))
 
     context.pushReadPointer( (generatorId, 0) )
 
@@ -50,7 +50,7 @@ class TestGenerators(unittest.TestCase):
         """The generated code is assembled next, like an imported file."""
         context, chunks = self._assemble('@code(2)', {'code': lambda n: 'nop\n' * n})
         self.assertEqual(context.readPointer(), ('test.asm:1 @code(2)', 0))
-        lines = [[t.string for t in chunk] for chunk in chunks['test.asm:1 @code(2)']]
+        lines = [[t.string for t in lineTokens] for lineTokens in chunks['test.asm:1 @code(2)']]
         self.assertEqual(lines[:2], [['nop'], ['nop']])
         self.assertEqual(context.errors, [])
 

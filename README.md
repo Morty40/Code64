@@ -188,11 +188,11 @@ speed = 2                   ; ok, a variable
 
 The built-in symbols, such as `VIC_BORDER_COLOR`, are constants too, so they cannot be given a different value by mistake.
 
-Use a variable for a value that changes, for example in each round of a `.repeat` block. Also use a variable for a value calculated from labels that come later in the source, such as `codeSize = end - start`: while the assembler passes settle, such a value can change, which is an error for a constant.
+Use a variable for a value that changes, for example in each round of a `.for` loop. Also use a variable for a value calculated from labels that come later in the source, such as `codeSize = end - start`: while the assembler passes settle, such a value can change, which is an error for a constant.
 
 #### Symbol types
 
-A symbol keeps the type of its first value: an `int` can't become a `str`, a function can't become an `int`, and so on. Assigning a value of another type is an error, and the symbol keeps its old value. This applies to assignments, labels, `.zpbyte` and `.zpword` names, and `.repeat` counters, where the last three are always `int`.
+A symbol keeps the type of its first value: an `int` can't become a `str`, a function can't become an `int`, and so on. Assigning a value of another type is an error, and the symbol keeps its old value. This applies to assignments, labels, and `.zpbyte` and `.zpword` names, where the last two are always `int`. Symbols set by `.for`, like other Python code, are not checked.
 
 ```
 count = 1
@@ -427,21 +427,37 @@ Experimental. Stores an image from an 8 bits per pixel BMP file, with a width th
 
 ### Repetition
 
-#### .repeat, .endr
+#### .repeat, .end
 ```
-.repeat "name", count
+.repeat count
 ...
-.endr
+.end
 ```
-Assembles the lines up to `.endr` `count` times. The symbol `name` counts from 0 to `count - 1`. Repeat blocks can be nested.
+Assembles the lines up to `.end` `count` times. With a count of 0, the lines are skipped. `.repeat` and `.for` blocks can be nested, and `.end` ends the innermost one. For a counter variable, use `.for`.
 
 ```
-            .repeat "row", 4
-            .repeat "column", 4
-            .byte row * 16 + column
-            .endr
-            .endr
+            .repeat 8
+            nop
+            .end
 ```
+
+#### .for, .end
+```
+.for initial, condition, step
+...
+.end
+```
+Assembles the lines up to `.end` while the condition is true. The initial and step are Python statements, run before the first and after each round, and the condition is a Python expression. If the condition is false at the start, the lines are skipped.
+
+```
+            .for row=0, row<4, row+=1
+            .for column=0, column<4, column+=1
+            .byte row * 16 + column
+            .end
+            .end
+```
+
+A loop that has not ended after 65536 rounds, e.g. because its condition is never false, is an error.
 
 ### Python
 

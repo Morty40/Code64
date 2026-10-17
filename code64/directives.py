@@ -19,12 +19,18 @@ from context import Context
 
 
 DIRECTIVES = {} # directive name: function
+_rawDirectives = set() # directives that get their arguments as tokens, e.g. .for a=0, a<10, a+=1
 
 
-def directive(name: str):
-    """Register a function as the directive with the given name."""
+def directive(name: str, raw: bool = False):
+    """Register a function as the directive with the given name.
+
+    A raw directive gets its arguments as tokens, and the tokenized files.
+    """
     def register(function):
         DIRECTIVES[name] = function
+        if raw:
+            _rawDirectives.add(name)
         return function
     return register
 
@@ -44,13 +50,16 @@ def _matches(function, arguments: list) -> bool:
     return True
 
 
-def assemble(tokens: list, context: Context) -> bool:
+def assemble(tokens: list, context: Context, chunks: dict = None) -> bool:
     """Assemble a directive line, e.g. .byte 1, 2.
 
     The arguments are evaluated as one expression, a tuple if several.
+    chunks are the tokenized files, for directives that look ahead (.for).
     Returns False if the directive moved the read pointer (.import).
     """
     name = tokens[1].string
+    if name in _rawDirectives:
+        return DIRECTIVES[name](context, tokens[2:], chunks) is not False
     expression = lexer.join(tokens[2:])
 
     if len(expression.strip()) > 0:
@@ -219,44 +228,123 @@ def error(context, message: str):
 
 
 ################################################################################
-# repetition
+# blocks: .repeat and .for, each ended by .end
 
-@directive('repeat')
-def repeat(context, iterator: str, count: int):
-    """Start a repeat block: remember the .repeat line, and start the iterator at 0."""
-    readPointer = context.readPointer()
-    if context.setSymbol(iterator, 0):
-        context.repeatStack.append( (iterator, count, readPointer) )
+BLOCKS = ('repeat', 'for') # the directives that start a block
+MAX_ITERATIONS = 0x10000 # a .for loop that runs longer is an error, e.g. a condition that is never false
 
 
-@directive('endr')
-def endRepeat(context):
-    """End a repeat block: count the iterator up, and jump back while it is below the count.
+@directive('repeat', raw=True)
+def repeat(context, tokens: list, chunks: dict):
+    """Start a repeat block: .repeat count. The lines up to .end are assembled count times.
 
-    The jump goes to the .repeat line, and as the read pointer then advances,
-    assembly continues on the first line of the block.
+    With a count of 0, the block is skipped. A .for loop gives a counter variable.
     """
-    if len(context.repeatStack) > 0:
-        iterator, count, readPointer = context.repeatStack[-1] # last repeat
-        context.symbols[iterator] += 1 # increment iterator
-        if context.symbols[iterator] < count: # branch condition
-            context.jumpReadPointer(readPointer)
-        else:
-            context.repeatStack.pop()
+    expression = lexer.join(tokens)
+    count = evaluate.expression(expression, context)
+    if type(count) is not int:
+        context.reportError(f'Expected .repeat count: .repeat {expression}')
+        return
+    if count > 0:
+        context.blockStack.append( ('repeat', count, context.readPointer()) )
     else:
-        context.reportError(f'End repeat without matching repeat')
+        _skipBlock(context, chunks, 'repeat')
+
+
+@directive('for', raw=True)
+def forLoop(context, tokens: list, chunks: dict):
+    """Start a for loop: .for initial, condition, step, e.g. .for a=0, a<10, a+=1.
+
+    The initial and step are Python statements. While the condition is true,
+    the lines up to .end are assembled. If it is false at the start, the
+    loop is skipped.
+    """
+    parts = [lexer.join(part) for part in lexer.splitByComma(tokens)]
+    if len(parts) != 3:
+        context.reportError(f'Expected .for initial, condition, step: .for {lexer.join(tokens)}')
+        return
+    initial, condition, step = parts
+    if not _execute(context, initial):
+        return
+    if evaluate.expression(condition, context):
+        context.blockStack.append( ('for', condition, step, 0, context.readPointer()) )
+    else:
+        _skipBlock(context, chunks, 'for')
+
+
+def _skipBlock(context, chunks: dict, name: str):
+    """Continue after the matching .end, as the block runs zero times."""
+    fileName, lineIndex = context.readPointer()
+    lines = chunks[fileName]
+    depth = 0
+    for index in range(lineIndex + 1, len(lines)):
+        line = lines[index]
+        if len(line) >= 2 and line[1].string == ':': # after a label
+            line = line[2:]
+        if len(line) >= 2 and line[0].string == '.':
+            if line[1].string in BLOCKS:
+                depth += 1
+            elif line[1].string == 'end' and depth > 0:
+                depth -= 1
+            elif line[1].string == 'end':
+                context.jumpReadPointer( (fileName, index) ) # then advances past the .end
+                return
+    context.reportError(f'{name.capitalize()} without matching end')
+
+
+@directive('end')
+def end(context):
+    """End the innermost block, and jump back if it has more rounds.
+
+    The jump goes to the line that started the block, and as the read pointer
+    then advances, assembly continues on the first line of the block.
+    """
+    if len(context.blockStack) == 0:
+        context.reportError('End without matching repeat or for')
+        return
+    block = context.blockStack.pop()
+    if block[0] == 'repeat':
+        _endRepeat(context, *block[1:])
+    elif block[0] == 'for':
+        _endFor(context, *block[1:])
+
+
+def _endRepeat(context, count: int, readPointer: tuple):
+    """Jump back while there are repeats left."""
+    if count > 1:
+        context.blockStack.append( ('repeat', count - 1, readPointer) )
+        context.jumpReadPointer(readPointer)
+
+
+def _endFor(context, condition: str, step: str, iterations: int, readPointer: tuple):
+    """Execute the step, and jump back while the condition is true."""
+    if not _execute(context, step):
+        return
+    if iterations + 1 >= MAX_ITERATIONS:
+        context.reportError(f'For loop did not end after {MAX_ITERATIONS} iterations')
+        return
+    if evaluate.expression(condition, context):
+        context.blockStack.append( ('for', condition, step, iterations + 1, readPointer) )
+        context.jumpReadPointer(readPointer)
 
 
 ################################################################################
 # python and files
 
+def _execute(context, code: str) -> bool:
+    """Execute Python code. Returns False after reporting an error."""
+    try:
+        exec(code, context.symbols)
+        return True
+    except Exception as exception:
+        context.reportError(f'Failed to execute python code: "{code}" ({type(exception).__name__}: {exception})')
+        return False
+
+
 @directive('py')
 def py(context, code: str):
     """Execute Python code."""
-    try:
-        exec(code, context.symbols)
-    except Exception as exception:
-        context.reportError(f'Failed to execute python code: "{code}" ({type(exception).__name__}: {exception})')
+    _execute(context, code)
 
 
 @directive('import')

@@ -28,7 +28,7 @@ class Context:
         self.memory = {} # address: byte
         self.warnings = []
         self.errors = []
-        self.repeatStack = [] # (iterator, count, readPointer) per open .repeat
+        self.blockStack = [] # per open .repeat or .for: (kind, ...), see directives.py
         self.zpAddress = 2 # $0 and $1 are reserved
         self.generatorCount = 0 # gives each generator call its own local label scope
         self.path = '' # folder of the main source file, for .import and .binary
@@ -78,7 +78,7 @@ class Context:
 
 
     def jumpReadPointer(self, readPointer: tuple):
-        """Continue from another line. Used by .endr to repeat."""
+        """Continue from another line. Used by .end to loop back."""
         if self.readPointerStack:
             self.readPointerStack[-1] = readPointer
 
@@ -180,7 +180,7 @@ class TestContext(unittest.TestCase):
         context.pushReadPointer(('a.asm', 0))
         self.assertEqual(context.advanceReadPointer(), ('a.asm', 1))
         context.pushReadPointer(('b.asm', 0))                    # e.g. an .import
-        context.jumpReadPointer(('b.asm', 7))                    # e.g. .endr jumping back
+        context.jumpReadPointer(('b.asm', 7))                    # e.g. .end jumping back
         self.assertEqual(context.readPointer(), ('b.asm', 7))
         self.assertEqual(context.popReadPointer(), ('b.asm', 7)) # end of b.asm
         self.assertEqual(context.readPointer(), ('a.asm', 1))    # back in a.asm

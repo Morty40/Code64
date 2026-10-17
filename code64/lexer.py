@@ -36,12 +36,12 @@ def _fixPrefix(word: str) -> str:
 def translateLocalLabels(tokens: list, lastLabel: str='') -> list:
     """Prefix local labels (starting with _) with the last global label."""
     newTokens = []
-    for chunk in chunkSplit(tokens):
+    for lineTokens in splitByNewline(tokens):
         
-        if len(chunk) >= 2 and not chunk[0].string.startswith('_') and chunk[1].string == ':':
-            lastLabel = chunk[0].string
+        if len(lineTokens) >= 2 and not lineTokens[0].string.startswith('_') and lineTokens[1].string == ':':
+            lastLabel = lineTokens[0].string
             
-        for token in chunk:
+        for token in lineTokens:
             if len(token.string) > 1 and token.string.startswith('_'):
                 token.string = '_' + lastLabel + token.string
             newTokens.append(token)
@@ -59,6 +59,21 @@ def join(tokens: list) -> str:
             s += ' '
         s += t.string
     return s
+
+
+def splitByComma(tokens: list) -> list:
+    """Split tokens at the commas that are not inside brackets, e.g. i<len([1, 2])."""
+    parts, depth = [[]], 0
+    for token in tokens:
+        if token.string in ('(', '[', '{'):
+            depth += 1
+        elif token.string in (')', ']', '}'):
+            depth -= 1
+        if token.string == ',' and depth == 0:
+            parts.append([])
+        else:
+            parts[-1].append(token)
+    return parts
 
 
 def tokenize(text: str, fileName: str='') -> list:
@@ -111,7 +126,7 @@ def tokenizeFile(fileName: str) -> list:
     return tokens
 
 
-def chunkSplit(tokens: list) -> Iterator[list]:
+def splitByNewline(tokens: list) -> Iterator[list]:
     """A generator that splits a list of tokens by newlines."""
     indices = [i for i, token in enumerate(tokens) if token.string=='\n']
     for start, end in zip([-1, *indices], [*indices, len(tokens)]):
@@ -164,21 +179,27 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(strings[-2:], ['rts', '\n'])
 
 
-    def testChunkSplit(self):
+    def testSplitByComma(self):
+        """Tokens are split at the commas that are not inside brackets."""
+        parts = splitByComma(tokenize('a=0, a<len([1, 2]), {"x": (3, 4)}')[:-1])
+        self.assertEqual([join(part) for part in parts], ['a=0', 'a<len([1,2])', '{f"x":(3,4)}'])
+
+
+    def testSplitByNewline(self):
         tokens = [Token('a'), Token('\n'), Token('b'), Token('c'), Token('\n'), Token('\n'), Token('d')]
-        for index, chunk in enumerate(chunkSplit(tokens)):
+        for index, lineTokens in enumerate(splitByNewline(tokens)):
             if index==0:
-                self.assertEqual(len(chunk), 1)
-                self.assertEqual(chunk[0].string, 'a')
+                self.assertEqual(len(lineTokens), 1)
+                self.assertEqual(lineTokens[0].string, 'a')
             if index==1:
-                self.assertEqual(len(chunk), 2)
-                self.assertEqual(chunk[0].string, 'b')
-                self.assertEqual(chunk[1].string, 'c')
+                self.assertEqual(len(lineTokens), 2)
+                self.assertEqual(lineTokens[0].string, 'b')
+                self.assertEqual(lineTokens[1].string, 'c')
             if index==2:
-                self.assertEqual(len(chunk), 0)
+                self.assertEqual(len(lineTokens), 0)
             if index==3:
-                self.assertEqual(len(chunk), 1)
-                self.assertEqual(chunk[0].string, 'd')
+                self.assertEqual(len(lineTokens), 1)
+                self.assertEqual(lineTokens[0].string, 'd')
 
         
 if __name__ == '__main__':
