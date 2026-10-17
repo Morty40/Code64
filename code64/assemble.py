@@ -224,7 +224,7 @@ class TestAssemble(unittest.TestCase):
     def testGeneratorNotString(self):
         """A generator must return assembly code as a string, or it is an error."""
         for source, line in [('@nop\n', 1),                                # forgot the parentheses
-                             ('.py "def emit(): pass"\n@emit()\n', 2)]:     # forgot to return the code
+                             ('.python\ndef emit(): pass\n.end\n@emit()\n', 4)]: # forgot to return the code
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(source)
                 self.assertIn(f'test.asm:{line} error:', output)
@@ -259,7 +259,9 @@ class TestAssemble(unittest.TestCase):
             ('.for a=0, a<0, a+=1\n',                'test.asm:1 error: For without matching end'),
             ('.for a=, a<1, a+=1\n.end\n',           'test.asm:1 error: Failed to execute python code: "a="'),
             ('.for a=0, a<1, b+=1\n.end\n',          'test.asm:2 error: Failed to execute python code: "b+=1"'),
-            ('.py "1/0"\n',                          'test.asm:1 error: Failed to execute python code: "1/0" (ZeroDivisionError: division by zero)'),
+            ('.python\n1/0\n.end\n',                    'test.asm:1 error: Failed to execute python code: "1/0" (ZeroDivisionError: division by zero)'),
+            ('.python\nx = 1\n',                         'test.asm:1 error: Invalid directive: .python'), # no .end
+            ('.python "1/0"\n',                      'test.asm:1 error: Invalid syntax'), # only python blocks
             ('.import "nothere.py"\n',               'test.asm:1 error: Failed to execute python code: "nothere.py" (FileNotFoundError: '),
             ('.binary "nothere.bin"\n',              'test.asm:1 error: File not found: "nothere.bin"'),
             ('.music "nothere.sid", "M"\n',          'test.asm:1 error: File not found: "nothere.sid"'),

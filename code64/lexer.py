@@ -3,6 +3,7 @@
 
 import re
 import shlex
+import textwrap
 import unittest
 from typing import Iterator
 
@@ -80,12 +81,25 @@ def tokenize(text: str, fileName: str='') -> list:
     """Split source code into tokens, with a newline token after each line.
 
     Comments are removed, $ and % become 0x and 0b, and strings become
-    f-strings, so the tokens form valid Python expressions.
+    f-strings, so the tokens form valid Python expressions. A block of
+    Python code, from .python to .end, becomes one .python line with the code as a
+    string, followed by empty lines, so the line numbers stay the same.
     """
     tokens = []
 
     if type(text) is str:
+        pythonBlock = None # the lines of a .python block, while they are collected
         for line in text.splitlines():
+            if pythonBlock is not None:
+                if re.fullmatch(r'\s*\.end\s*(;.*)?', line): # the end of the .python block
+                    code = textwrap.dedent('\n'.join(pythonBlock))
+                    tokens.append(Token(repr(code), fileName))
+                    tokens += [Token('\n') for _ in range(len(pythonBlock) + 2)] # .python, the code, and .end
+                    pythonBlock = None
+                else:
+                    pythonBlock.append(line)
+                continue
+
             lex = shlex.shlex(line, punctuation_chars="|&<>.=")
             lex.commenters = ';'
             lex.wordchars += '$%'
@@ -97,6 +111,13 @@ def tokenize(text: str, fileName: str='') -> list:
             except ValueError: # e.g. no closing quotation
                 words = [line] # one token, reported as invalid syntax when assembled
 
+            if words[:2] == ['.', 'python'] and len(words) > 2: # Python code is only allowed in a block
+                words = [line] # one token, reported as invalid syntax when assembled
+            if words == ['.', 'python']: # a block of Python code follows, up to .end
+                tokens += [Token('.', fileName), Token('python', fileName)]
+                pythonBlock = []
+                continue
+
             prev = ['', ''] # previous two tokens, to tell modulo from binary prefix
             for token in words:
                 # % is modulo after a number, name or closing bracket (7 % 4), and
@@ -107,6 +128,8 @@ def tokenize(text: str, fileName: str='') -> list:
                 tokens.append(Token(token, fileName, lex.lineno))
                 prev = [prev[1], token]
             tokens.append(Token('\n'))
+        if pythonBlock is not None: # no .end, so the .python line is reported as an invalid directive
+            tokens += [Token('\n') for _ in range(len(pythonBlock) + 1)]
 
     return tokens
 
@@ -183,6 +206,13 @@ class TestLexer(unittest.TestCase):
         """Tokens are split at the commas that are not inside brackets."""
         parts = splitByComma(tokenize('a=0, a<len([1, 2]), {"x": (3, 4)}')[:-1])
         self.assertEqual([join(part) for part in parts], ['a=0', 'a<len([1,2])', '{f"x":(3,4)}'])
+
+
+    def testPythonBlock(self):
+        """A .python block becomes one .python line with the code as a string, keeping the line count."""
+        strings = [t.string for t in tokenize('nop\n.python\n    def f(x):\n        return x; # a;b\n.end\nrts')]
+        self.assertEqual(strings[:5], ['nop', '\n', '.', 'python', repr('def f(x):\n    return x; # a;b')])
+        self.assertEqual(strings[5:], ['\n'] * 4 + ['rts', '\n'])
 
 
     def testSplitByNewline(self):

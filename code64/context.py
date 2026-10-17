@@ -28,7 +28,7 @@ class Context:
         self.memory = {} # address: byte
         self.warnings = []
         self.errors = []
-        self.blockStack = [] # per open .repeat or .for: (kind, ...), see directives.py
+        self.blockStack = [] # per open .repeat, .for or .if: (kind, ...), see directives.py
         self.zpAddress = 2 # $0 and $1 are reserved
         self.generatorCount = 0 # gives each generator call its own local label scope
         self.path = '' # folder of the main source file, for .import and .binary

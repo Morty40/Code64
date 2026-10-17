@@ -209,7 +209,7 @@ sin:        nop             ; error: Symbol "sin" cannot change type from builti
 
 Note that `int`, `float` and `bool` are different types. To keep a value that can have decimals, start it as a `float`, e.g. `speed = 1.0`, rather than `speed = 1`.
 
-Symbols set by Python code, with `.py` or `.import` of a `.py` file, are not checked.
+Symbols set by Python code, with `.python` or `.import` of a `.py` file, are not checked.
 
 ### Expressions
 
@@ -481,15 +481,25 @@ Assembles the lines up to `.else` if the Python expression `condition` is true, 
 
 ### Python
 
-#### .py
+#### .python
 ```
-.py "statement"
+.python
+...
+.end
 ```
-Executes a Python statement, for example to define a function.
+Executes the block of Python code up to `.end`, for example to define functions. The lines are passed to Python unchanged, so `;`, `$` and `%` keep their Python meaning. The block can be indented like the assembly around it, as long as the indentation within it is consistent.
 
 ```
-            .py "def double(x): return x * 2"
+            .python
+                def double(x):
+                    return x * 2
+
+                def nops(n):
+                    return "nop\n" * n
+            .end
+
             .byte double(21)
+            @nops(3)
 ```
 
 ### Messages

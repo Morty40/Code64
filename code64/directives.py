@@ -370,8 +370,8 @@ def _execute(context, code: str) -> bool:
         return False
 
 
-@directive('py')
-def py(context, code: str):
+@directive('python')
+def python(context, code: str):
     """Execute Python code."""
     _execute(context, code)
 
