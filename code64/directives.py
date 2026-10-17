@@ -317,7 +317,6 @@ def loadMusic(context, fileName: str, prefix: str):
 
 
 @directive('bitmap')
-@directive('sprite')
 def loadImage(context, fileName: str, bitsPerPixel: int):
     """Store an image from a BMP file, converted to sprites."""
     if not fileName in _imageFiles:

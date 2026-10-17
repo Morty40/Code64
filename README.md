@@ -419,12 +419,11 @@ Stores the music data from a SID file (PSID format), without the header. The sym
 
 The path is relative to the current working folder.
 
-#### .sprite, .bitmap
+#### .bitmap
 ```
-.sprite "file", bitsPerPixel
 .bitmap "file", bitsPerPixel
 ```
-Experimental. Stores an image from an 8 bits per pixel BMP file, with a width that is a multiple of 8. The image is converted into single colour sprites of 24×21 pixels, 64 bytes each, where every non-zero pixel is a set bit. Both directives currently do the same conversion, and the `bitsPerPixel` argument is not used yet. The path is relative to the current working folder.
+Experimental. Stores an image from an 8 bits per pixel BMP file, with a width that is a multiple of 8. The image is converted into single colour sprites of 24×21 pixels, 64 bytes each, where every non-zero pixel is a set bit. The `bitsPerPixel` argument is not used yet. The path is relative to the current working folder.
 
 ### Repetition
 
