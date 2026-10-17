@@ -4,6 +4,7 @@
 import re
 import shlex
 import unittest
+from typing import Iterator
 
 import cpu
 
@@ -21,7 +22,7 @@ class Token:
         return f'{s} ({self.fileName}:{self.lineNumber})'
 
 
-def _fixPrefix(word):
+def _fixPrefix(word: str) -> str:
     """Convert hex and binary prefixes $ and % to 0x and 0b, and all strings to f-strings."""
     if word.startswith('$'):
         word = '0x' + word[1:]
@@ -32,7 +33,7 @@ def _fixPrefix(word):
     return word
 
 
-def translateLocalLabels(tokens, lastLabel=''):
+def translateLocalLabels(tokens: list, lastLabel: str='') -> list:
     """Prefix local labels (starting with _) with the last global label."""
     newTokens = []
     for chunk in chunkSplit(tokens):
@@ -60,7 +61,7 @@ def join(tokens: list) -> str:
     return s
 
 
-def tokenize(text: str, fileName=''):
+def tokenize(text: str, fileName: str='') -> list:
     """Split source code into tokens, with a newline token after each line.
 
     Comments are removed, $ and % become 0x and 0b, and strings become
@@ -74,8 +75,15 @@ def tokenize(text: str, fileName=''):
             lex.commenters = ';'
             lex.wordchars += '$%'
 
+            # shlex raises ValueError when a line ends inside a quoted string. list() reads the
+            # whole line first, so a broken line is replaced before any of its tokens are used.
+            try:
+                words = list(lex)
+            except ValueError: # e.g. no closing quotation
+                words = [line] # one token, reported as invalid syntax when assembled
+
             prev = ['', ''] # previous two tokens, to tell modulo from binary prefix
-            for token in lex:
+            for token in words:
                 # % is modulo after a number, name or closing bracket (7 % 4), and
                 # otherwise a binary prefix (%101), e.g. after a directive or mnemonic
                 afterOperand = re.search(r'[\w)\]]$', prev[1]) and prev[0] != '.' and not cpu.isMnemonic(prev[1])
@@ -88,14 +96,13 @@ def tokenize(text: str, fileName=''):
     return tokens
 
 
-def tokenizeFile(fileName):
+def tokenizeFile(fileName: str) -> list:
     """Tokenize a source file, and translate its local labels."""
     try:
         with open(fileName, 'r') as f:
             text = f.read()
             
     except FileNotFoundError:
-        # TODO: also handle ValueError, when quotes are not matched..
         pass
 
     tokens = tokenize(text, fileName)
@@ -104,7 +111,7 @@ def tokenizeFile(fileName):
     return tokens
 
 
-def chunkSplit(tokens):
+def chunkSplit(tokens: list) -> Iterator[list]:
     """A generator that splits a list of tokens by newlines."""
     indices = [i for i, token in enumerate(tokens) if token.string=='\n']
     for start, end in zip([-1, *indices], [*indices, len(tokens)]):
@@ -148,6 +155,13 @@ class TestLexer(unittest.TestCase):
     def testTokenRepr(self):
         self.assertEqual(repr(Token('lda', 'a.asm', 3)), 'lda (a.asm:3)')
         self.assertEqual(repr(Token('\n')), '\\n (:0)') # newline is shown escaped
+
+
+    def testUnclosedQuote(self):
+        """A missing end quote doesn't crash, and the other lines are still tokenized."""
+        strings = [t.string for t in tokenize('nop\n.text "abc\nrts')]
+        self.assertEqual(strings[:2], ['nop', '\n'])
+        self.assertEqual(strings[-2:], ['rts', '\n'])
 
 
     def testChunkSplit(self):
