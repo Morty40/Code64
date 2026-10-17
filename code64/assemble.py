@@ -27,18 +27,9 @@ from cpu import lo, hi
 
 def _saveMemoryToPrg(start: int, memory: dict, fileName: str):
     """Save a .prg file: the load address, then memory from start to end."""
-    f = open(fileName, 'wb')
-
-    ints = [lo(start), hi(start)]
-
-    if len(memory) > 0:
-        first = min(memory.keys())
-        last = max(memory.keys())
-        for i in range(first, last+1):
-            ints.append(memory[i] if i in memory else 0)
-
-    f.write(bytes(ints))
-    f.close()
+    data = [memory.get(address, 0) for address in range(min(memory), max(memory) + 1)] if memory else []
+    with open(fileName, 'wb') as f:
+        f.write(bytes([lo(start), hi(start)] + data))
 
 
 def multiPass(inFile, outFile) -> bool:
@@ -149,9 +140,7 @@ def multiPass(inFile, outFile) -> bool:
 
         if outFile is not None:
             print(f'Saving program: {outFile}')
-            start = defaultOrigin
-            if len(context.memory) > 0:
-                start = min(context.memory.keys())
+            start = min(context.memory, default=defaultOrigin)
             _saveMemoryToPrg(start, context.memory, outFile)
 
     return anyErrors
@@ -235,6 +224,27 @@ class TestAssemble(unittest.TestCase):
         with mock.patch.object(directives, 'MAX_ITERATIONS', 100): # the real limit takes seconds
             anyErrors, output = self._assemble('.for a=0, a>=0, a+=1\n.end\n')
         self.assertIn('test.asm:2 error: For loop did not end after 100 iterations', output)
+
+    def testSaveMemoryToPrg(self):
+        """A .prg file is the load address, then the bytes from the lowest to the highest address, gaps as 0."""
+        for memory, expected in [({0x1000: 1, 0x1002: 3}, [0x00, 0x10, 1, 0, 3]), ({}, [0x00, 0x10])]:
+            with self.subTest(memory=memory), tempfile.TemporaryDirectory() as directory:
+                fileName = os.path.join(directory, 'test.prg')
+                _saveMemoryToPrg(0x1000, memory, fileName)
+                with open(fileName, 'rb') as f:
+                    self.assertEqual(list(f.read()), expected)
+
+    def testPrgStart(self):
+        """The load address is the lowest address used, or $1000 if nothing is stored."""
+        for source, expected in [('.org $2000\n.byte 1\n.org $1fff\n.byte 2\n', [0xff, 0x1f, 2, 1]), ('', [0x00, 0x10])]:
+            with self.subTest(source=source), tempfile.TemporaryDirectory() as directory:
+                asmFile, prgFile = os.path.join(directory, 'test.asm'), os.path.join(directory, 'test.prg')
+                with open(asmFile, 'w') as f:
+                    f.write(source)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    multiPass(asmFile, prgFile)
+                with open(prgFile, 'rb') as f:
+                    self.assertEqual(list(f.read()), expected)
 
     def testMessages(self):
         """Errors and warnings, each reported at the line that causes it."""
