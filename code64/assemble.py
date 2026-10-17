@@ -273,6 +273,7 @@ class TestAssemble(unittest.TestCase):
             ('.python\nx = 1\n',                         'test.asm:1 error: Invalid directive: .python'), # no .end
             ('.python "1/0"\n',                      'test.asm:1 error: Invalid syntax'), # only python blocks
             ('.import "nothere.py"\n',               'test.asm:1 error: Failed to execute python code: "nothere.py" (FileNotFoundError: '),
+            ('.org undefinedSymbol\n',               'test.asm:1 error: Invalid directive: .org undefinedSymbol'),
             ('.binary "nothere.bin"\n',              'test.asm:1 error: File not found: "nothere.bin"'),
             ('.music "nothere.sid", "M"\n',          'test.asm:1 error: File not found: "nothere.sid"'),
             ('.bitmap "nothere.bmp", 1\n',           'test.asm:1 error: File not found: "nothere.bmp"'),

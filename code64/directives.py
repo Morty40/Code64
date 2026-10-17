@@ -62,16 +62,11 @@ def assemble(tokens: list, context: Context, chunks: dict = None) -> bool:
         return DIRECTIVES[name](context, tokens[2:], chunks) is not False
     expression = lexer.join(tokens[2:])
 
-    if len(expression.strip()) > 0:
-        arguments = evaluate.expression(expression, context)
-    else:
-        arguments = None
-    if arguments is None:
+    if not expression.strip():
         arguments = []
-    elif type(arguments) is tuple:
-        arguments = list(arguments)
     else:
-        arguments = [arguments]
+        value = evaluate.expression(expression, context)
+        arguments = [] if value is None else list(value) if type(value) is tuple else [value]
 
     function = DIRECTIVES.get(name)
     if function is None or not _matches(function, arguments):
