@@ -228,9 +228,9 @@ def error(context, message: str):
 
 
 ################################################################################
-# blocks: .repeat and .for, each ended by .end
+# blocks: .repeat, .for and .if, each ended by .end
 
-BLOCKS = ('repeat', 'for') # the directives that start a block
+BLOCKS = ('repeat', 'for', 'if') # the directives that start a block
 MAX_ITERATIONS = 0x10000 # a .for loop that runs longer is an error, e.g. a condition that is never false
 
 
@@ -272,8 +272,11 @@ def forLoop(context, tokens: list, chunks: dict):
         _skipBlock(context, chunks, 'for')
 
 
-def _skipBlock(context, chunks: dict, name: str):
-    """Continue after the matching .end, as the block runs zero times."""
+def _skipBlock(context, chunks: dict, name: str, stopAtElse: bool = False) -> str:
+    """Skip lines, and continue after the matching .end, or .else if stopAtElse.
+
+    Returns 'end' or 'else', where it continues, or None if there is none.
+    """
     fileName, lineIndex = context.readPointer()
     lines = chunks[fileName]
     depth = 0
@@ -286,9 +289,9 @@ def _skipBlock(context, chunks: dict, name: str):
                 depth += 1
             elif line[1].string == 'end' and depth > 0:
                 depth -= 1
-            elif line[1].string == 'end':
-                context.jumpReadPointer( (fileName, index) ) # then advances past the .end
-                return
+            elif line[1].string == 'end' or (line[1].string == 'else' and stopAtElse and depth == 0):
+                context.jumpReadPointer( (fileName, index) ) # then advances past the .end or .else
+                return line[1].string
     context.reportError(f'{name.capitalize()} without matching end')
 
 
@@ -300,7 +303,7 @@ def end(context):
     then advances, assembly continues on the first line of the block.
     """
     if len(context.blockStack) == 0:
-        context.reportError('End without matching repeat or for')
+        context.reportError('End without matching repeat, for or if')
         return
     block = context.blockStack.pop()
     if block[0] == 'repeat':
@@ -326,6 +329,32 @@ def _endFor(context, condition: str, step: str, iterations: int, readPointer: tu
     if evaluate.expression(condition, context):
         context.blockStack.append( ('for', condition, step, iterations + 1, readPointer) )
         context.jumpReadPointer(readPointer)
+
+
+@directive('if', raw=True)
+def ifBlock(context, tokens: list, chunks: dict):
+    """Start an if block: .if condition, e.g. .if a>5.
+
+    If the condition is true, the lines up to .else or .end are assembled,
+    otherwise the lines from .else to .end, if there is an .else.
+    """
+    if evaluate.expression(lexer.join(tokens), context):
+        context.blockStack.append( ('if', False, context.readPointer()) )
+    elif _skipBlock(context, chunks, 'if', stopAtElse=True) == 'else':
+        context.blockStack.append( ('if', True, context.readPointer()) ) # in the .else lines
+
+
+@directive('else', raw=True)
+def elseBlock(context, tokens: list, chunks: dict):
+    """Skip the lines from .else to .end, as the condition of the .if was true."""
+    if len(context.blockStack) == 0 or context.blockStack[-1][0] != 'if':
+        context.reportError('Else without matching if')
+        return
+    kind, inElse, readPointer = context.blockStack.pop()
+    if inElse:
+        context.reportError('Else already used for this if')
+        return
+    _skipBlock(context, chunks, 'else')
 
 
 ################################################################################

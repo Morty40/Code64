@@ -433,7 +433,7 @@ Experimental. Stores an image from an 8 bits per pixel BMP file, with a width th
 ...
 .end
 ```
-Assembles the lines up to `.end` `count` times. With a count of 0, the lines are skipped. `.repeat` and `.for` blocks can be nested, and `.end` ends the innermost one. For a counter variable, use `.for`.
+Assembles the lines up to `.end` `count` times. With a count of 0, the lines are skipped. `.repeat`, `.for` and `.if` blocks can be nested, and `.end` ends the innermost one. For a counter variable, use `.for`.
 
 ```
             .repeat 8
@@ -458,6 +458,26 @@ Assembles the lines up to `.end` while the condition is true. The initial and st
 ```
 
 A loop that has not ended after 65536 rounds, e.g. because its condition is never false, is an error.
+
+### Conditions
+
+#### .if, .else, .end
+```
+.if condition
+...
+.else
+...
+.end
+```
+Assembles the lines up to `.else` if the Python expression `condition` is true, and the lines from `.else` to `.end` if it is false. The `.else` part is optional. The lines that are not assembled can define the same labels.
+
+```
+            .if DEBUG
+            inc $d020
+            .else
+            nop
+            .end
+```
 
 ### Python
 

@@ -248,7 +248,11 @@ class TestAssemble(unittest.TestCase):
             ('.print 1 + 1\n',                       '\n2\n'),
             ('.warning "careful"\n',                 'test.asm:1 warning: careful'),
             ('.error "stop"\n',                      'test.asm:1 error: stop'),
-            ('.end\n',                               'test.asm:1 error: End without matching repeat or for'),
+            ('.end\n',                               'test.asm:1 error: End without matching repeat, for or if'),
+            ('.else\n',                              'test.asm:1 error: Else without matching if'),
+            ('.if 0\n.else\n.else\n.end\n',          'test.asm:3 error: Else already used for this if'),
+            ('.if 0\n',                              'test.asm:1 error: If without matching end'),
+            ('.if 1\n.else\n',                       'test.asm:2 error: Else without matching end'),
             ('.repeat "i", 2\n.end\n',               'test.asm:1 error: Expected .repeat count'), # the old syntax
             ('.repeat 0\n',                          'test.asm:1 error: Repeat without matching end'),
             ('.for a=0, a<1\n',                      'test.asm:1 error: Expected .for initial, condition, step'),
