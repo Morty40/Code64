@@ -5,6 +5,7 @@
 # https://www.masswerk.at/6502/6502_instruction_set.html
 
 from enum import Enum
+import re
 import unittest
 
 # the low and high byte of a 16-bit value, the 6502 stores words low byte first
@@ -13,7 +14,7 @@ def hi(x): return (x>>8)&0xff
 
 
 class AddressMode(Enum):
-    """The 6502 address modes. The values are the operand syntax, for reference."""
+    """The 6502 address modes. The values are the operand syntax, see syntax()."""
 
     absolute    = 'absolute'
     absoluteX   = 'absolute,x'
@@ -29,6 +30,30 @@ class AddressMode(Enum):
     zeroPageX   = 'zeropage,x'
     zeroPageY   = 'zeropage,y'
 
+    @property
+    def size(self) -> int:
+        """The size of an instruction in this mode: the opcode, and a byte or word operand."""
+        if self in (AddressMode.implied, AddressMode.accumulator):
+            return 1
+        if self in (AddressMode.absolute, AddressMode.absoluteX, AddressMode.absoluteY, AddressMode.indirect):
+            return 3
+        return 2
+
+    @property
+    def zeroPageMode(self):
+        """The zero page mode the assembler chooses instead of this mode for addresses below $100, or None."""
+        return {AddressMode.absolute: AddressMode.zeroPage,
+                AddressMode.absoluteX: AddressMode.zeroPageX,
+                AddressMode.absoluteY: AddressMode.zeroPageY}.get(self)
+
+    def syntax(self, operand: str) -> str:
+        """Write the operand in this mode, e.g. '($10),y' for indirectY and '$10'."""
+        if self in (AddressMode.implied, AddressMode.accumulator):
+            return ''
+        if self is AddressMode.immediate:
+            return '#' + operand
+        return re.sub(r'[a-z]+', lambda _: operand, self.value, count=1) # e.g. (indirect),y
+
 
 class Instruction:
     """An instruction mnemonic, and its opcode for each address mode it supports."""
@@ -39,7 +64,7 @@ class Instruction:
         self.opcodes = {AddressMode[mode]: opcode for mode, opcode in opcodes.items()}
 
 
-instructionSet = {
+_instructionSet = {
     Instruction('adc', absolute=0x6d, absoluteX=0x7d, absoluteY=0x79, immediate=0x69, indirectX=0x61, indirectY=0x71, zeroPage=0x65, zeroPageX=0x75),
     Instruction('and', absolute=0x2d, absoluteX=0x3d, absoluteY=0x39, immediate=0x29, indirectX=0x21, indirectY=0x31, zeroPage=0x25, zeroPageX=0x35),
     Instruction('asl', absolute=0x0e, absoluteX=0x1e, accumulator=0x0a, zeroPage=0x06, zeroPageX=0x16),
@@ -97,12 +122,18 @@ instructionSet = {
     Instruction('txs', implied=0x9a),
     Instruction('tya', implied=0x98)}
 
-_mnemonicMap = {instruction.mnemonic: instruction for instruction in instructionSet}
+_mnemonicMap = {instruction.mnemonic: instruction for instruction in _instructionSet}
+_opcodeMap = {opcode: (instruction, mode) for instruction in _instructionSet for mode, opcode in instruction.opcodes.items()}
 
 
 def instructionWithMnemonic(mnemonic: str) -> Instruction:
     """Return the instruction for a lower case mnemonic, e.g. 'lda', or None."""
     return _mnemonicMap.get(mnemonic)
+
+
+def instructionForOpcode(opcode: int) -> tuple:
+    """Return the (instruction, address mode) of an opcode, e.g. 0xa9 is lda immediate, or None."""
+    return _opcodeMap.get(opcode)
 
 
 def isMnemonic(mnemonic: str) -> bool:
@@ -122,13 +153,23 @@ class TestCpu(unittest.TestCase):
 
     def testInstructionSet(self):
         """The table has all instructions, and they can be looked up by mnemonic."""
-        self.assertEqual(len(instructionSet), 56) # the documented 6502 instructions
+        self.assertEqual(len(_instructionSet), 56) # the documented 6502 instructions
         
         i = instructionWithMnemonic('lda')
         self.assertEqual(i.mnemonic, 'lda')
 
         i = instructionWithMnemonic('xxx')
         self.assertEqual(i, None)
+
+
+    def testInstructionForOpcode(self):
+        """Each opcode gives its instruction and address mode, the reverse of the instruction set table."""
+        instruction, mode = instructionForOpcode(0xa9)
+        self.assertEqual((instruction.mnemonic, mode), ('lda', AddressMode.immediate))
+        instruction, mode = instructionForOpcode(0x60)
+        self.assertEqual((instruction.mnemonic, mode), ('rts', AddressMode.implied))
+        self.assertEqual(instructionForOpcode(0x02), None) # not a documented opcode
+        self.assertEqual(sum(instructionForOpcode(opcode) is not None for opcode in range(256)), 151)
 
 
     def testIsMnemonic(self):
@@ -138,6 +179,39 @@ class TestCpu(unittest.TestCase):
         self.assertEqual(isMnemonic('lda'), True)
         self.assertEqual(isMnemonic('sta'), True)
         self.assertEqual(isMnemonic('nop'), True)
+
+
+    def testSize(self):
+        """The size of an instruction, by address mode: the opcode, and a byte or word operand."""
+        self.assertEqual(AddressMode.implied.size, 1)        # rts
+        self.assertEqual(AddressMode.accumulator.size, 1)    # asl
+        self.assertEqual(AddressMode.immediate.size, 2)      # lda #$01
+        self.assertEqual(AddressMode.relative.size, 2)       # bne label
+        self.assertEqual(AddressMode.indirectY.size, 2)      # lda ($10),y
+        self.assertEqual(AddressMode.absoluteX.size, 3)      # lda $1234,x
+        self.assertEqual(AddressMode.indirect.size, 3)       # jmp ($1234)
+
+
+    def testSyntax(self):
+        """The operand of each address mode, written in assembler syntax."""
+        for mode, expected in [(AddressMode.implied, ''),        (AddressMode.accumulator, ''),
+                               (AddressMode.immediate, '#$10'),  (AddressMode.relative, '$10'),
+                               (AddressMode.zeroPage, '$10'),    (AddressMode.zeroPageX, '$10,x'),
+                               (AddressMode.zeroPageY, '$10,y'), (AddressMode.indirectX, '($10,x)'),
+                               (AddressMode.indirectY, '($10),y'), (AddressMode.absolute, '$10'),
+                               (AddressMode.absoluteX, '$10,x'), (AddressMode.absoluteY, '$10,y'),
+                               (AddressMode.indirect, '($10)')]:
+            with self.subTest(mode=mode):
+                self.assertEqual(mode.syntax('$10'), expected)
+
+
+    def testZeroPageMode(self):
+        """The zero page mode that is chosen instead of an absolute mode, for addresses below $100."""
+        self.assertEqual(AddressMode.absolute.zeroPageMode, AddressMode.zeroPage)
+        self.assertEqual(AddressMode.absoluteX.zeroPageMode, AddressMode.zeroPageX)
+        self.assertEqual(AddressMode.absoluteY.zeroPageMode, AddressMode.zeroPageY)
+        self.assertEqual(AddressMode.indirect.zeroPageMode, None) # always a word
+        self.assertEqual(AddressMode.zeroPage.zeroPageMode, None)
 
 
     def testUnknownAddressMode(self):

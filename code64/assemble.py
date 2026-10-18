@@ -27,6 +27,8 @@ from cpu import lo, hi
 # max passes until all symbols should have been resolved
 MAX_PASSES = 42
 
+DEFAULT_ORIGIN = 0x1000 # the address when there is no .org
+
 
 def _saveMemoryToPrg(start: int, memory: dict, fileName: str):
     """Save a .prg file: the load address, then memory from start to end."""
@@ -65,11 +67,9 @@ def multiPass(inFile, outFile) -> bool:
 
     lastMemory = {}
     
-    defaultOrigin = 0x1000
-
     for _ in range(MAX_PASSES):
         # a new context each pass, but symbols are kept from the last pass
-        symbols['_'] = defaultOrigin
+        symbols['_'] = DEFAULT_ORIGIN
         context = Context(symbols)
         context.path = path
         context.pushReadPointer( (inFile, 0) )
@@ -141,7 +141,7 @@ def multiPass(inFile, outFile) -> bool:
 
         if outFile is not None:
             print(f'Saving program: {outFile}')
-            start = min(context.memory, default=defaultOrigin)
+            start = min(context.memory, default=DEFAULT_ORIGIN)
             _saveMemoryToPrg(start, context.memory, outFile)
 
     return anyErrors

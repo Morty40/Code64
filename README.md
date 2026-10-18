@@ -36,12 +36,14 @@ Code64 can also run directly from the source folder, without installing:
 
 ```
 code64 -a <asmFile> -o <outFile>
+code64 -d <binFile> -o <asmFile>
 ```
 
 | Option | Description |
 |---|---|
 | `-a <asmFile>` | the source file to assemble |
-| `-o <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved |
+| `-d <binFile>` | the `.prg` or binary file to disassemble, see [Disassembling](#disassembling) |
+| `-o <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write (required) |
 | `-h` | print the usage |
 
 The output file is only written when there are no errors. Errors and warnings are printed with file name and line number, and the exit code is 1 on errors. After a successful assembly, Code64 prints the memory range used, the address of every global label, and a map of the 256 memory pages.
@@ -54,6 +56,16 @@ A Makefile rule for building `.prg` files:
 %.prg: %.asm
 	code64 -a $< -o $@
 ```
+
+
+### Disassembling
+
+`code64 -d game.prg -o game.asm` turns a program back into source, which assembles to exactly the same `.prg` file. A `.prg` file starts with its load address, and any other file is loaded at `$1000`.
+
+- Code is found by trying each byte as the start of some code, following branches, `jmp` and `jsr`. It is only code if every path ends with `jmp`, `rts` or `rti` before it runs into an unknown opcode, `brk`, the middle of another instruction, or the end. Nothing is assumed about BASIC lines.
+- Branch, `jmp` and `jsr` destinations get labels like `l1000`.
+- Bytes the code doesn't reach are written as `.byte`, and 16 or more of the same byte as `.bytefill`. Code that is only reached through jump tables or self-modifying code becomes data too.
+- An absolute address below `$100`, e.g. `lda $0010` as `ad 10 00`, is written as `.byte`, as Code64 assembles it with zero page addressing.
 
 
 ## Example
