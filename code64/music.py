@@ -2,17 +2,17 @@
 
 import unittest
 import struct
+from dataclasses import dataclass
 
 
+@dataclass
 class Music:
     """The music data from a SID file, and the addresses to load, init and play it."""
+    loadAddress: int
+    initAddress: int
+    playAddress: int
+    data: bytes
 
-    def __init__(self, loadAddress, initAddress, playAddress, data):
-        self.loadAddress = loadAddress
-        self.initAddress = initAddress
-        self.playAddress = playAddress
-        self.data = data
-        
 
 def load(fileName: str, context):
     """Load a SID file in PSID format, without its header.

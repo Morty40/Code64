@@ -24,6 +24,9 @@ import text
 from context import Context
 from cpu import lo, hi
 
+# max passes until all symbols should have been resolved
+MAX_PASSES = 42
+
 
 def _saveMemoryToPrg(start: int, memory: dict, fileName: str):
     """Save a .prg file: the load address, then memory from start to end."""
@@ -35,7 +38,7 @@ def _saveMemoryToPrg(start: int, memory: dict, fileName: str):
 def multiPass(inFile, outFile) -> bool:
     """Assemble inFile, and save it to outFile if there are no errors.
 
-    Passes are repeated until the output stops changing (max. 9), so
+    Passes are repeated until the output stops changing (max. MAX_PASSES), so
     labels can be used before they are defined. Returns True on errors.
     """
     path = os.path.dirname(inFile)
@@ -64,8 +67,7 @@ def multiPass(inFile, outFile) -> bool:
     
     defaultOrigin = 0x1000
 
-    n = 1
-    while n<10:
+    for _ in range(MAX_PASSES):
         # a new context each pass, but symbols are kept from the last pass
         symbols['_'] = defaultOrigin
         context = Context(symbols)
@@ -126,7 +128,6 @@ def multiPass(inFile, outFile) -> bool:
 
         # prepare for next pass
         lastMemory = dict(context.memory)
-        n += 1
 
     # print warning and errors
     context.printAsmReport()    

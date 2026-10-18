@@ -5,18 +5,18 @@ import re
 import shlex
 import textwrap
 import unittest
+from dataclasses import dataclass
 from typing import Iterator
 
 import cpu
 
 
+@dataclass
 class Token:
     """A word or symbol from the source, e.g. a mnemonic or a number."""
-
-    def __init__(self, string: str, fileName: str='', lineNumber: int=0):
-        self.string = string
-        self.fileName = fileName
-        self.lineNumber = lineNumber
+    string: str
+    fileName: str = ''
+    lineNumber: int = 0
 
     def __repr__(self):
         s = self.string.replace('\n', '\\n')
