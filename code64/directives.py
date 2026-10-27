@@ -10,12 +10,12 @@ import inspect
 import os
 import unittest
 
-import evaluate
-import image
-import lexer
-import music
-import text
-from context import Context
+from . import evaluate
+from . import image
+from . import lexer
+from . import music
+from . import text
+from .context import Context
 
 
 DIRECTIVES = {} # directive name: function

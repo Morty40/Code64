@@ -3,11 +3,11 @@
 
 import unittest
 
-import cpu
-import evaluate
-import lexer
-from context import Context
-from cpu import lo, hi
+from . import cpu
+from . import evaluate
+from . import lexer
+from .context import Context
+from .cpu import lo, hi
 
 
 def assemble(tokens: list, context: Context):

@@ -25,10 +25,10 @@ cd Code64
 
 This installs the `code64` command. Run `./install.sh` again to update after pulling changes, and `./uninstall.sh` to remove it.
 
-Code64 can also run directly from the source folder, without installing:
+Code64 can also run directly from the repository folder, without installing:
 
 ```bash
-./code64/main.py -a hello.asm -o hello.prg
+python3 -m code64.main -a hello.asm -o hello.prg
 ```
 
 

@@ -5,13 +5,8 @@ import builtins
 import unittest
 import types
 
-#--
-import pathlib, sys
-sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
-#--
-
-from context import Context
-import text
+from .context import Context
+from . import text
 
 
 def expression(e: str, context: Context):

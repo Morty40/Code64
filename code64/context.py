@@ -4,7 +4,7 @@
 import math
 import unittest
 
-import text
+from . import text
 
 
 class Context:

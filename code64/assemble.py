@@ -8,21 +8,16 @@ import tempfile
 import unittest
 import glob
 
-#--
-import pathlib, sys
-sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
-#--
-
-import assignment
-import cpu
-import directives
-import evaluate
-import generators
-import instructions
-import lexer
-import text
-from context import Context
-from cpu import lo, hi
+from . import assignment
+from . import cpu
+from . import directives
+from . import evaluate
+from . import generators
+from . import instructions
+from . import lexer
+from . import text
+from .context import Context
+from .cpu import lo, hi
 
 # max passes until all symbols should have been resolved
 MAX_PASSES = 42

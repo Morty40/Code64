@@ -8,7 +8,7 @@ import unittest
 from dataclasses import dataclass
 from typing import Iterator
 
-import cpu
+from . import cpu
 
 
 @dataclass

@@ -1,6 +1,6 @@
 
 unittest:
-	python3 -m unittest discover -s . -p '*.py'
+	python3 -m unittest discover -s . -t .. -p '*.py'
 
 
 asmfiles := $(wildcard testcases/*.asm)
@@ -11,7 +11,7 @@ hx2files := $(asmfiles:.asm=.hx2)
 
 
 %.prg: %.asm
-	@./main.py -a $< -o $@ > $(basename $<).out
+	@PYTHONPATH=.. python3 -m code64.main -a $< -o $@ > $(basename $<).out
 
 
 %.hx2: %.prg

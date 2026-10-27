@@ -3,9 +3,9 @@
 
 import unittest
 
-import evaluate
-import lexer
-from context import Context
+from . import evaluate
+from . import lexer
+from .context import Context
 
 
 def assemble(tokens: list, context: Context, chunks: dict) -> bool:

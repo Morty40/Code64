@@ -5,19 +5,15 @@ import argparse
 import contextlib
 import io
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from unittest import mock
 
-#--
-import pathlib
-sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
-#--
-
-import assemble
-import cpu
-import disassemble
+from . import assemble
+from . import cpu
+from . import disassemble
 
 
 __version__ = '0.1'
@@ -99,6 +95,15 @@ class TestMain(unittest.TestCase):
                 self.assertIn('rts', f.read())
             code, output, errors = self._main(['-d', os.path.join(directory, 'missing.prg'), '-o', asmFile])
             self.assertEqual(code, 1)
+
+    def testPackageImports(self):
+        """Importing the package keeps its modules inside it, e.g. code64.cpu, not a top level cpu."""
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        modules = subprocess.run([sys.executable, '-c', 'import sys, code64.main; print(*sorted(sys.modules))'],
+                                 cwd=root, capture_output=True, text=True, check=True).stdout.split()
+        self.assertIn('code64.cpu', modules)
+        self.assertNotIn('cpu', modules)
+        self.assertNotIn('assemble', modules)
 
 
 if __name__ == '__main__':

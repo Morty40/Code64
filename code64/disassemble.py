@@ -8,9 +8,9 @@ import os
 import tempfile
 import unittest
 
-import assemble
-import cpu
-from cpu import AddressMode
+from . import assemble
+from . import cpu
+from .cpu import AddressMode
 
 def _decode(data: bytes, start: int, address: int):
     """Decode the instruction at address: (instruction, mode, operand, size), or None if it isn't one.
