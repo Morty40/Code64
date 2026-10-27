@@ -1,6 +1,8 @@
 #! /usr/bin/env python3
 """The assembler state: symbols, memory, messages and the current line."""
 
+import contextlib
+import io
 import math
 import unittest
 
@@ -119,6 +121,20 @@ class Context:
         self.errors.append(f'{rp}error: {text}')
 
 
+    def pageUsageMap(self) -> str:
+        """A map of the 256-byte pages, 16 per line, each one unused, partly used, or full."""
+        def _pageSymbol(used):
+            if used <= 0: return '░'
+            elif used > 0 and used < 256: return '▒'
+            elif used >= 256: return '█'
+
+        pages = [0]*256
+        for address in self.memory:
+            pages[int(address>>8)] += 1
+        pageString = "".join(map(_pageSymbol, pages))
+        return '\n'.join(f"${i*16*256:04x}: {pageString[i*16:(i+1)*16]}" for i in range(16))
+
+
     def printMemoryUse(self):
         """Print the memory range used, the global labels, and a page map."""
 
@@ -138,23 +154,9 @@ class Context:
             if not label.startswith('_'):
                 print(f'${value:04x}: {label}')
 
-        # one symbol for each 256-byte page: unused, partly used, or full
-        def _pageSymbol(used):
-            if used <= 0: return '░'
-            elif used > 0 and used < 256: return '▒'
-            elif used >= 256: return '▓'
-
-        pages = [0]*256
-        for address in self.memory:
-            pages[int(address>>8)] += 1
-        pageString = "".join(map(_pageSymbol, pages))
-
-        fullPagesUsed = len(list(filter(lambda x: x>=256, pages)))
-        partialPagesUsed = len(list(filter(lambda x: x>0 and x<256, pages)))
-
-        print(f'Pages used: {fullPagesUsed} full, {partialPagesUsed} partial')
-        for i in range(16): # 16 pages per line
-            print(f"${i*16*256:04x}: {pageString[i*16:(i+1)*16]}")
+        pageMap = self.pageUsageMap()
+        print(f"Pages used: {pageMap.count('█')} full, {pageMap.count('▒')} partial")
+        print(pageMap)
 
 
     def printAsmReport(self):
@@ -195,6 +197,23 @@ class TestContext(unittest.TestCase):
         context.reportError('failed')
         self.assertEqual(context.warnings, ['warning: no position', 'a.asm:5 warning: careful'])
         self.assertEqual(context.errors, ['a.asm:5 error: failed'])
+
+    def testMemoryUse(self):
+        """The page map shows each page as unused, partly used, or full."""
+        context = Context({})
+        context.memory = {address: 0 for address in range(0x1000, 0x1180)} # page $10 full, page $11 partly used
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            context.printMemoryUse()
+        self.assertIn('Pages used: 1 full, 1 partial', output.getvalue())
+        self.assertIn('$1000: █▒░░░░░░░░░░░░░░', output.getvalue())
+
+    def testPageUsageMap(self):
+        """One line for each 16 pages, with a symbol for each page: unused, partly used, or full."""
+        context = Context({})
+        self.assertEqual(context.pageUsageMap(), '\n'.join(f'${i:x}000: ' + '░'*16 for i in range(16)))
+        context.memory = {address: 0 for address in [*range(0x0800, 0x0900), 0x0a00, 0xffff]} # page $08 full, $0a and $ff partly used
+        self.assertEqual(context.pageUsageMap().splitlines(),
+            ['$0000: ░░░░░░░░█░▒░░░░░', *(f'${i:x}000: ' + '░'*16 for i in range(1, 15)), '$f000: ░░░░░░░░░░░░░░░▒'])
 
 
 if __name__ == '__main__':
