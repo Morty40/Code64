@@ -35,8 +35,8 @@ Code64 can also run directly from the source folder, without installing:
 ## Usage
 
 ```
-code64 -a <asmFile> -o <outFile>
-code64 -d <binFile> -o <asmFile>
+code64 -a <asmFile> -o <outFile> [-i none|stable|all]
+code64 -d <binFile> -o <asmFile> [-i none|stable|all]
 ```
 
 | Option | Description |
@@ -44,6 +44,7 @@ code64 -d <binFile> -o <asmFile>
 | `-a <asmFile>` | the source file to assemble |
 | `-d <binFile>` | the `.prg` or binary file to disassemble, see [Disassembling](#disassembling) |
 | `-o <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write (required) |
+| `-i <none\|stable\|all>` | the [illegal instructions](#illegal-instructions) to use: none, the stable ones (the default), or all |
 | `-h` | print the usage |
 
 The output file is only written when there are no errors. Errors and warnings are printed with file name and line number, and the exit code is 1 on errors. After a successful assembly, Code64 prints the memory range used, the address of every global label, and a map of the 256 memory pages.
@@ -131,6 +132,16 @@ All 56 documented 6502 instructions are supported. Mnemonics are written in lowe
 The zero page form is chosen automatically when the address is below `$100` and the instruction has a zero page form. A branch to a destination out of range is an error, and `jmp (address)` with the address on a page boundary (`$xxff`) gives a warning, as the 6502 does not cross the page.
 
 The accumulator mode of `asl`, `lsr`, `rol` and `ror` is written without an operand. The `asl a` syntax of some other assemblers is not supported: the operand `a` is an expression like any other, so `asl a` uses a symbol named `a` as a zero page or absolute address.
+
+#### Illegal instructions
+
+The 6510 also runs the "illegal" opcodes of the NMOS 6502, see the [6502 instruction set](https://www.masswerk.at/6502/6502_instruction_set.html). The `-i` option chooses which ones are instructions, both when assembling and disassembling:
+
+- `-i stable` (the default): the illegal instructions that work the same on all C64 and C128 cpus: `alr`, `anc`, `arr`, `dcp`, `isc`, `las`, `lax`, `rla`, `rra`, `sax`, `sbx`, `slo` and `sre`.
+- `-i all`: also the unstable ones, which depend on the cpu, its temperature, or the vic: `ane`, `lxa`, `sha`, `shx`, `shy` and `tas`.
+- `-i none`: only the documented instructions, so the illegal mnemonics can be used as labels.
+
+Left out are `anc` `$2b` and `usbc` `$eb`, which do the same as `anc` `$0b` and `sbc #`, and the illegal nops, which would conflict with `nop`. When disassembling they are data.
 
 ### Numbers
 

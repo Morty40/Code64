@@ -122,8 +122,44 @@ _instructionSet = {
     Instruction('txs', implied=0x9a),
     Instruction('tya', implied=0x98)}
 
-_mnemonicMap = {instruction.mnemonic: instruction for instruction in _instructionSet}
-_opcodeMap = {opcode: (instruction, mode) for instruction in _instructionSet for mode, opcode in instruction.opcodes.items()}
+# the "illegal" instructions that work the same on all 6510, 8500 and 8502 cpus. Left out are anc 0x2b
+# and usbc 0xeb, which do the same as anc 0x0b and sbc 0xe9, and the nops, which would conflict with nop
+_stableIllegalInstructionSet = {
+    Instruction('alr', immediate=0x4b),
+    Instruction('anc', immediate=0x0b),
+    Instruction('arr', immediate=0x6b),
+    Instruction('dcp', absolute=0xcf, absoluteX=0xdf, absoluteY=0xdb, indirectX=0xc3, indirectY=0xd3, zeroPage=0xc7, zeroPageX=0xd7),
+    Instruction('isc', absolute=0xef, absoluteX=0xff, absoluteY=0xfb, indirectX=0xe3, indirectY=0xf3, zeroPage=0xe7, zeroPageX=0xf7),
+    Instruction('las', absoluteY=0xbb),
+    Instruction('lax', absolute=0xaf, absoluteY=0xbf, indirectX=0xa3, indirectY=0xb3, zeroPage=0xa7, zeroPageY=0xb7),
+    Instruction('rla', absolute=0x2f, absoluteX=0x3f, absoluteY=0x3b, indirectX=0x23, indirectY=0x33, zeroPage=0x27, zeroPageX=0x37),
+    Instruction('rra', absolute=0x6f, absoluteX=0x7f, absoluteY=0x7b, indirectX=0x63, indirectY=0x73, zeroPage=0x67, zeroPageX=0x77),
+    Instruction('sax', absolute=0x8f, indirectX=0x83, zeroPage=0x87, zeroPageY=0x97),
+    Instruction('sbx', immediate=0xcb),
+    Instruction('slo', absolute=0x0f, absoluteX=0x1f, absoluteY=0x1b, indirectX=0x03, indirectY=0x13, zeroPage=0x07, zeroPageX=0x17),
+    Instruction('sre', absolute=0x4f, absoluteX=0x5f, absoluteY=0x5b, indirectX=0x43, indirectY=0x53, zeroPage=0x47, zeroPageX=0x57)}
+
+# the "illegal" instructions that depend on the cpu, its temperature, or dma, e.g. vic badlines
+_unstableIllegalInstructionSet = {
+    Instruction('ane', immediate=0x8b),
+    Instruction('lxa', immediate=0xab),
+    Instruction('sha', absoluteY=0x9f, indirectY=0x93),
+    Instruction('shx', absoluteY=0x9e),
+    Instruction('shy', absoluteX=0x9c),
+    Instruction('tas', absoluteY=0x9b)}
+
+
+def setIllegalInstructions(illegal: str):
+    """Choose the illegal instructions to use with the regular ones: 'none', 'stable' or 'all'."""
+    global _mnemonicMap, _opcodeMap
+    instructions = {'none': _instructionSet,
+                    'stable': _instructionSet | _stableIllegalInstructionSet,
+                    'all': _instructionSet | _stableIllegalInstructionSet | _unstableIllegalInstructionSet}[illegal]
+    _mnemonicMap = {instruction.mnemonic: instruction for instruction in instructions}
+    _opcodeMap = {opcode: (instruction, mode) for instruction in instructions for mode, opcode in instruction.opcodes.items()}
+
+
+setIllegalInstructions('stable') # the default
 
 
 def instructionWithMnemonic(mnemonic: str) -> Instruction:
@@ -168,8 +204,34 @@ class TestCpu(unittest.TestCase):
         self.assertEqual((instruction.mnemonic, mode), ('lda', AddressMode.immediate))
         instruction, mode = instructionForOpcode(0x60)
         self.assertEqual((instruction.mnemonic, mode), ('rts', AddressMode.implied))
-        self.assertEqual(instructionForOpcode(0x02), None) # not a documented opcode
-        self.assertEqual(sum(instructionForOpcode(opcode) is not None for opcode in range(256)), 151)
+        self.assertEqual(instructionForOpcode(0x02), None) # jam, freezes the cpu
+
+
+    def testIllegalInstructions(self):
+        """Illegal instructions can be left out, or the stable ones (the default), or all of them added."""
+        def opcodes() -> int:
+            return sum(instructionForOpcode(opcode) is not None for opcode in range(256))
+        self.addCleanup(setIllegalInstructions, 'stable')
+        self.assertEqual(len(_stableIllegalInstructionSet), 13)
+        self.assertEqual(len(_unstableIllegalInstructionSet), 6)
+        self.assertEqual(opcodes(), 208) # the default
+
+        setIllegalInstructions('none')
+        self.assertEqual(opcodes(), 151) # the documented 6502 opcodes
+        self.assertEqual((isMnemonic('lax'), instructionForOpcode(0xa7)), (False, None))
+
+        setIllegalInstructions('stable')
+        self.assertEqual(opcodes(), 208)
+        self.assertEqual(instructionForOpcode(0xa7), (instructionWithMnemonic('lax'), AddressMode.zeroPage))
+        self.assertEqual(instructionForOpcode(0x04), None) # an illegal nop, left out
+        self.assertEqual(instructionForOpcode(0xeb), None) # usbc, the same as sbc #, left out
+        self.assertEqual(isMnemonic('sha'), False) # unstable
+
+        setIllegalInstructions('all')
+        self.assertEqual(opcodes(), 215)
+        self.assertEqual(instructionWithMnemonic('nop').opcodes, {AddressMode.implied: 0xea})
+        self.assertEqual(instructionForOpcode(0x9f), (instructionWithMnemonic('sha'), AddressMode.absoluteY))
+        self.assertRaises(KeyError, setIllegalInstructions, 'some')
 
 
     def testIsMnemonic(self):
@@ -223,5 +285,4 @@ if __name__ == '__main__':
     unittest.main()
 
 
-# IDEA: support for illegal instructions
 # IDEA: cycle counting for instructions
