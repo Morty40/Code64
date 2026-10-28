@@ -33,10 +33,15 @@ def main():
     cpu.setIllegalInstructions(arguments.illegal)
     if arguments.binFile and not arguments.outFile:
         parser.error('-d requires -o') # exits with 2
-    if arguments.binFile:
-        anyErrors = disassemble.disassembleFile(arguments.binFile, arguments.outFile)
-    else:
-        anyErrors = assemble.multiPass(arguments.asmFile, arguments.outFile)
+    try:
+        if arguments.binFile:
+            disassemble.disassembleFile(arguments.binFile, arguments.outFile)
+            anyErrors = False
+        else:
+            anyErrors = assemble.multiPass(arguments.asmFile, arguments.outFile)
+    except OSError as exception:
+        print(f'error: {exception.strerror}: "{exception.filename}"')
+        anyErrors = True
     sys.exit(1 if anyErrors else 0)
 
 ################################################################################
@@ -84,7 +89,7 @@ class TestMain(unittest.TestCase):
                     self.assertEqual(code, expected, output)
 
     def testDisassemble(self):
-        """-d disassembles to the -o file, and exits with 1 on errors."""
+        """-d disassembles to the -o file, and exits with 1 and an error if a file can't be read or written."""
         with tempfile.TemporaryDirectory() as directory:
             prgFile, asmFile = os.path.join(directory, 'a.prg'), os.path.join(directory, 'a.asm')
             with open(prgFile, 'wb') as f:
@@ -93,8 +98,14 @@ class TestMain(unittest.TestCase):
             self.assertEqual(code, 0)
             with open(asmFile) as f:
                 self.assertIn('rts', f.read())
-            code, output, errors = self._main(['-d', os.path.join(directory, 'missing.prg'), '-o', asmFile])
+            missingFile = os.path.join(directory, 'missing.prg')
+            code, output, errors = self._main(['-d', missingFile, '-o', asmFile])
             self.assertEqual(code, 1)
+            self.assertIn(f'error: No such file or directory: "{missingFile}"', output)
+            missingFolder = os.path.join(directory, 'missing', 'a.asm')
+            code, output, errors = self._main(['-d', prgFile, '-o', missingFolder])
+            self.assertEqual(code, 1)
+            self.assertIn(f'error: No such file or directory: "{missingFolder}"', output)
 
     def testPackageImports(self):
         """Importing the package keeps its modules inside it, e.g. code64.cpu, not a top level cpu."""

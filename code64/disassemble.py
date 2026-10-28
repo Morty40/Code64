@@ -130,16 +130,13 @@ def disassemble(data: bytes, start: int) -> str:
     return '\n'.join(lines).rstrip() + '\n'
 
 
-def disassembleFile(inFile: str, outFile: str) -> bool:
+def disassembleFile(inFile: str, outFile: str):
     """Disassemble a .prg file, which starts with its load address, or another binary file
-    loaded at the default address. Saves the source to outFile, and returns True on errors.
+    loaded at the default address. Saves the source to outFile, and raises OSError if a file
+    can't be read or written.
     """
-    try:
-        with open(inFile, 'rb') as f:
-            data = f.read()
-    except FileNotFoundError:
-        print(f'error: File not found: "{inFile}"')
-        return True
+    with open(inFile, 'rb') as f:
+        data = f.read()
 
     if inFile.lower().endswith('.prg') and len(data) >= 2:
         start, data = data[0] + data[1]*256, data[2:]
@@ -149,7 +146,6 @@ def disassembleFile(inFile: str, outFile: str) -> bool:
     source = disassemble(data, start)
     with open(outFile, 'w') as f:
         f.write(source)
-    return False
 
 
 ################################################################################
@@ -167,7 +163,7 @@ class TestDisassemble(unittest.TestCase):
     def _disassemble(self, prgFile: str, asmFile: str) -> str:
         """Disassemble a file, and return the source."""
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertFalse(disassembleFile(prgFile, asmFile))
+            disassembleFile(prgFile, asmFile)
         with open(asmFile) as f:
             return f.read()
 
@@ -244,9 +240,8 @@ class TestDisassemble(unittest.TestCase):
                 source = self._disassemble(os.path.join(directory, fileName), os.path.join(directory, 'a.asm'))
                 self.assertIn(org, source)
                 self.assertIn('rts', source)
-            with contextlib.redirect_stdout(io.StringIO()) as output:
-                self.assertTrue(disassembleFile(os.path.join(directory, 'missing.prg'), os.path.join(directory, 'a.asm')))
-            self.assertIn('File not found', output.getvalue())
+            with self.assertRaises(FileNotFoundError):
+                disassembleFile(os.path.join(directory, 'missing.prg'), os.path.join(directory, 'a.asm'))
 
 
 if __name__ == '__main__':
