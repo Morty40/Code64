@@ -78,6 +78,7 @@ def main():
             context = assemble.assembleFile(arguments.asmFile, arguments.outFile)
             for message in context.printed:
                 print(message)
+            sys.stdout.flush() # keep the order when stdout and stderr go to the same pipe or file
             for message in context.warnings + context.errors:
                 print(message, file=sys.stderr)
             anyErrors = len(context.errors) > 0
@@ -160,6 +161,18 @@ class TestMain(unittest.TestCase):
                     self.assertEqual([line.split('/')[-1] for line in errors.splitlines()], diagnostics)
             with open(prgFile, 'rb') as f:
                 self.assertEqual(f.read(), bytes([0x00, 0x10, 0xa9, 0x01])) # saved by the first source only
+
+    def testOutputOrder(self):
+        """With stderr in the same pipe as stdout (2>&1), .print output comes before the warnings, as on a terminal."""
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with tempfile.TemporaryDirectory() as directory:
+            asmFile = os.path.join(directory, 'test.asm')
+            with open(asmFile, 'w') as f:
+                f.write('.print "hi"\n.warning "careful"\n')
+            output = subprocess.run([sys.executable, '-m', 'code64.main', '-a', asmFile], cwd=root,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True).stdout
+        lines = [line.split('/')[-1] for line in output.splitlines()]
+        self.assertEqual(lines[:2], ['hi', 'test.asm:2 warning: careful'])
 
     def testMissingSource(self):
         """-a with a missing source exits with 1, and an error on stderr."""
