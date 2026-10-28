@@ -386,40 +386,33 @@ def importFile(context, fileName: str):
         return False # the read pointer was moved
 
 
-_binaryFiles = {} # loaded files, by file name
-_musicFiles = {}
-
-
 @directive('binary')
 def binary(context, fileName: str):
     """Store the contents of a binary file."""
-    if not fileName in _binaryFiles:
-        try:
-            with open(os.path.join(context.path, fileName), 'rb') as f:
-                _binaryFiles[fileName] = f.read()
-        except FileNotFoundError:
-            context.reportError(f'File not found: "{fileName}"')
+    try:
+        with open(os.path.join(context.path, fileName), 'rb') as f:
+            data = f.read()
+    except FileNotFoundError:
+        context.reportError(f'File not found: "{fileName}"')
+        return
 
-    for b in _binaryFiles.get(fileName, b''):
+    for b in data:
         context.store(b)
 
 
 @directive('music')
 def loadMusic(context, fileName: str, prefix: str):
     """Store the music from a SID file, and define prefix_LOAD, prefix_INIT and prefix_PLAY."""
-    if not fileName in _musicFiles:
-        mu = music.load(fileName, context)
-        if type(mu) is music.Music:
-            _musicFiles[fileName] = mu
-        else:
-            context.reportError(f'Music not loaded: "{fileName}"')
+    mu = music.load(fileName, context)
+    if mu is None:
+        context.reportError(f'Music not loaded: "{fileName}"')
+        return
 
-    if (mu := _musicFiles.get(fileName)) is not None:
-        context.setSymbol(prefix+'_LOAD', mu.loadAddress)
-        context.setSymbol(prefix+'_INIT', mu.initAddress)
-        context.setSymbol(prefix+'_PLAY', mu.playAddress)
-        for b in mu.data:
-            context.store(b)
+    context.setSymbol(prefix+'_LOAD', mu.loadAddress)
+    context.setSymbol(prefix+'_INIT', mu.initAddress)
+    context.setSymbol(prefix+'_PLAY', mu.playAddress)
+    for b in mu.data:
+        context.store(b)
 
 
 ################################################################################

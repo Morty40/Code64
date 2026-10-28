@@ -220,7 +220,7 @@ class TestAssemble(unittest.TestCase):
         """.binary and .music read files relative to the folder of the main source file, not the current folder."""
         with tempfile.TemporaryDirectory() as directory:
             sid = struct.pack('>4sHHHHHHHL32s32s32sHBBBB', b'PSID', 2, 0x7c, 0x2000, 0x2000, 0x2003, 1, 1, 0, b'', b'', b'', 0, 0, 0, 0, 0)
-            for name, data in [('paths.bin', b'\x01\x02'), ('paths.sid', sid + b'\x60')]: # new names, as files are cached
+            for name, data in [('paths.bin', b'\x01\x02'), ('paths.sid', sid + b'\x60')]:
                 with open(os.path.join(directory, name), 'wb') as f:
                     f.write(data)
             asmFile, prgFile = os.path.join(directory, 'paths.asm'), os.path.join(directory, 'paths.prg')
@@ -229,6 +229,22 @@ class TestAssemble(unittest.TestCase):
             context = assembleFile(asmFile, prgFile)
             self.assertEqual(context.errors, [])
             self.assertEqual((context.memory[0x1000], context.memory[0x1001], context.memory[0x2000]), (0x01, 0x02, 0x60))
+
+    def testFileChanges(self):
+        """.binary and .music read the files again in each assembly, so changed files are not stale."""
+        with tempfile.TemporaryDirectory() as directory:
+            asmFile = os.path.join(directory, 'changes.asm')
+            with open(asmFile, 'w') as f:
+                f.write('.binary "changes.bin"\n.org M_LOAD\n.music "changes.sid", "M"\n')
+            for value in [1, 2]:
+                with self.subTest(value=value):
+                    sid = struct.pack('>4sHHHHHHHL32s32s32sHBBBB', b'PSID', 2, 0x7c, 0x2000, 0x2000, 0x2003, 1, 1, 0, b'', b'', b'', 0, 0, 0, 0, 0)
+                    for name, data in [('changes.bin', bytes([value])), ('changes.sid', sid + bytes([value]))]:
+                        with open(os.path.join(directory, name), 'wb') as f:
+                            f.write(data)
+                    context = assembleFile(asmFile)
+                    self.assertEqual(context.errors, [])
+                    self.assertEqual((context.memory[0x1000], context.memory[0x2000]), (value, value))
 
     def testNoPrgOnErrors(self):
         """The .prg file is only saved when there are no errors."""
