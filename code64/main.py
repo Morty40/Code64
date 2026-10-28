@@ -14,31 +14,75 @@ from unittest import mock
 from . import assemble
 from . import cpu
 from . import disassemble
+from .context import Context
 
 
 __version__ = '0.1'
 
 
+def printMemoryUse(context: Context):
+    """Print the memory range used, the global labels, and a page map."""
+
+    if len(context.memory) > 0:
+        first = min(context.memory.keys())
+        last = max(context.memory.keys())
+        total = last-first+1
+        use = f"${first:04x}-${last:04x} ({total} bytes)"
+    else:
+        use = 'None'
+
+    print(f'Memory used: {use}')
+
+    # global labels, sorted by address
+    lst = sorted(map(lambda label: (context.symbols[label], label), context.labels))
+    for value, label in lst:
+        if not label.startswith('_'):
+            print(f'${value:04x}: {label}')
+
+    # one symbol for each 256-byte page: unused, partly used, or full
+    def _pageSymbol(used):
+        if used <= 0: return '░'
+        elif used > 0 and used < 256: return '▒'
+        elif used >= 256: return '█'
+
+    pages = [0]*256
+    for address in context.memory:
+        pages[int(address>>8)] += 1
+    pageString = "".join(map(_pageSymbol, pages))
+
+    fullPagesUsed = len(list(filter(lambda x: x>=256, pages)))
+    partialPagesUsed = len(list(filter(lambda x: x>0 and x<256, pages)))
+
+    print(f'Pages used: {fullPagesUsed} full, {partialPagesUsed} partial')
+    for i in range(16): # 16 pages per line
+        print(f"${i*16*256:04x}: {pageString[i*16:(i+1)*16]}")
+
+
 def main():
     """Assemble or disassemble the file given on the command line. Exits with 1 on errors, and 2 on incorrect arguments."""
-    print(f'Code64 v{__version__}  (c) Morten Perriard 2021')
+    print(f'Code64 v{__version__}  (c) Morten Perriard 2021', file=sys.stderr) # stdout may be the source
     parser = argparse.ArgumentParser(prog='code64', description='A 6502/Python hybrid assembler for C64 cross development.')
     files = parser.add_mutually_exclusive_group(required=True)
     files.add_argument('-a', dest='asmFile', help='the source file to assemble')
     files.add_argument('-d', dest='binFile', help='the .prg or binary file to disassemble')
-    parser.add_argument('-o', dest='outFile', help='the .prg file to write, or the source file when disassembling')
+    parser.add_argument('-o', dest='outFile', help='the .prg file to write, or the source file when disassembling (default: print it)')
     parser.add_argument('-i', dest='illegal', choices=['none', 'stable', 'all'], default='stable',
                         help='the illegal instructions to use: none, the stable ones (default), or all')
     arguments = parser.parse_args()
     cpu.setIllegalInstructions(arguments.illegal)
-    if arguments.binFile and not arguments.outFile:
-        parser.error('-d requires -o') # exits with 2
     try:
         if arguments.binFile:
-            disassemble.disassembleFile(arguments.binFile, arguments.outFile)
+            source = disassemble.disassembleFile(arguments.binFile, arguments.outFile)
+            if not arguments.outFile:
+                print(source, end='')
             anyErrors = False
         else:
-            anyErrors = assemble.assembleFile(arguments.asmFile, arguments.outFile)
+            context = assemble.assembleFile(arguments.asmFile, arguments.outFile)
+            for message in context.printed + context.warnings + context.errors:
+                print(message)
+            anyErrors = len(context.errors) > 0
+            if not anyErrors:
+                printMemoryUse(context)
     except OSError as exception:
         print(f'error: {exception.strerror}: "{exception.filename}"')
         anyErrors = True
@@ -60,7 +104,7 @@ class TestMain(unittest.TestCase):
     def testUsage(self):
         """Missing or incorrect arguments print the usage, and exit with 2."""
         for arguments in [[], ['-o', 'x.prg'], ['x.asm'], ['-a', 'x.asm', 'extra'], ['-x'], ['-a'],
-                          ['-d', 'x.prg'], ['-a', 'x.asm', '-d', 'x.prg'], ['-a', 'x.asm', '-i', 'some'], ['-a', 'x.asm', '-i']]:
+                          ['-a', 'x.asm', '-d', 'x.prg'], ['-a', 'x.asm', '-i', 'some'], ['-a', 'x.asm', '-i']]:
             with self.subTest(arguments=arguments):
                 code, output, errors = self._main(arguments)
                 self.assertEqual(code, 2)
@@ -88,6 +132,33 @@ class TestMain(unittest.TestCase):
                     code, output, errors = self._main(['-a', asmFile] + arguments)
                     self.assertEqual(code, expected, output)
 
+    def testAssemble(self):
+        """-a prints the messages, and with no errors the memory use, and saves the -o file. Exits with 1 on errors."""
+        with tempfile.TemporaryDirectory() as directory:
+            prgFile = os.path.join(directory, 'a.prg')
+            for name, source, expected, messages in [ # new names, as sources are cached
+                ('ok.asm',    '.print "hi"\n.warning "careful"\nlda #1\n', 0, ['hi', 'ok.asm:2 warning: careful', 'Memory used: $1000-$1001 (2 bytes)']),
+                ('error.asm', '.print "hi"\n.error "stop"\n',               1, ['hi', 'error.asm:2 error: stop'])]:
+                with self.subTest(source=source):
+                    asmFile = os.path.join(directory, name)
+                    with open(asmFile, 'w') as f:
+                        f.write(source)
+                    code, output, errors = self._main(['-a', asmFile, '-o', prgFile])
+                    self.assertEqual(code, expected, output)
+                    lines = [line.split('/')[-1] for line in output.splitlines()]
+                    self.assertEqual([line for line in lines if line.startswith(tuple(messages))], messages)
+            with open(prgFile, 'rb') as f:
+                self.assertEqual(f.read(), bytes([0x00, 0x10, 0xa9, 0x01])) # saved by the first source only
+
+    def testMemoryUse(self):
+        """The page map shows each page as unused, partly used, or full."""
+        context = Context({})
+        context.memory = {address: 0 for address in range(0x1000, 0x1180)} # page $10 full, page $11 partly used
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            printMemoryUse(context)
+        self.assertIn('Pages used: 1 full, 1 partial', output.getvalue())
+        self.assertIn('$1000: █▒░░░░░░░░░░░░░░', output.getvalue())
+
     def testDisassemble(self):
         """-d disassembles to the -o file, and exits with 1 and an error if a file can't be read or written."""
         with tempfile.TemporaryDirectory() as directory:
@@ -98,6 +169,10 @@ class TestMain(unittest.TestCase):
             self.assertEqual(code, 0)
             with open(asmFile) as f:
                 self.assertIn('rts', f.read())
+            code, output, errors = self._main(['-d', prgFile]) # without -o, only the source is printed
+            self.assertEqual(code, 0)
+            self.assertEqual(output, disassemble.disassembleFile(prgFile))
+            self.assertIn('Code64 v', errors)
             missingFile = os.path.join(directory, 'missing.prg')
             code, output, errors = self._main(['-d', missingFile, '-o', asmFile])
             self.assertEqual(code, 1)

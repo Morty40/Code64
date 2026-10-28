@@ -25,56 +25,12 @@ MAX_PASSES = 42
 DEFAULT_ORIGIN = 0x1000 # the address when there is no .org
 
 
-def _saveMemoryToPrg(start: int, memory: dict, fileName: str):
-    """Save a .prg file: the load address, then memory from start to end."""
-    data = [memory.get(address, 0) for address in range(min(memory), max(memory) + 1)] if memory else []
-    with open(fileName, 'wb') as f:
-        f.write(bytes([lo(start), hi(start)] + data))
-
-
-def printMemoryUse(context: Context):
-    """Print the memory range used, the global labels, and a page map."""
-
-    if len(context.memory) > 0:
-        first = min(context.memory.keys())
-        last = max(context.memory.keys())
-        total = last-first+1
-        use = f"${first:04x}-${last:04x} ({total} bytes)"
-    else:
-        use = 'None'
-
-    print(f'Memory used: {use}')
-
-    # global labels, sorted by address
-    lst = sorted(map(lambda label: (context.symbols[label], label), context.labels))
-    for value, label in lst:
-        if not label.startswith('_'):
-            print(f'${value:04x}: {label}')
-
-    # one symbol for each 256-byte page: unused, partly used, or full
-    def _pageSymbol(used):
-        if used <= 0: return '░'
-        elif used > 0 and used < 256: return '▒'
-        elif used >= 256: return '█'
-
-    pages = [0]*256
-    for address in context.memory:
-        pages[int(address>>8)] += 1
-    pageString = "".join(map(_pageSymbol, pages))
-
-    fullPagesUsed = len(list(filter(lambda x: x>=256, pages)))
-    partialPagesUsed = len(list(filter(lambda x: x>0 and x<256, pages)))
-
-    print(f'Pages used: {fullPagesUsed} full, {partialPagesUsed} partial')
-    for i in range(16): # 16 pages per line
-        print(f"${i*16*256:04x}: {pageString[i*16:(i+1)*16]}")
-
-
-def assembleFile(inFile, outFile) -> bool:
-    """Assemble inFile, and save it to outFile if there are no errors.
+def assembleFile(inFile: str, outFile: str = None) -> Context:
+    """Assemble inFile, and save it to outFile, if given and there are no errors. Returns the
+    context of the last pass: memory, symbols, messages and errors.
 
     Passes are repeated until the output stops changing (max. MAX_PASSES), so
-    labels can be used before they are defined. Returns True on errors.
+    labels can be used before they are defined.
     """
     path = os.path.dirname(inFile)
 
@@ -158,22 +114,14 @@ def assembleFile(inFile, outFile) -> bool:
         # prepare for next pass
         lastMemory = dict(context.memory)
 
-    # print .print values, warnings and errors, from the last pass
-    for message in context.printed + context.warnings + context.errors:
-        print(message)
-
-    # only save if no errors
-    anyErrors = len(context.errors) > 0
-    if not anyErrors:
-
-        # print memory use
-        printMemoryUse(context)
-
-        if outFile is not None:
-            start = min(context.memory, default=DEFAULT_ORIGIN)
-            _saveMemoryToPrg(start, context.memory, outFile)
-
-    return anyErrors
+    # save the .prg: the load address, the lowest address used or DEFAULT_ORIGIN, then memory from there to the end
+    if outFile and not context.errors:
+        memory = context.memory
+        start = min(memory, default=DEFAULT_ORIGIN)
+        data = [memory.get(address, 0) for address in range(start, max(memory) + 1)] if memory else []
+        with open(outFile, 'wb') as f:
+            f.write(bytes([lo(start), hi(start)] + data))
+    return context
 assembleFile.chunks = {} # function static variable
         
 
@@ -182,14 +130,15 @@ assembleFile.chunks = {} # function static variable
 class TestAssemble(unittest.TestCase):
 
     def _assemble(self, source: str):
-        """Assemble source, and return (anyErrors, printed output)."""
+        """Assemble source, and return (anyErrors, printed output and messages)."""
         with tempfile.TemporaryDirectory() as directory:
             fileName = os.path.join(directory, 'test.asm')
             with open(fileName, 'w') as f:
                 f.write(source)
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                anyErrors = assembleFile(fileName, None)
-        return anyErrors, output.getvalue()
+                context = assembleFile(fileName)
+        messages = ''.join(f'{message}\n' for message in context.printed + context.warnings + context.errors)
+        return len(context.errors) > 0, output.getvalue() + messages
 
     def testDuplicateLabel(self):
         anyErrors, output = self._assemble('a: nop\na: nop\n')
@@ -255,18 +204,12 @@ class TestAssemble(unittest.TestCase):
             anyErrors, output = self._assemble('.for a=0, a>=0, a+=1\n.end\n')
         self.assertIn('test.asm:2 error: For loop did not end after 100 iterations', output)
 
-    def testSaveMemoryToPrg(self):
-        """A .prg file is the load address, then the bytes from the lowest to the highest address, gaps as 0."""
-        for memory, expected in [({0x1000: 1, 0x1002: 3}, [0x00, 0x10, 1, 0, 3]), ({}, [0x00, 0x10])]:
-            with self.subTest(memory=memory), tempfile.TemporaryDirectory() as directory:
-                fileName = os.path.join(directory, 'test.prg')
-                _saveMemoryToPrg(0x1000, memory, fileName)
-                with open(fileName, 'rb') as f:
-                    self.assertEqual(list(f.read()), expected)
-
     def testPrgStart(self):
-        """The load address is the lowest address used, or $1000 if nothing is stored."""
-        for source, expected in [('.org $2000\n.byte 1\n.org $1fff\n.byte 2\n', [0xff, 0x1f, 2, 1]), ('', [0x00, 0x10])]:
+        """A .prg file is the load address, the lowest address used or $1000 if nothing is stored,
+        then the bytes from there to the highest address, gaps as 0."""
+        for source, expected in [('.org $2000\n.byte 1\n.org $1fff\n.byte 2\n', [0xff, 0x1f, 2, 1]),
+                                 ('.org $1000\n.byte 1\n.org $1002\n.byte 3\n', [0x00, 0x10, 1, 0, 3]),
+                                 ('', [0x00, 0x10])]:
             with self.subTest(source=source), tempfile.TemporaryDirectory() as directory:
                 asmFile, prgFile = os.path.join(directory, 'test.asm'), os.path.join(directory, 'test.prg')
                 with open(asmFile, 'w') as f:
@@ -275,6 +218,17 @@ class TestAssemble(unittest.TestCase):
                     assembleFile(asmFile, prgFile)
                 with open(prgFile, 'rb') as f:
                     self.assertEqual(list(f.read()), expected)
+
+    def testNoPrgOnErrors(self):
+        """The .prg file is only saved when there are no errors."""
+        with tempfile.TemporaryDirectory() as directory:
+            asmFile, prgFile = os.path.join(directory, 'error.asm'), os.path.join(directory, 'error.prg')
+            with open(asmFile, 'w') as f:
+                f.write('.byte 1\n.error "stop"\n')
+            with contextlib.redirect_stdout(io.StringIO()):
+                context = assembleFile(asmFile, prgFile)
+            self.assertEqual(len(context.errors), 1)
+            self.assertFalse(os.path.exists(prgFile))
 
     def testMessages(self):
         """Errors and warnings, each reported at the line that causes it."""
@@ -285,7 +239,7 @@ class TestAssemble(unittest.TestCase):
             ('stx $100,y\n',                         'test.asm:1 error: Unknown instruction or address mode: stx 0x100,y'),
             ('.text "a"\n',                          'test.asm:1 error: Unknown character "a" in text "a"'),
             ('.align 0\n',                           'test.asm:1 error: Alignment must be positive: 0'),
-            ('.print 1 + 1\n',                       '2\nMemory used:'),  # printed before the memory report
+            ('.print 1 + 1\n',                       '2\n'),
             ('.warning "careful"\n',                 'test.asm:1 warning: careful'),
             ('.error "stop"\n',                      'test.asm:1 error: stop'),
             ('.end\n',                               'test.asm:1 error: End without matching repeat, for or if'),
@@ -317,15 +271,6 @@ class TestAssemble(unittest.TestCase):
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(source)
                 self.assertIn(message, output)
-
-    def testMemoryUse(self):
-        """The page map shows each page as unused, partly used, or full."""
-        context = Context({})
-        context.memory = {address: 0 for address in range(0x1000, 0x1180)} # page $10 full, page $11 partly used
-        with contextlib.redirect_stdout(io.StringIO()) as output:
-            printMemoryUse(context)
-        self.assertIn('Pages used: 1 full, 1 partial', output.getvalue())
-        self.assertIn('$1000: █▒░░░░░░░░░░░░░░', output.getvalue())
 
     def testPrint(self):
         """.print prints once, after the last pass, so values are final, even with errors."""

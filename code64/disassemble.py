@@ -130,10 +130,10 @@ def disassemble(data: bytes, start: int) -> str:
     return '\n'.join(lines).rstrip() + '\n'
 
 
-def disassembleFile(inFile: str, outFile: str):
+def disassembleFile(inFile: str, outFile: str = None) -> str:
     """Disassemble a .prg file, which starts with its load address, or another binary file
-    loaded at the default address. Saves the source to outFile, and raises OSError if a file
-    can't be read or written.
+    loaded at the default address. Saves the source to outFile, if given, and returns it.
+    Raises OSError if a file can't be read or written.
     """
     with open(inFile, 'rb') as f:
         data = f.read()
@@ -144,8 +144,10 @@ def disassembleFile(inFile: str, outFile: str):
         start = assemble.DEFAULT_ORIGIN
 
     source = disassemble(data, start)
-    with open(outFile, 'w') as f:
-        f.write(source)
+    if outFile:
+        with open(outFile, 'w') as f:
+            f.write(source)
+    return source
 
 
 ################################################################################
@@ -154,18 +156,18 @@ class TestDisassemble(unittest.TestCase):
 
     def _assemble(self, asmFile: str, prgFile: str) -> bytes:
         """Assemble a file without errors, and return the .prg file's bytes."""
-        with contextlib.redirect_stdout(io.StringIO()) as output:
-            anyErrors = assemble.assembleFile(asmFile, prgFile)
-        self.assertFalse(anyErrors, output.getvalue())
+        with contextlib.redirect_stdout(io.StringIO()):
+            context = assemble.assembleFile(asmFile, prgFile)
+        self.assertEqual(context.errors, [])
         with open(prgFile, 'rb') as f:
             return f.read()
 
     def _disassemble(self, prgFile: str, asmFile: str) -> str:
-        """Disassemble a file, and return the source."""
-        with contextlib.redirect_stdout(io.StringIO()):
-            disassembleFile(prgFile, asmFile)
+        """Disassemble a file, and return the source, which is also saved."""
+        source = disassembleFile(prgFile, asmFile)
         with open(asmFile) as f:
-            return f.read()
+            self.assertEqual(f.read(), source)
+        return source
 
     def _lines(self, data: bytes, start: int=0x1000) -> list:
         """Disassemble, and return the lines after the header, with single spaces."""
@@ -231,7 +233,8 @@ class TestDisassemble(unittest.TestCase):
             ['jsr l1005', 'rti', '', '.byte $02', '', 'l1005: rts'])
 
     def testFiles(self):
-        """A .prg file starts with its address, other files are at the default address."""
+        """A .prg file starts with its address, other files are at the default address. The source is
+        returned, and only saved if there is an output file."""
         with tempfile.TemporaryDirectory() as directory:
             for fileName, data, org in [('a.prg', [0x00, 0xc0, 0x60], '.org $c000'),
                                         ('a.bin', [0x60], '.org $1000')]:
@@ -240,6 +243,8 @@ class TestDisassemble(unittest.TestCase):
                 source = self._disassemble(os.path.join(directory, fileName), os.path.join(directory, 'a.asm'))
                 self.assertIn(org, source)
                 self.assertIn('rts', source)
+            self.assertEqual(disassembleFile(os.path.join(directory, 'a.prg')), self._disassemble(os.path.join(directory, 'a.prg'), os.path.join(directory, 'a.asm')))
+            self.assertEqual(sorted(os.listdir(directory)), ['a.asm', 'a.bin', 'a.prg']) # nothing else saved
             with self.assertRaises(FileNotFoundError):
                 disassembleFile(os.path.join(directory, 'missing.prg'), os.path.join(directory, 'a.asm'))
 

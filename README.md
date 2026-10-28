@@ -36,14 +36,14 @@ python3 -m code64.main -a hello.asm -o hello.prg
 
 ```
 code64 -a <asmFile> -o <outFile> [-i none|stable|all]
-code64 -d <binFile> -o <asmFile> [-i none|stable|all]
+code64 -d <binFile> [-o <asmFile>] [-i none|stable|all]
 ```
 
 | Option | Description |
 |---|---|
 | `-a <asmFile>` | the source file to assemble |
 | `-d <binFile>` | the `.prg` or binary file to disassemble, see [Disassembling](#disassembling) |
-| `-o <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write (required) |
+| `-o <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write. Without `-o` the source is printed |
 | `-i <none\|stable\|all>` | the [illegal instructions](#illegal-instructions) to use: none, the stable ones (the default), or all |
 | `-h` | print the usage |
 
