@@ -20,10 +20,10 @@ Code64 requires Python 3.9 or later, and installs with [pipx](https://pipx.pypa.
 ```bash
 git clone https://github.com/Morty40/Code64.git
 cd Code64
-./install.sh
+pipx install .
 ```
 
-This installs the `code64` command. Run `./install.sh` again to update after pulling changes, and `./uninstall.sh` to remove it.
+This installs the `code64` command. Run `pipx install --force .` to update after pulling changes, and `pipx uninstall code64` to remove it.
 
 Code64 can also run directly from the repository folder, without installing:
 
@@ -582,7 +582,17 @@ A syntax definition for [CotEditor](https://coteditor.com) is in `editor/Asm6510
 Assembling a source file runs Python code: expressions, generators, `.python` blocks, `.for` statements and imported `.py` files are all executed, with the same access to files, network and system as any Python program. Only assemble source files you trust, just as you would only run Python scripts you trust.
 
 
-## Running the tests
+## Development
+
+To work on Code64 and try the changes in another project, install it in editable mode from the repository folder:
+
+```bash
+pipx install --editable .
+```
+
+The `code64` command then runs the source in the repository, so changes take effect without reinstalling. Only changes to `pyproject.toml`, such as the version or the command name, need a reinstall with `pipx install --force --editable .`.
+
+### Running the tests
 
 ```bash
 cd code64
