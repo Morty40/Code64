@@ -19,9 +19,9 @@ hx2files := $(asmfiles:.asm=.hx2)
 
 
 regtest: clean $(asmfiles) $(prgfiles) $(hexfiles) $(hx2files)
-	@for f in $(asmfiles:.asm=); do \
-        diff -w --unified=0 -s $$f.hex $$f.hx2; \
-	done
+	@failed=0; for f in $(asmfiles:.asm=); do \
+        diff -w --unified=0 -s $$f.hex $$f.hx2 || failed=1; \
+	done; exit $$failed
 
 
 test: regtest unittest
