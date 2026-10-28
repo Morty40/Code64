@@ -115,7 +115,6 @@ def multiPass(inFile, outFile) -> bool:
             fileName, lineIndex = readPointer
             
             if not fileName in multiPass.chunks: # tokenized once, for all passes
-                print(f'Loading: {fileName}')
                 multiPass.chunks[fileName] = list(lexer.splitByNewline(lexer.tokenizeFile(fileName)))
 
             allChunks = multiPass.chunks[fileName]

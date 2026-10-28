@@ -376,7 +376,6 @@ def importFile(context, fileName: str):
     path = os.path.join(context.path, fileName)
     if os.path.splitext(path)[1] == ".py":
         try:
-            print(f'Loading: {path}')
             with open(path) as f:
                 py = f.read()
             exec(py, context.symbols)
@@ -398,7 +397,6 @@ def binary(context, fileName: str):
     """Store the contents of a binary file."""
     if not fileName in _binaryFiles:
         try:
-            print(f'Loading: {fileName}')
             with open(os.path.join(context.path, fileName), 'rb') as f:
                 _binaryFiles[fileName] = f.read()
         except FileNotFoundError:
@@ -414,7 +412,6 @@ def loadMusic(context, fileName: str, prefix: str):
     if not fileName in _musicFiles:
         mu = music.load(fileName, context)
         if type(mu) is music.Music:
-            print(f'Loading: {fileName}')
             _musicFiles[fileName] = mu
         else:
             context.reportError(f'Music not loaded: "{fileName}"')
@@ -433,7 +430,6 @@ def loadImage(context, fileName: str, bitsPerPixel: int):
     if not fileName in _imageFiles:
         im = image.load(fileName, context)
         if type(im) is image.Image:
-            print(f'Loading: {fileName}')
             _imageFiles[fileName] = im
         else:
             context.reportError(f'Image not loaded: "{fileName}"')
