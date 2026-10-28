@@ -146,9 +146,7 @@ def disassembleFile(inFile: str, outFile: str) -> bool:
     else:
         start = assemble.DEFAULT_ORIGIN
 
-    print(f'Disassembling: {inFile} (${start:04x}-${start+len(data)-1:04x})')
     source = disassemble(data, start)
-    print(f'Saving source: {outFile}')
     with open(outFile, 'w') as f:
         f.write(source)
     return False

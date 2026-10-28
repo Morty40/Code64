@@ -87,9 +87,6 @@ def multiPass(inFile, outFile) -> bool:
     root = os.path.abspath(os.path.dirname(__file__))
     imports = sorted(glob.glob(os.path.join(root, 'imports/*.py')))
 
-    importNames = ', '.join(map(lambda x: os.path.basename(x), imports))
-    print(f'Importing: {importNames}')
-
     for fileName in imports:
         try:
             with open(fileName) as f:
@@ -173,7 +170,6 @@ def multiPass(inFile, outFile) -> bool:
         printMemoryUse(context)
 
         if outFile is not None:
-            print(f'Saving program: {outFile}')
             start = min(context.memory, default=DEFAULT_ORIGIN)
             _saveMemoryToPrg(start, context.memory, outFile)
 
@@ -289,7 +285,7 @@ class TestAssemble(unittest.TestCase):
             ('stx $100,y\n',                         'test.asm:1 error: Unknown instruction or address mode: stx 0x100,y'),
             ('.text "a"\n',                          'test.asm:1 error: Unknown character "a" in text "a"'),
             ('.align 0\n',                           'test.asm:1 error: Alignment must be positive: 0'),
-            ('.print 1 + 1\n',                       '\n2\n'),
+            ('.print 1 + 1\n',                       '2\nMemory used:'),  # printed before the memory report
             ('.warning "careful"\n',                 'test.asm:1 warning: careful'),
             ('.error "stop"\n',                      'test.asm:1 error: stop'),
             ('.end\n',                               'test.asm:1 error: End without matching repeat, for or if'),
