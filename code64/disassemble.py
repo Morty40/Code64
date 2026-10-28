@@ -155,7 +155,7 @@ class TestDisassemble(unittest.TestCase):
     def _assemble(self, asmFile: str, prgFile: str) -> bytes:
         """Assemble a file without errors, and return the .prg file's bytes."""
         with contextlib.redirect_stdout(io.StringIO()) as output:
-            anyErrors = assemble.multiPass(asmFile, prgFile)
+            anyErrors = assemble.assembleFile(asmFile, prgFile)
         self.assertFalse(anyErrors, output.getvalue())
         with open(prgFile, 'rb') as f:
             return f.read()

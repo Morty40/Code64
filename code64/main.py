@@ -38,7 +38,7 @@ def main():
             disassemble.disassembleFile(arguments.binFile, arguments.outFile)
             anyErrors = False
         else:
-            anyErrors = assemble.multiPass(arguments.asmFile, arguments.outFile)
+            anyErrors = assemble.assembleFile(arguments.asmFile, arguments.outFile)
     except OSError as exception:
         print(f'error: {exception.strerror}: "{exception.filename}"')
         anyErrors = True

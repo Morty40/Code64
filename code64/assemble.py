@@ -70,7 +70,7 @@ def printMemoryUse(context: Context):
         print(f"${i*16*256:04x}: {pageString[i*16:(i+1)*16]}")
 
 
-def multiPass(inFile, outFile) -> bool:
+def assembleFile(inFile, outFile) -> bool:
     """Assemble inFile, and save it to outFile if there are no errors.
 
     Passes are repeated until the output stops changing (max. MAX_PASSES), so
@@ -111,10 +111,10 @@ def multiPass(inFile, outFile) -> bool:
 
             fileName, lineIndex = readPointer
             
-            if not fileName in multiPass.chunks: # tokenized once, for all passes
-                multiPass.chunks[fileName] = list(lexer.splitByNewline(lexer.tokenizeFile(fileName)))
+            if not fileName in assembleFile.chunks: # tokenized once, for all passes
+                assembleFile.chunks[fileName] = list(lexer.splitByNewline(lexer.tokenizeFile(fileName)))
 
-            allChunks = multiPass.chunks[fileName]
+            allChunks = assembleFile.chunks[fileName]
 
             if lineIndex < len(allChunks):
                 
@@ -137,10 +137,10 @@ def multiPass(inFile, outFile) -> bool:
                     assignment.assemble(lineTokens, context)
 
                 elif len(lineTokens) >= 2 and lineTokens[0].string == '.':
-                    advance = directives.assemble(lineTokens, context, multiPass.chunks)
+                    advance = directives.assemble(lineTokens, context, assembleFile.chunks)
             
                 elif len(lineTokens) >= 2 and lineTokens[0].string == '@':
-                    advance = generators.assemble(lineTokens, context, multiPass.chunks)
+                    advance = generators.assemble(lineTokens, context, assembleFile.chunks)
 
                 elif len(lineTokens) > 0:
                     context.reportError(f'Invalid syntax')
@@ -174,7 +174,7 @@ def multiPass(inFile, outFile) -> bool:
             _saveMemoryToPrg(start, context.memory, outFile)
 
     return anyErrors
-multiPass.chunks = {} # function static variable
+assembleFile.chunks = {} # function static variable
         
 
 ################################################################################
@@ -188,7 +188,7 @@ class TestAssemble(unittest.TestCase):
             with open(fileName, 'w') as f:
                 f.write(source)
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                anyErrors = multiPass(fileName, None)
+                anyErrors = assembleFile(fileName, None)
         return anyErrors, output.getvalue()
 
     def testDuplicateLabel(self):
@@ -272,7 +272,7 @@ class TestAssemble(unittest.TestCase):
                 with open(asmFile, 'w') as f:
                     f.write(source)
                 with contextlib.redirect_stdout(io.StringIO()):
-                    multiPass(asmFile, prgFile)
+                    assembleFile(asmFile, prgFile)
                 with open(prgFile, 'rb') as f:
                     self.assertEqual(list(f.read()), expected)
 
