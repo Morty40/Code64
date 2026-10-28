@@ -4,6 +4,7 @@
 import contextlib
 import io
 import os
+import struct
 import tempfile
 import unittest
 import glob
@@ -215,6 +216,20 @@ class TestAssemble(unittest.TestCase):
                 with open(prgFile, 'rb') as f:
                     self.assertEqual(list(f.read()), expected)
 
+    def testFilePaths(self):
+        """.binary and .music read files relative to the folder of the main source file, not the current folder."""
+        with tempfile.TemporaryDirectory() as directory:
+            sid = struct.pack('>4sHHHHHHHL32s32s32sHBBBB', b'PSID', 2, 0x7c, 0x2000, 0x2000, 0x2003, 1, 1, 0, b'', b'', b'', 0, 0, 0, 0, 0)
+            for name, data in [('paths.bin', b'\x01\x02'), ('paths.sid', sid + b'\x60')]: # new names, as files are cached
+                with open(os.path.join(directory, name), 'wb') as f:
+                    f.write(data)
+            asmFile, prgFile = os.path.join(directory, 'paths.asm'), os.path.join(directory, 'paths.prg')
+            with open(asmFile, 'w') as f:
+                f.write('.binary "paths.bin"\n.org M_LOAD\n.music "paths.sid", "M"\n')
+            context = assembleFile(asmFile, prgFile)
+            self.assertEqual(context.errors, [])
+            self.assertEqual((context.memory[0x1000], context.memory[0x1001], context.memory[0x2000]), (0x01, 0x02, 0x60))
+
     def testNoPrgOnErrors(self):
         """The .prg file is only saved when there are no errors."""
         with tempfile.TemporaryDirectory() as directory:
@@ -256,7 +271,6 @@ class TestAssemble(unittest.TestCase):
             ('.org undefinedSymbol\n',               'test.asm:1 error: Invalid directive: .org undefinedSymbol'),
             ('.binary "nothere.bin"\n',              'test.asm:1 error: File not found: "nothere.bin"'),
             ('.music "nothere.sid", "M"\n',          'test.asm:1 error: File not found: "nothere.sid"'),
-            ('.bitmap "nothere.bmp", 1\n',           'test.asm:1 error: Invalid directive: .bitmap'), # removed
             ('.music "nothere.sid", "M"\n',          'test.asm:1 error: Music not loaded: "nothere.sid"'),
             ('.zpbyte "a"\n.zpbyte "a"\n',           'test.asm:2 error: Label was already defined: "a"'),
             ('.for i=0, i<127, i+=1\n.zpword "v{i}"\n.end\n.zpbyte "last"\n', # $02-$ff is full

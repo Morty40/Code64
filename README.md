@@ -442,7 +442,7 @@ Stores the music data from a SID file, without the header. PSID versions 1 to 4 
             jsr MUSIC_INIT
 ```
 
-The path is relative to the current working folder.
+The path is relative to the folder of the main source file.
 
 ### Repetition
 

@@ -126,12 +126,12 @@ def parse(fileData: bytes) -> Music:
 
 
 def load(fileName: str, context):
-    """Load a SID file, PSID or RSID, without its header.
+    """Load a SID file, PSID or RSID, without its header. The path is relative to the folder of the main source file.
 
     Returns the Music, or None after reporting an error.
     """
     try:
-        with open(fileName, 'rb') as f:
+        with open(os.path.join(context.path, fileName), 'rb') as f:
             fileData = f.read()
     except FileNotFoundError:
         context.reportError(f'File not found: "{fileName}"')
