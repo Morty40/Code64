@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,9 @@ dynamic = ["version"]
 description = "a 6502 Python hybrid assembler for C64 cross development"
 readme = "README.md"
 authors = [{name = "Morten Perriard", email = "morten@perriard.dk"}]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE.txt"]
 
 [project.urls]
 Homepage = "https://github.com/Morty40/Code64"
@@ -17,11 +19,8 @@ Homepage = "https://github.com/Morty40/Code64"
 code64 = "code64.main:main"
 
 [tool.setuptools]
-packages = ["code64"]
+packages = ["code64", "code64.imports"]
 zip-safe = false
-
-[tool.setuptools.package-data]
-code64 = ["imports/*.py"]
 
 [tool.setuptools.dynamic]
 version = {attr = "code64.main.__version__"}

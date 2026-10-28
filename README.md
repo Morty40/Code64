@@ -15,7 +15,7 @@ Code64 is a multi-pass 6502 assembler for the Commodore 64. Every expression is 
 
 ## Installation
 
-Code64 requires Python 3.8 or later, and installs with [pipx](https://pipx.pypa.io):
+Code64 requires Python 3.9 or later, and installs with [pipx](https://pipx.pypa.io):
 
 ```bash
 git clone https://github.com/Morty40/Code64.git
