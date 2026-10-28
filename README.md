@@ -433,7 +433,7 @@ Stores the contents of a binary file, with the path relative to the folder of th
 ```
 .music "file", "prefix"
 ```
-Stores the music data from a SID file (PSID format), without the header. The symbols `prefix_LOAD`, `prefix_INIT` and `prefix_PLAY` are defined with the load, init and play addresses of the music. The data must be stored at its load address:
+Stores the music data from a SID file, without the header. PSID versions 1 to 4 and RSID versions 2 to 4 are supported, but not Compute!'s Sidplayer MUS data. The symbols `prefix_LOAD`, `prefix_INIT` and `prefix_PLAY` are defined with the load, init and play addresses of the music. An init address of 0 in the file is the load address, and a play address of 0 means the init routine installs its own interrupt handler, as RSID music always does. The data must be stored at its load address:
 
 ```
             .org MUSIC_LOAD
