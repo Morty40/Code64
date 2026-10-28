@@ -595,4 +595,4 @@ make test
 
 ## License
 
-MIT, see [LICENSE.txt](LICENSE.txt).
+MIT, see [LICENSE.txt](https://github.com/Morty40/Code64/blob/main/LICENSE.txt).
