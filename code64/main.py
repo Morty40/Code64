@@ -60,14 +60,14 @@ def printMemoryUse(context: Context):
 
 def main():
     """Assemble or disassemble the file given on the command line. Exits with 1 on errors, and 2 on incorrect arguments."""
-    print(f'Code64 v{__version__}  (c) Morten Perriard 2021', file=sys.stderr) # stdout may be the source
-    parser = argparse.ArgumentParser(prog='code64', description='A 6502/Python hybrid assembler for C64 cross development.')
+    parser = argparse.ArgumentParser(prog='code64', description=f'Code64 v{__version__}: a 6502/Python hybrid assembler for C64 cross development.')
     files = parser.add_mutually_exclusive_group(required=True)
     files.add_argument('-a', dest='asmFile', help='the source file to assemble')
     files.add_argument('-d', dest='binFile', help='the .prg or binary file to disassemble')
     parser.add_argument('-o', dest='outFile', help='the .prg file to write, or the source file when disassembling (default: print it)')
     parser.add_argument('-i', dest='illegal', choices=['none', 'stable', 'all'], default='stable',
                         help='the illegal instructions to use: none, the stable ones (default), or all')
+    parser.add_argument('--version', action='version', version=f'Code64 v{__version__} (c) Morten Perriard 2021')
     arguments = parser.parse_args()
     cpu.setIllegalInstructions(arguments.illegal)
     try:
@@ -118,6 +118,14 @@ class TestMain(unittest.TestCase):
         self.assertIn('-o OUTFILE', output)
         self.assertIn('-d BINFILE', output)
         self.assertIn('-i {none,stable,all}', output)
+        self.assertIn('--version', output)
+        self.assertIn(f'Code64 v{__version__}', output)
+
+    def testVersion(self):
+        """--version prints the version and copyright, and exits with 0."""
+        code, output, errors = self._main(['--version'])
+        self.assertEqual(code, 0)
+        self.assertEqual(output, f'Code64 v{__version__} (c) Morten Perriard 2021\n')
 
     def testIllegalInstructions(self):
         """-i chooses the illegal instructions: none, stable (the default) or all."""
@@ -172,7 +180,7 @@ class TestMain(unittest.TestCase):
             code, output, errors = self._main(['-d', prgFile]) # without -o, only the source is printed
             self.assertEqual(code, 0)
             self.assertEqual(output, disassemble.disassembleFile(prgFile))
-            self.assertIn('Code64 v', errors)
+            self.assertEqual(errors, '')
             missingFile = os.path.join(directory, 'missing.prg')
             code, output, errors = self._main(['-d', missingFile, '-o', asmFile])
             self.assertEqual(code, 1)

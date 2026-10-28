@@ -44,12 +44,8 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
     imports = sorted(glob.glob(os.path.join(root, 'imports/*.py')))
 
     for fileName in imports:
-        try:
-            with open(fileName) as f:
-                py = f.read()
-            exec(py, symbols)
-        except Exception as exception:
-            print(f"failed to import: {fileName} ({type(exception).__name__}: {exception})")
+        with open(fileName) as f:
+            exec(compile(f.read(), fileName, 'exec'), symbols) # the file name shows in tracebacks
 
     lastMemory = {}
     
@@ -283,16 +279,19 @@ class TestAssemble(unittest.TestCase):
         self.assertIn('before\n', output)
 
     def testBrokenBuiltinImport(self):
-        """A built-in import that fails is reported, and assembly continues."""
+        """A built-in import that fails raises its exception, with the import file in the traceback."""
         from unittest import mock
+        import traceback
         with tempfile.TemporaryDirectory() as directory:
             fileName = os.path.join(directory, 'broken.py')
             with open(fileName, 'w') as f:
                 f.write('1/0\n')
             with mock.patch('glob.glob', return_value=[fileName]): # instead of the imports folder
-                anyErrors, output = self._assemble('nop\n')
-        self.assertFalse(anyErrors)
-        self.assertIn(f'failed to import: {fileName} (ZeroDivisionError: division by zero)', output)
+                try:
+                    self._assemble('nop\n')
+                    self.fail('ZeroDivisionError not raised')
+                except ZeroDivisionError as exception: # not assertRaises, which drops the traceback
+                    self.assertEqual(traceback.extract_tb(exception.__traceback__)[-1].filename, fileName)
 
 if __name__ == '__main__':
     unittest.main()
