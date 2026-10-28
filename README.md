@@ -564,7 +564,7 @@ For example `@ldax(message)` loads the address of `message` into a (low byte) an
 
 ## Passes, warnings and errors
 
-Code64 assembles the source repeatedly, up to 9 passes, until the output no longer changes. This resolves forward references, and lets the size of instructions depend on labels defined later in the source. Errors are reported from the final pass only.
+Code64 assembles the source repeatedly, up to 42 passes, until the output no longer changes. This resolves forward references, and lets the size of instructions depend on labels defined later in the source. Errors are reported from the final pass only.
 
 Warnings do not stop the output from being written. They are given when:
 - a memory location is written more than once
