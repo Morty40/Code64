@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "code64"
 dynamic = ["version"]
 description = "a 6502 Python hybrid assembler for C64 cross development"
+keywords = ["6502", "6510", "c64", "commodore 64", "assembler", "cross assembler", "disassembler", "retro computing"]
 readme = "README.md"
 authors = [{name = "Morten Perriard", email = "morten@perriard.dk"}]
 requires-python = ">=3.9"
