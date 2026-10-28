@@ -12,9 +12,31 @@ authors = [{name = "Morten Perriard", email = "morten@perriard.dk"}]
 requires-python = ">=3.9"
 license = "MIT"
 license-files = ["LICENSE.txt"]
+# standard PyPI tags, from https://pypi.org/classifiers: shown on the project page, and used by PyPI search filters.
+# Keep the Python versions in sync with the test matrix in .github/workflows/test.yml.
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Assembly",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Assemblers",
+    "Topic :: Software Development :: Disassemblers",
+]
 
 [project.urls]
 Homepage = "https://github.com/Morty40/Code64"
+Source = "https://github.com/Morty40/Code64"
+Issues = "https://github.com/Morty40/Code64/issues"
+Changelog = "https://github.com/Morty40/Code64/blob/main/CHANGELOG.md"
 
 [project.scripts]
 code64 = "code64.main:main"
