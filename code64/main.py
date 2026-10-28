@@ -11,13 +11,11 @@ import tempfile
 import unittest
 from unittest import mock
 
+from . import __version__
 from . import assemble
 from . import cpu
 from . import disassemble
 from .context import Context
-
-
-__version__ = '0.1'
 
 
 def printMemoryUse(context: Context):
@@ -124,10 +122,11 @@ class TestMain(unittest.TestCase):
         self.assertIn(f'Code64 v{__version__}', output)
 
     def testVersion(self):
-        """--version prints the version and copyright, and exits with 0."""
+        """--version prints the package version and copyright, and exits with 0."""
+        import code64
         code, output, errors = self._main(['--version'])
         self.assertEqual(code, 0)
-        self.assertEqual(output, f'Code64 v{__version__} (c) Morten Perriard 2021\n')
+        self.assertEqual(output, f'Code64 v{code64.__version__} (c) Morten Perriard 2021\n')
 
     def testIllegalInstructions(self):
         """-i chooses the illegal instructions: none, stable (the default) or all."""

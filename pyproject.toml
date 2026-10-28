@@ -24,4 +24,4 @@ packages = ["code64", "code64.imports"]
 zip-safe = false
 
 [tool.setuptools.dynamic]
-version = {attr = "code64.main.__version__"}
+version = {attr = "code64.__version__"}
