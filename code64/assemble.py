@@ -124,8 +124,8 @@ def multiPass(inFile, outFile) -> bool:
         # prepare for next pass
         lastMemory = dict(context.memory)
 
-    # print warnings and errors
-    for message in context.warnings + context.errors:
+    # print .print values, warnings and errors, from the last pass
+    for message in context.printed + context.warnings + context.errors:
         print(message)
 
     # only save if no errors
@@ -284,6 +284,16 @@ class TestAssemble(unittest.TestCase):
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(source)
                 self.assertIn(message, output)
+
+    def testPrint(self):
+        """.print prints once, after the last pass, so values are final, even with errors."""
+        anyErrors, output = self._assemble('.print "start", later\njmp later\nlater: rts\n') # later is $1003
+        self.assertFalse(anyErrors, output)
+        self.assertEqual(output.count('start\n'), 1, output)
+        self.assertIn('start\n4099\n', output)
+        anyErrors, output = self._assemble('.print "before"\n.error "stop"\n')
+        self.assertTrue(anyErrors)
+        self.assertIn('before\n', output)
 
     def testBrokenBuiltinImport(self):
         """A built-in import that fails is reported, and assembly continues."""

@@ -531,7 +531,7 @@ Executes the block of Python code up to `.end`, for example to define functions.
 ```
 .print value[, value, ...]
 ```
-Prints values to the terminal. As the source is assembled in multiple passes, the values are printed once per pass.
+Prints values to the terminal. The source is assembled in multiple passes, and the values are printed once, from the last pass, so they are final.
 
 #### .warning
 ```

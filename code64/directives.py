@@ -205,9 +205,8 @@ def _allocate(context, names, size: int):
 
 @directive('print')
 def printValues(context, value, *values):
-    """Print values to the terminal."""
-    for v in (value,) + values:
-        print(v)
+    """Print values to the terminal, after the last pass."""
+    context.printed.extend((value,) + values)
 
 
 @directive('warning')

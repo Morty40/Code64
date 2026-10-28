@@ -28,6 +28,7 @@ class Context:
         self.symbols = symbols
         self.labels = set() # labels defined in this pass, to find duplicates
         self.memory = {} # address: byte
+        self.printed = [] # from .print, shown after the last pass
         self.warnings = []
         self.errors = []
         self.blockStack = [] # per open .repeat, .for or .if: (kind, ...), see directives.py
