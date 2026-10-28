@@ -135,7 +135,7 @@ class TestMain(unittest.TestCase):
             for arguments, source, expected in [([], 'lax $10', 0), (['-i', 'stable'], 'lax $10', 0), (['-i', 'none'], 'lax $10', 1),
                                                 (['-i', 'stable'], 'sha $1000,y', 1), (['-i', 'all'], 'sha $1000,y', 0)]:
                 with self.subTest(arguments=arguments, source=source):
-                    asmFile = os.path.join(directory, f'{len(os.listdir(directory))}.asm') # a new name, as sources are cached
+                    asmFile = os.path.join(directory, 'test.asm')
                     with open(asmFile, 'w') as f:
                         f.write(source + '\n')
                     code, output, errors = self._main(['-a', asmFile] + arguments)
@@ -146,7 +146,7 @@ class TestMain(unittest.TestCase):
         Warnings and errors go to stderr. Exits with 1 on errors."""
         with tempfile.TemporaryDirectory() as directory:
             prgFile = os.path.join(directory, 'a.prg')
-            for name, source, expected, printed, diagnostics in [ # new names, as sources are cached
+            for name, source, expected, printed, diagnostics in [
                 ('ok.asm',    '.print "hi"\n.warning "careful"\nlda #1\n', 0, ['hi', 'Memory used: $1000-$1001 (2 bytes)'], ['ok.asm:2 warning: careful']),
                 ('error.asm', '.print "hi"\n.error "stop"\n',               1, ['hi'],                                       ['error.asm:2 error: stop'])]:
                 with self.subTest(source=source):

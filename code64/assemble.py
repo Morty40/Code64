@@ -50,7 +50,8 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
             exec(compile(f.read(), fileName, 'exec'), symbols) # the file name shows in tracebacks
 
     lastMemory = {}
-    
+    chunks = {} # the tokenized files and generated code, by name: tokenized once, for all passes
+
     for _ in range(MAX_PASSES):
         # a new context each pass, but symbols are kept from the last pass
         symbols['_'] = DEFAULT_ORIGIN
@@ -65,10 +66,10 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
 
             fileName, lineIndex = readPointer
             
-            if not fileName in assembleFile.chunks: # tokenized once, for all passes
-                assembleFile.chunks[fileName] = list(lexer.splitByNewline(lexer.tokenizeFile(fileName)))
+            if not fileName in chunks:
+                chunks[fileName] = list(lexer.splitByNewline(lexer.tokenizeFile(fileName)))
 
-            allChunks = assembleFile.chunks[fileName]
+            allChunks = chunks[fileName]
 
             if lineIndex < len(allChunks):
                 
@@ -91,10 +92,10 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
                     assignment.assemble(lineTokens, context)
 
                 elif len(lineTokens) >= 2 and lineTokens[0].string == '.':
-                    advance = directives.assemble(lineTokens, context, assembleFile.chunks)
+                    advance = directives.assemble(lineTokens, context, chunks)
             
                 elif len(lineTokens) >= 2 and lineTokens[0].string == '@':
-                    advance = generators.assemble(lineTokens, context, assembleFile.chunks)
+                    advance = generators.assemble(lineTokens, context, chunks)
 
                 elif len(lineTokens) > 0:
                     context.reportError(f'Invalid syntax')
@@ -120,7 +121,6 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
         with open(outFile, 'wb') as f:
             f.write(bytes([lo(start), hi(start)] + data))
     return context
-assembleFile.chunks = {} # function static variable
         
 
 ################################################################################
@@ -230,6 +230,17 @@ class TestAssemble(unittest.TestCase):
             context = assembleFile(asmFile, prgFile)
             self.assertEqual(context.errors, [])
             self.assertEqual((context.memory[0x1000], context.memory[0x1001], context.memory[0x2000]), (0x01, 0x02, 0x60))
+
+    def testSourceChanges(self):
+        """The source is read again in each assembly, so a changed source is not stale."""
+        with tempfile.TemporaryDirectory() as directory:
+            asmFile = os.path.join(directory, 'source.asm')
+            for value in [1, 2]:
+                with self.subTest(value=value):
+                    with open(asmFile, 'w') as f:
+                        f.write(f'.byte {value}\n')
+                    context = assembleFile(asmFile)
+                    self.assertEqual(context.memory, {0x1000: value})
 
     def testFileChanges(self):
         """.binary and .music read the files again in each assembly, so changed files are not stale."""
