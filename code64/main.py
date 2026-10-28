@@ -78,13 +78,15 @@ def main():
             anyErrors = False
         else:
             context = assemble.assembleFile(arguments.asmFile, arguments.outFile)
-            for message in context.printed + context.warnings + context.errors:
+            for message in context.printed:
                 print(message)
+            for message in context.warnings + context.errors:
+                print(message, file=sys.stderr)
             anyErrors = len(context.errors) > 0
             if not anyErrors:
                 printMemoryUse(context)
     except OSError as exception:
-        print(f'error: {exception.strerror}: "{exception.filename}"')
+        print(f'error: {exception.strerror}: "{exception.filename}"', file=sys.stderr)
         anyErrors = True
     sys.exit(1 if anyErrors else 0)
 
@@ -141,20 +143,22 @@ class TestMain(unittest.TestCase):
                     self.assertEqual(code, expected, output)
 
     def testAssemble(self):
-        """-a prints the messages, and with no errors the memory use, and saves the -o file. Exits with 1 on errors."""
+        """-a prints the .print output, and with no errors the memory use, and saves the -o file.
+        Warnings and errors go to stderr. Exits with 1 on errors."""
         with tempfile.TemporaryDirectory() as directory:
             prgFile = os.path.join(directory, 'a.prg')
-            for name, source, expected, messages in [ # new names, as sources are cached
-                ('ok.asm',    '.print "hi"\n.warning "careful"\nlda #1\n', 0, ['hi', 'ok.asm:2 warning: careful', 'Memory used: $1000-$1001 (2 bytes)']),
-                ('error.asm', '.print "hi"\n.error "stop"\n',               1, ['hi', 'error.asm:2 error: stop'])]:
+            for name, source, expected, printed, diagnostics in [ # new names, as sources are cached
+                ('ok.asm',    '.print "hi"\n.warning "careful"\nlda #1\n', 0, ['hi', 'Memory used: $1000-$1001 (2 bytes)'], ['ok.asm:2 warning: careful']),
+                ('error.asm', '.print "hi"\n.error "stop"\n',               1, ['hi'],                                       ['error.asm:2 error: stop'])]:
                 with self.subTest(source=source):
                     asmFile = os.path.join(directory, name)
                     with open(asmFile, 'w') as f:
                         f.write(source)
                     code, output, errors = self._main(['-a', asmFile, '-o', prgFile])
-                    self.assertEqual(code, expected, output)
+                    self.assertEqual(code, expected, output + errors)
                     lines = [line.split('/')[-1] for line in output.splitlines()]
-                    self.assertEqual([line for line in lines if line.startswith(tuple(messages))], messages)
+                    self.assertEqual([line for line in lines if line.startswith(tuple(printed))], printed)
+                    self.assertEqual([line.split('/')[-1] for line in errors.splitlines()], diagnostics)
             with open(prgFile, 'rb') as f:
                 self.assertEqual(f.read(), bytes([0x00, 0x10, 0xa9, 0x01])) # saved by the first source only
 
@@ -168,7 +172,7 @@ class TestMain(unittest.TestCase):
         self.assertIn('$1000: █▒░░░░░░░░░░░░░░', output.getvalue())
 
     def testDisassemble(self):
-        """-d disassembles to the -o file, and exits with 1 and an error if a file can't be read or written."""
+        """-d disassembles to the -o file, and exits with 1 and an error on stderr if a file can't be read or written."""
         with tempfile.TemporaryDirectory() as directory:
             prgFile, asmFile = os.path.join(directory, 'a.prg'), os.path.join(directory, 'a.asm')
             with open(prgFile, 'wb') as f:
@@ -184,11 +188,11 @@ class TestMain(unittest.TestCase):
             missingFile = os.path.join(directory, 'missing.prg')
             code, output, errors = self._main(['-d', missingFile, '-o', asmFile])
             self.assertEqual(code, 1)
-            self.assertIn(f'error: No such file or directory: "{missingFile}"', output)
+            self.assertIn(f'error: No such file or directory: "{missingFile}"', errors)
             missingFolder = os.path.join(directory, 'missing', 'a.asm')
             code, output, errors = self._main(['-d', prgFile, '-o', missingFolder])
             self.assertEqual(code, 1)
-            self.assertIn(f'error: No such file or directory: "{missingFolder}"', output)
+            self.assertIn(f'error: No such file or directory: "{missingFolder}"', errors)
 
     def testPackageImports(self):
         """Importing the package keeps its modules inside it, e.g. code64.cpu, not a top level cpu."""

@@ -49,7 +49,7 @@ code64 --version
 | `-h` | print the usage |
 | `--version` | print the version |
 
-The output file is only written when there are no errors. Errors and warnings are printed with file name and line number, and the exit code is 1 on errors. After a successful assembly, Code64 prints the memory range used, the address of every global label, and a map of the 256 memory pages.
+The output file is only written when there are no errors. Errors and warnings are printed to stderr with file name and line number, and the exit code is 1 on errors. After a successful assembly, Code64 prints the memory range used, the address of every global label, and a map of the 256 memory pages.
 
 The `.prg` file starts with the 2-byte load address (the lowest address used), followed by every byte up to the highest address used. Gaps are filled with zeros.
 
