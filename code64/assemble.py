@@ -32,6 +32,44 @@ def _saveMemoryToPrg(start: int, memory: dict, fileName: str):
         f.write(bytes([lo(start), hi(start)] + data))
 
 
+def printMemoryUse(context: Context):
+    """Print the memory range used, the global labels, and a page map."""
+
+    if len(context.memory) > 0:
+        first = min(context.memory.keys())
+        last = max(context.memory.keys())
+        total = last-first+1
+        use = f"${first:04x}-${last:04x} ({total} bytes)"
+    else:
+        use = 'None'
+
+    print(f'Memory used: {use}')
+
+    # global labels, sorted by address
+    lst = sorted(map(lambda label: (context.symbols[label], label), context.labels))
+    for value, label in lst:
+        if not label.startswith('_'):
+            print(f'${value:04x}: {label}')
+
+    # one symbol for each 256-byte page: unused, partly used, or full
+    def _pageSymbol(used):
+        if used <= 0: return '░'
+        elif used > 0 and used < 256: return '▒'
+        elif used >= 256: return '█'
+
+    pages = [0]*256
+    for address in context.memory:
+        pages[int(address>>8)] += 1
+    pageString = "".join(map(_pageSymbol, pages))
+
+    fullPagesUsed = len(list(filter(lambda x: x>=256, pages)))
+    partialPagesUsed = len(list(filter(lambda x: x>0 and x<256, pages)))
+
+    print(f'Pages used: {fullPagesUsed} full, {partialPagesUsed} partial')
+    for i in range(16): # 16 pages per line
+        print(f"${i*16*256:04x}: {pageString[i*16:(i+1)*16]}")
+
+
 def multiPass(inFile, outFile) -> bool:
     """Assemble inFile, and save it to outFile if there are no errors.
 
@@ -133,7 +171,7 @@ def multiPass(inFile, outFile) -> bool:
     if not anyErrors:
 
         # print memory use
-        context.printMemoryUse()
+        printMemoryUse(context)
 
         if outFile is not None:
             print(f'Saving program: {outFile}')
@@ -284,6 +322,15 @@ class TestAssemble(unittest.TestCase):
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(source)
                 self.assertIn(message, output)
+
+    def testMemoryUse(self):
+        """The page map shows each page as unused, partly used, or full."""
+        context = Context({})
+        context.memory = {address: 0 for address in range(0x1000, 0x1180)} # page $10 full, page $11 partly used
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            printMemoryUse(context)
+        self.assertIn('Pages used: 1 full, 1 partial', output.getvalue())
+        self.assertIn('$1000: █▒░░░░░░░░░░░░░░', output.getvalue())
 
     def testPrint(self):
         """.print prints once, after the last pass, so values are final, even with errors."""
