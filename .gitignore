@@ -1,0 +1,4 @@
+# python -m build, and pip or pipx installs from the source folder
+build/
+dist/
+*.egg-info/
