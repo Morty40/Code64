@@ -583,6 +583,11 @@ Warnings do not stop the output from being written. They are given when:
 A syntax definition for [CotEditor](https://coteditor.com) is in `editor/Asm6510.cotsyntax`.
 
 
+## Security
+
+Assembling a source file runs Python code: expressions, generators, `.python` blocks, `.for` statements and imported `.py` files are all executed, with the same access to files, network and system as any Python program. Only assemble source files you trust, just as you would only run Python scripts you trust.
+
+
 ## Running the tests
 
 ```bash
