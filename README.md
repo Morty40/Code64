@@ -8,7 +8,7 @@ Code64 is a multi-pass 6502 assembler for the Commodore 64. Every expression is 
 - generators: Python functions that return assembly code
 - local labels, zero page variable allocation, repeat blocks
 - PETSCII and screen code text encodings
-- import of source files, Python files, binary files, SID music and images
+- import of source files, Python files, binary files and SID music
 - built-in symbols for the C64 hardware (VIC, SID, CIA, KERNAL, BASIC)
 - outputs a `.prg` file, ready to load in an emulator or on a real C64
 
@@ -443,12 +443,6 @@ Stores the music data from a SID file, without the header. PSID versions 1 to 4 
 ```
 
 The path is relative to the current working folder.
-
-#### .bitmap
-```
-.bitmap "file", bitsPerPixel
-```
-Experimental. Stores an image from an 8 bits per pixel BMP file, with a width that is a multiple of 8. The image is converted into single colour sprites of 24×21 pixels, 64 bytes each, where every non-zero pixel is a set bit. The `bitsPerPixel` argument is not used yet. The path is relative to the current working folder.
 
 ### Repetition
 

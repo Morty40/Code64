@@ -11,7 +11,6 @@ import os
 import unittest
 
 from . import evaluate
-from . import image
 from . import lexer
 from . import music
 from . import text
@@ -389,7 +388,6 @@ def importFile(context, fileName: str):
 
 _binaryFiles = {} # loaded files, by file name
 _musicFiles = {}
-_imageFiles = {}
 
 
 @directive('binary')
@@ -421,21 +419,6 @@ def loadMusic(context, fileName: str, prefix: str):
         context.setSymbol(prefix+'_INIT', mu.initAddress)
         context.setSymbol(prefix+'_PLAY', mu.playAddress)
         for b in mu.data:
-            context.store(b)
-
-
-@directive('bitmap')
-def loadImage(context, fileName: str, bitsPerPixel: int):
-    """Store an image from a BMP file, converted to sprites."""
-    if not fileName in _imageFiles:
-        im = image.load(fileName, context)
-        if type(im) is image.Image:
-            _imageFiles[fileName] = im
-        else:
-            context.reportError(f'Image not loaded: "{fileName}"')
-
-    if (im := _imageFiles.get(fileName)) is not None:
-        for b in im.data:
             context.store(b)
 
 

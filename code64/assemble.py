@@ -256,9 +256,8 @@ class TestAssemble(unittest.TestCase):
             ('.org undefinedSymbol\n',               'test.asm:1 error: Invalid directive: .org undefinedSymbol'),
             ('.binary "nothere.bin"\n',              'test.asm:1 error: File not found: "nothere.bin"'),
             ('.music "nothere.sid", "M"\n',          'test.asm:1 error: File not found: "nothere.sid"'),
-            ('.bitmap "nothere.bmp", 1\n',           'test.asm:1 error: File not found: "nothere.bmp"'),
+            ('.bitmap "nothere.bmp", 1\n',           'test.asm:1 error: Invalid directive: .bitmap'), # removed
             ('.music "nothere.sid", "M"\n',          'test.asm:1 error: Music not loaded: "nothere.sid"'),
-            ('.bitmap "nothere.bmp", 1\n',           'test.asm:1 error: Image not loaded: "nothere.bmp"'),
             ('.zpbyte "a"\n.zpbyte "a"\n',           'test.asm:2 error: Label was already defined: "a"'),
             ('.for i=0, i<127, i+=1\n.zpword "v{i}"\n.end\n.zpbyte "last"\n', # $02-$ff is full
                                                      'test.asm:4 error: No space for zero page variable: "last"'),
