@@ -159,13 +159,6 @@ class Context:
         print(pageMap)
 
 
-    def printAsmReport(self):
-        """Print the warnings and errors from the pass."""
-        
-        for i in self.warnings + self.errors:
-            print(i)
-
-
 ################################################################################
 
 class TestContext(unittest.TestCase):

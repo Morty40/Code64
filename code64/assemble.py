@@ -124,8 +124,9 @@ def multiPass(inFile, outFile) -> bool:
         # prepare for next pass
         lastMemory = dict(context.memory)
 
-    # print warning and errors
-    context.printAsmReport()    
+    # print warnings and errors
+    for message in context.warnings + context.errors:
+        print(message)
 
     # only save if no errors
     anyErrors = len(context.errors) > 0
