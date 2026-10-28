@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 """The lexer: splits source code into tokens, one line at a time."""
 
+import os
 import re
 import shlex
 import textwrap
@@ -135,13 +136,9 @@ def tokenize(text: str, fileName: str='') -> list:
 
 
 def tokenizeFile(fileName: str) -> list:
-    """Tokenize a source file, and translate its local labels."""
-    try:
-        with open(fileName, 'r') as f:
-            text = f.read()
-            
-    except FileNotFoundError:
-        pass
+    """Tokenize a source file, and translate its local labels. Raises OSError if the file can't be read."""
+    with open(fileName, 'r') as f:
+        text = f.read()
 
     tokens = tokenize(text, fileName)
     tokens = translateLocalLabels(tokens)
@@ -214,6 +211,10 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(strings[:5], ['nop', '\n', '.', 'python', repr('def f(x):\n    return x; # a;b')])
         self.assertEqual(strings[5:], ['\n'] * 4 + ['rts', '\n'])
 
+
+    def testTokenizeMissingFile(self):
+        """A missing file raises FileNotFoundError, for the caller to handle."""
+        self.assertRaises(FileNotFoundError, tokenizeFile, os.path.join(os.path.dirname(__file__), 'missing.asm'))
 
     def testSplitByNewline(self):
         tokens = [Token('a'), Token('\n'), Token('b'), Token('c'), Token('\n'), Token('\n'), Token('d')]

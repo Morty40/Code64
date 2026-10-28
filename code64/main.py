@@ -161,6 +161,14 @@ class TestMain(unittest.TestCase):
             with open(prgFile, 'rb') as f:
                 self.assertEqual(f.read(), bytes([0x00, 0x10, 0xa9, 0x01])) # saved by the first source only
 
+    def testMissingSource(self):
+        """-a with a missing source exits with 1, and an error on stderr."""
+        with tempfile.TemporaryDirectory() as directory:
+            missingFile = os.path.join(directory, 'missing.asm')
+            code, output, errors = self._main(['-a', missingFile])
+            self.assertEqual(code, 1)
+            self.assertEqual(errors, f'error: No such file or directory: "{missingFile}"\n')
+
     def testMemoryUse(self):
         """The page map shows each page as unused, partly used, or full."""
         context = Context({})

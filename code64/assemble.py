@@ -29,6 +29,7 @@ DEFAULT_ORIGIN = 0x1000 # the address when there is no .org
 def assembleFile(inFile: str, outFile: str = None) -> Context:
     """Assemble inFile, and save it to outFile, if given and there are no errors. Returns the
     context of the last pass: memory, symbols, messages and errors.
+    Raises OSError if inFile can't be read, or outFile can't be written.
 
     Passes are repeated until the output stops changing (max. MAX_PASSES), so
     labels can be used before they are defined.
@@ -246,6 +247,11 @@ class TestAssemble(unittest.TestCase):
                     self.assertEqual(context.errors, [])
                     self.assertEqual((context.memory[0x1000], context.memory[0x2000]), (value, value))
 
+    def testMissingSource(self):
+        """A missing main source file raises FileNotFoundError."""
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertRaises(FileNotFoundError, assembleFile, os.path.join(directory, 'missing.asm'))
+
     def testNoPrgOnErrors(self):
         """The .prg file is only saved when there are no errors."""
         with tempfile.TemporaryDirectory() as directory:
@@ -285,6 +291,7 @@ class TestAssemble(unittest.TestCase):
             ('.python "1/0"\n',                      'test.asm:1 error: Invalid syntax'), # only python blocks
             ('.import "nothere.py"\n',               'test.asm:1 error: Failed to execute python code: "nothere.py" (FileNotFoundError: '),
             ('.org undefinedSymbol\n',               'test.asm:1 error: Invalid directive: .org undefinedSymbol'),
+            ('.import "nothere.asm"\n',              'test.asm:1 error: File not found: "nothere.asm"'),
             ('.binary "nothere.bin"\n',              'test.asm:1 error: File not found: "nothere.bin"'),
             ('.music "nothere.sid", "M"\n',          'test.asm:1 error: File not found: "nothere.sid"'),
             ('.music "nothere.sid", "M"\n',          'test.asm:1 error: Music not loaded: "nothere.sid"'),

@@ -380,6 +380,8 @@ def importFile(context, fileName: str):
             exec(py, context.symbols)
         except Exception as exception:
             context.reportError(f'Failed to execute python code: "{fileName}" ({type(exception).__name__}: {exception})')
+    elif not os.path.isfile(path):
+        context.reportError(f'File not found: "{fileName}"')
     else:
         context.advanceReadPointer()
         context.pushReadPointer( (path, 0) )
