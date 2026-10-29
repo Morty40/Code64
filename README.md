@@ -550,7 +550,8 @@ The Python files in `code64/imports/` are imported automatically, and define sym
 |---|---|
 | `basic.py` | BASIC ROM addresses and tokens, and generators for a BASIC start line: `basicStart()`, `basicSys(lineNumber, address)`, `basicRem(lineNumber, text)`, `basicEnd()` |
 | `cia.py` | CIA 1 and 2 registers, `CIA1_...` and `CIA2_...` |
-| `cpu.py` | the CPU port `CPU_IO_PORT`, and generators: `nop(n)`, `ldax(value)`, `lday(value)`, `ldxy(value)`, `stax(address)`, `stay(address)`, `stxy(address)` |
+| `cpu.py` | generators: `nop(n)`, `ldax(value)`, `lday(value)`, `ldxy(value)`, `stax(address)`, `stay(address)`, `stxy(address)` |
+| `ioport.py` | the 6510 processor port at `$00` and `$01`, `IO_PORT_DATA_DIRECTION` and `IO_PORT_DATA`, which chooses RAM, ROM or I/O at `$a000`, `$d000` and `$e000` |
 | `kernal.py` | KERNAL ROM routines, `KERNAL_ROM_...` |
 | `keyboard.py` | keyboard matrix codes, `KEYBOARD_CODE_...` |
 | `sid.py` | SID registers, `SID_...` |
