@@ -71,6 +71,27 @@ A Makefile rule for building `.prg` files:
 - An absolute address below `$100`, e.g. `lda $0010` as `ad 10 00`, is written as `.byte`, as Code64 assembles it with zero page addressing.
 
 
+### From Python
+
+The `code64` package has the same two functions as the command line:
+
+```python
+import code64
+
+context = code64.assembleFile('game.asm', 'game.prg')
+for message in context.warnings + context.errors:
+    print(message)
+
+source = code64.disassembleFile('game.prg')
+```
+
+`assembleFile(inFile, outFile=None)` assembles `inFile`, saves `outFile` if given and there are no errors, and returns the `Context` of the last pass. Its `memory` is a dict of address to byte, `symbols` has the labels and other symbols, `printed` the `.print` output, and `warnings` and `errors` the messages.
+
+`disassembleFile(inFile, outFile=None)` returns the source, and saves it to `outFile` if given.
+
+Both raise `OSError` if a file can't be read or written. Errors in the source don't raise, they are returned in `context.errors`. The illegal instructions are set with `code64.cpu.setIllegalInstructions('none' | 'stable' | 'all')`, which is `stable` by default.
+
+
 ## Example
 
 ```

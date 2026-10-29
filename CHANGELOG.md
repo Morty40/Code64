@@ -16,6 +16,7 @@ The first release.
 - built-in symbols for the C64 hardware (VIC, SID, CIA, KERNAL, BASIC)
 - `.prg` output, and a memory map after a successful assembly
 - disassembler: `code64 -d <binFile>`, to a file with `-o` or printed
+- Python API: `code64.assembleFile`, `code64.disassembleFile` and `code64.Context`
 - warnings and errors on stderr, and exit code 1 on errors
 - `code64 --version` and `code64 -h`
 - requires Python 3.9 or later

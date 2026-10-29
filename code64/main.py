@@ -223,6 +223,15 @@ class TestMain(unittest.TestCase):
         self.assertNotIn('cpu', modules)
         self.assertNotIn('assemble', modules)
 
+    def testPublicApi(self):
+        """The package exports assembleFile, disassembleFile and Context, and its modules stay importable."""
+        import code64
+        self.assertEqual(sorted(code64.__all__), ['Context', 'assembleFile', 'disassembleFile'])
+        self.assertIs(code64.assembleFile, assemble.assembleFile)
+        self.assertIs(code64.disassembleFile, disassemble.disassembleFile)
+        self.assertIs(code64.Context, Context)
+        self.assertIs(code64.disassemble, disassemble) # the module, not the function of the same name
+
 
 if __name__ == '__main__':
    main()
