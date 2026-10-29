@@ -65,7 +65,7 @@ def main():
     parser.add_argument('-o', dest='outFile', help='the .prg file to write, or the source file when disassembling (default: print it)')
     parser.add_argument('-i', dest='illegal', choices=['none', 'stable', 'all'], default='stable',
                         help='the illegal instructions to use: none, the stable ones (default), or all')
-    parser.add_argument('--version', action='version', version=f'Code64 v{__version__} (c) Morten Perriard 2021')
+    parser.add_argument('--version', action='version', version=f'Code64 v{__version__} (c) Morten Perriard 2021-2026')
     arguments = parser.parse_args()
     cpu.setIllegalInstructions(arguments.illegal)
     try:
@@ -127,7 +127,7 @@ class TestMain(unittest.TestCase):
         import code64
         code, output, errors = self._main(['--version'])
         self.assertEqual(code, 0)
-        self.assertEqual(output, f'Code64 v{code64.__version__} (c) Morten Perriard 2021\n')
+        self.assertEqual(output, f'Code64 v{code64.__version__} (c) Morten Perriard 2021-2026\n')
 
     def testIllegalInstructions(self):
         """-i chooses the illegal instructions: none, stable (the default) or all."""
