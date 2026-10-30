@@ -11,7 +11,7 @@ hx2files := $(asmfiles:.asm=.hx2)
 
 
 %.prg: %.asm
-	@PYTHONPATH=.. python3 -m code64.main -a $< -o $@ > $(basename $<).out
+	@PYTHONPATH=.. python3 -m code64.main $< -o $@ > $(basename $<).out
 
 
 %.hx2: %.prg

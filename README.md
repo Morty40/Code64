@@ -28,25 +28,25 @@ This installs the `code64` command. Run `pipx install --force .` to update after
 Code64 can also run directly from the repository folder, without installing:
 
 ```bash
-python3 -m code64.main -a hello.asm -o hello.prg
+python3 -m code64.main hello.asm -o hello.prg
 ```
 
 
 ## Usage
 
 ```
-code64 -a <asmFile> -o <outFile> [-i none|stable|all]
+code64 <asmFile> -o <outFile> [-i none|stable|all]
 code64 -d <binFile> [-o <asmFile>] [-i none|stable|all]
 code64 --version
 ```
 
 | Option | Description |
 |---|---|
-| `-a <asmFile>` | the source file to assemble |
-| `-d <binFile>` | the `.prg` or binary file to disassemble, see [Disassembling](#disassembling) |
-| `-o <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write. Without `-o` the source is printed |
-| `-i <none\|stable\|all>` | the [illegal instructions](#illegal-instructions) to use: none, the stable ones (the default), or all |
-| `-h` | print the usage |
+| `<asmFile>` | the source file to assemble |
+| `-d`, `--disassemble <binFile>` | disassemble the `.prg` or binary file instead, see [Disassembling](#disassembling) |
+| `-o`, `--output <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write. Without `-o` the source is printed |
+| `-i`, `--illegal <none\|stable\|all>` | the [illegal instructions](#illegal-instructions) to use: none, the stable ones (the default), or all |
+| `-h`, `--help` | print the usage |
 | `--version` | print the version |
 
 The output file is only written when there are no errors. Errors and warnings are printed to stderr with file name and line number, and the exit code is 1 on errors. After a successful assembly, Code64 prints the memory range used, the address of every global label, and a map of the 256 memory pages.
@@ -57,7 +57,7 @@ A Makefile rule for building `.prg` files:
 
 ```make
 %.prg: %.asm
-	code64 -a $< -o $@
+	code64 $< -o $@
 ```
 
 
@@ -116,7 +116,7 @@ message:    .string "HELLO WORLD"
 ```
 
 ```bash
-code64 -a hello.asm -o hello.prg
+code64 hello.asm -o hello.prg
 ```
 
 Load `hello.prg` in an emulator such as [VICE](https://vice-emu.sourceforge.io), and type `RUN`.

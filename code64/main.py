@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""Code64 command line: code64 -a <asmFile> -o <outFile>, or code64 -d <prgFile> -o <asmFile>, with -i <none | stable | all>"""
+"""Code64 command line: code64 <asmFile> -o <outFile>, or code64 -d <prgFile> -o <asmFile>, with -i <none | stable | all>"""
 
 import argparse
 import contextlib
@@ -59,23 +59,22 @@ def printMemoryUse(context: Context):
 def main():
     """Assemble or disassemble the file given on the command line. Exits with 1 on errors, and 2 on incorrect arguments."""
     parser = argparse.ArgumentParser(prog='code64', description=f'Code64 v{__version__}: a 6502/Python hybrid assembler for C64 cross development.')
-    files = parser.add_mutually_exclusive_group(required=True)
-    files.add_argument('-a', dest='asmFile', help='the source file to assemble')
-    files.add_argument('-d', dest='binFile', help='the .prg or binary file to disassemble')
-    parser.add_argument('-o', dest='outFile', help='the .prg file to write, or the source file when disassembling (default: print it)')
-    parser.add_argument('-i', dest='illegal', choices=['none', 'stable', 'all'], default='stable',
+    parser.add_argument('file', help='the source file to assemble, or with -d the .prg or binary file to disassemble')
+    parser.add_argument('-d', '--disassemble', dest='disassemble', action='store_true', help='disassemble the file instead of assembling it')
+    parser.add_argument('-o', '--output', dest='outFile', help='the .prg file to write, or the source file when disassembling (default: print it)')
+    parser.add_argument('-i', '--illegal', dest='illegal', choices=['none', 'stable', 'all'], default='stable',
                         help='the illegal instructions to use: none, the stable ones (default), or all')
     parser.add_argument('--version', action='version', version=f'Code64 v{__version__} (c) Morten Perriard 2021-2026')
     arguments = parser.parse_args()
     cpu.setIllegalInstructions(arguments.illegal)
     try:
-        if arguments.binFile:
-            source = disassemble.disassembleFile(arguments.binFile, arguments.outFile)
+        if arguments.disassemble:
+            source = disassemble.disassembleFile(arguments.file, arguments.outFile)
             if not arguments.outFile:
                 print(source, end='')
             anyErrors = False
         else:
-            context = assemble.assembleFile(arguments.asmFile, arguments.outFile)
+            context = assemble.assembleFile(arguments.file, arguments.outFile)
             for message in context.printed:
                 print(message)
             sys.stdout.flush() # keep the order when stdout and stderr go to the same pipe or file
@@ -104,8 +103,8 @@ class TestMain(unittest.TestCase):
 
     def testUsage(self):
         """Missing or incorrect arguments print the usage, and exit with 2."""
-        for arguments in [[], ['-o', 'x.prg'], ['x.asm'], ['-a', 'x.asm', 'extra'], ['-x'], ['-a'],
-                          ['-a', 'x.asm', '-d', 'x.prg'], ['-a', 'x.asm', '-i', 'some'], ['-a', 'x.asm', '-i']]:
+        for arguments in [[], ['-o', 'x.prg'], ['-d'], ['x.asm', 'extra'], ['-x'], ['-a', 'x.asm'],
+                          ['x.asm', '-i', 'some'], ['x.asm', '-i']]:
             with self.subTest(arguments=arguments):
                 code, output, errors = self._main(arguments)
                 self.assertEqual(code, 2)
@@ -115,10 +114,11 @@ class TestMain(unittest.TestCase):
         """-h prints the help, with each option, and exits with 0."""
         code, output, errors = self._main(['-h'])
         self.assertEqual(code, 0)
-        self.assertIn('-a ASMFILE', output)
-        self.assertIn('-o OUTFILE', output)
-        self.assertIn('-d BINFILE', output)
-        self.assertIn('-i {none,stable,all}', output)
+        self.assertIn('[-d] [-o OUTFILE]', output)
+        self.assertIn('] file', output) # the file is positional
+        self.assertIn('-d, --disassemble', output)
+        self.assertIn('--output OUTFILE', output) # Python 3.13 shows '-o, --output OUTFILE', older versions '-o OUTFILE, --output OUTFILE'
+        self.assertIn('--illegal {none,stable,all}', output)
         self.assertIn('--version', output)
         self.assertIn(f'Code64 v{__version__}', output)
 
@@ -134,16 +134,17 @@ class TestMain(unittest.TestCase):
         self.addCleanup(cpu.setIllegalInstructions, 'stable')
         with tempfile.TemporaryDirectory() as directory:
             for arguments, source, expected in [([], 'lax $10', 0), (['-i', 'stable'], 'lax $10', 0), (['-i', 'none'], 'lax $10', 1),
-                                                (['-i', 'stable'], 'sha $1000,y', 1), (['-i', 'all'], 'sha $1000,y', 0)]:
+                                                (['-i', 'stable'], 'sha $1000,y', 1), (['-i', 'all'], 'sha $1000,y', 0),
+                                                (['--illegal', 'none'], 'lax $10', 1), (['--illegal=all'], 'sha $1000,y', 0)]:
                 with self.subTest(arguments=arguments, source=source):
                     asmFile = os.path.join(directory, 'test.asm')
                     with open(asmFile, 'w') as f:
                         f.write(source + '\n')
-                    code, output, errors = self._main(['-a', asmFile] + arguments)
+                    code, output, errors = self._main([asmFile] + arguments)
                     self.assertEqual(code, expected, output)
 
     def testAssemble(self):
-        """-a prints the .print output, and with no errors the memory use, and saves the -o file.
+        """Assembling prints the .print output, and with no errors the memory use, and saves the -o file.
         Warnings and errors go to stderr. Exits with 1 on errors."""
         with tempfile.TemporaryDirectory() as directory:
             prgFile = os.path.join(directory, 'a.prg')
@@ -154,7 +155,7 @@ class TestMain(unittest.TestCase):
                     asmFile = os.path.join(directory, name)
                     with open(asmFile, 'w') as f:
                         f.write(source)
-                    code, output, errors = self._main(['-a', asmFile, '-o', prgFile])
+                    code, output, errors = self._main([asmFile, '-o', prgFile])
                     self.assertEqual(code, expected, output + errors)
                     lines = [line.split('/')[-1] for line in output.splitlines()]
                     self.assertEqual([line for line in lines if line.startswith(tuple(printed))], printed)
@@ -169,16 +170,16 @@ class TestMain(unittest.TestCase):
             asmFile = os.path.join(directory, 'test.asm')
             with open(asmFile, 'w') as f:
                 f.write('.print "hi"\n.warning "careful"\n')
-            output = subprocess.run([sys.executable, '-m', 'code64.main', '-a', asmFile], cwd=root,
+            output = subprocess.run([sys.executable, '-m', 'code64.main', asmFile], cwd=root,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True).stdout
         lines = [line.split('/')[-1] for line in output.splitlines()]
         self.assertEqual(lines[:2], ['hi', 'test.asm:2 warning: careful'])
 
     def testMissingSource(self):
-        """-a with a missing source exits with 1, and an error on stderr."""
+        """A missing source exits with 1, and an error on stderr."""
         with tempfile.TemporaryDirectory() as directory:
             missingFile = os.path.join(directory, 'missing.asm')
-            code, output, errors = self._main(['-a', missingFile])
+            code, output, errors = self._main([missingFile])
             self.assertEqual(code, 1)
             self.assertEqual(errors, f'error: No such file or directory: "{missingFile}"\n')
 
@@ -201,6 +202,10 @@ class TestMain(unittest.TestCase):
             self.assertEqual(code, 0)
             with open(asmFile) as f:
                 self.assertIn('rts', f.read())
+            code, output, errors = self._main(['--disassemble', prgFile, '--output', asmFile]) # the long names
+            self.assertEqual(code, 0)
+            with open(asmFile) as f:
+                self.assertEqual(f.read(), disassemble.disassembleFile(prgFile))
             code, output, errors = self._main(['-d', prgFile]) # without -o, only the source is printed
             self.assertEqual(code, 0)
             self.assertEqual(output, disassemble.disassembleFile(prgFile))
