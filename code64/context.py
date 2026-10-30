@@ -32,6 +32,7 @@ class Context:
         self.blockStack = [] # per open .repeat, .for or .if: (kind, ...), see directives.py
         self.zpAddress = 2 # $0 and $1 are reserved
         self.generatorCounts = {} # generator name: calls, gives each call its own local label scope
+        self.breakpoints = [] # (address, VICE condition or None) for each .break
         self.path = '' # folder of the main source file, for .import and .binary
         self.encoding = text.ENCODING_SCREEN_UPPER
 

@@ -338,6 +338,16 @@ class TestAssemble(unittest.TestCase):
                 self.assertFalse(anyErrors, output)
                 self.assertNotIn('Assertion failed', output)
 
+    def testBreak(self):
+        """.break collects a breakpoint at the current address, with an optional VICE condition."""
+        with tempfile.TemporaryDirectory() as directory:
+            fileName = os.path.join(directory, 'test.asm')
+            with open(fileName, 'w') as f:
+                f.write('nop\n.break\nnop\n.break "RL > $40 && A == $00"\nlater: rts\n.break 5\n')
+            context = assembleFile(fileName)
+        self.assertEqual(context.breakpoints, [(0x1001, None), (0x1002, 'RL > $40 && A == $00')])
+        self.assertEqual([e.split('/')[-1] for e in context.errors], ['test.asm:6: error: Invalid directive: .break 5'])
+
     def testBrokenBuiltinImport(self):
         """A built-in import that fails raises its exception, with the import file in the traceback."""
         from unittest import mock

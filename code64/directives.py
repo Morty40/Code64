@@ -228,6 +228,15 @@ def assertion(context, condition, message: str = 'Assertion failed'):
 
 
 ################################################################################
+# VICE
+
+@directive('break')
+def setBreakpoint(context, condition: str = None):
+    """Set a VICE breakpoint at the current address, with an optional condition in VICE's format, e.g. "RL > $40"."""
+    context.breakpoints.append((context.symbols['_'], condition))
+
+
+################################################################################
 # blocks: .repeat, .for and .if, each ended by .end
 
 BLOCKS = ('repeat', 'for', 'if') # the directives that start a block

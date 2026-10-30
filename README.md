@@ -35,7 +35,7 @@ python3 -m code64.main hello.asm -o hello.prg
 ## Usage
 
 ```
-code64 <asmFile> -o <outFile> [-i none|stable|all] [-l <labelFile>]
+code64 <asmFile> -o <outFile> [-i none|stable|all] [--vice <viceFile>]
 code64 -d <binFile> [-o <asmFile>] [-i none|stable|all]
 code64 --version
 ```
@@ -46,7 +46,7 @@ code64 --version
 | `-d`, `--disassemble <binFile>` | disassemble the `.prg` or binary file instead, see [Disassembling](#disassembling) |
 | `-o`, `--output <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write. Without `-o` the source is printed |
 | `-i`, `--illegal <none\|stable\|all>` | the [illegal instructions](#illegal-instructions) to use: none, the stable ones (the default), or all |
-| `-l`, `--labels <labelFile>` | the [VICE label file](#vice-label-file) to write |
+| `--vice <viceFile>` | the [VICE monitor commands](#vice-monitor-commands) file to write: labels and breakpoints |
 | `-h`, `--help` | print the usage |
 | `--version` | print the version |
 
@@ -62,20 +62,21 @@ A Makefile rule for building `.prg` files:
 ```
 
 
-### VICE label file
+### VICE monitor commands
 
-`-l` writes the labels as commands for the VICE monitor, so it shows and accepts label names instead of addresses:
+`--vice` writes a file of commands for the VICE monitor: a label for every label in the source, so the monitor shows and accepts label names instead of addresses, and a breakpoint for every [.break](#break):
 
 ```
 al C:080d .start
 al C:083b .start_loop
 al C:0841 .irq
+break C:0841 if RL > $40
 ```
 
-The file has every label, including zero page variables, sorted by address. A local label is named after its global label, e.g. `_loop` after `start:` is `start_loop`. A local label in generated code is named after the generator and how many times it was called, e.g. `_loop` in the second `@wait()` is `wait2_loop`. Other symbols, such as `VALUE = 5`, are not included. Load the file when starting VICE, or in the monitor with `ll "game.lbl"`:
+The labels include zero page variables, and are sorted by address. A local label is named after its global label, e.g. `_loop` after `start:` is `start_loop`. A local label in generated code is named after the generator and how many times it was called, e.g. `_loop` in the second `@wait()` is `wait2_loop`. Other symbols, such as `VALUE = 5`, are not included. Run the file when starting VICE, or in the monitor with `pb "game.vmc"`:
 
 ```
-x64sc -moncommands game.lbl game.prg
+x64sc -moncommands game.vmc game.prg
 ```
 
 
@@ -590,6 +591,18 @@ Reports an error if the Python expression `condition` is false, with the message
             .assert _ <= $1000, "The code overlaps the music at $1000"
             .assert hi(table) == hi(tableEnd - 1), "The table crosses a page"
             .assert sprite % 64 == 0
+```
+
+#### .break
+```
+.break ["condition"]
+```
+Sets a breakpoint in VICE at the current address, written to the [VICE monitor commands](#vice-monitor-commands) file. The optional condition is passed to VICE unchanged, in VICE's own format: registers `A`, `X`, `Y`, `SP`, the raster line `RL` and cycle `CY`, and hex numbers with `$`:
+
+```
+irq:        .break                      ; stop each time the interrupt starts
+            lda VIC_INTERRUPT_REGISTER
+            .break "RL > $40"           ; stop only if the raster line is past $40
 ```
 
 
