@@ -103,9 +103,9 @@ class Context:
 
 
     def __formattedReadPointer(self):
-        """Return the current position as 'file:line ', for messages."""
+        """Return the current position as 'file:line: ', for messages, as in gcc."""
         rp = self.readPointer()
-        return f'{rp[0]}:{rp[1]+1} ' if rp else ''
+        return f'{rp[0]}:{rp[1]+1}: ' if rp else ''
 
 
     def reportWarning(self, text: str):
@@ -149,8 +149,8 @@ class TestContext(unittest.TestCase):
         context.pushReadPointer(('a.asm', 4))                    # line index 4 is line 5
         context.reportWarning('careful')
         context.reportError('failed')
-        self.assertEqual(context.warnings, ['warning: no position', 'a.asm:5 warning: careful'])
-        self.assertEqual(context.errors, ['a.asm:5 error: failed'])
+        self.assertEqual(context.warnings, ['warning: no position', 'a.asm:5: warning: careful'])
+        self.assertEqual(context.errors, ['a.asm:5: error: failed'])
 
 
 if __name__ == '__main__':

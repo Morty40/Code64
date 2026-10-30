@@ -63,7 +63,7 @@ class TestGenerators(unittest.TestCase):
     def testNotString(self):
         """A generator that doesn't return a string is an error."""
         context, chunks = self._assemble('@code', {'code': lambda: ''}) # forgot the parentheses
-        self.assertEqual(context.errors, ['test.asm:1 error: Generator must return a string, not function'])
+        self.assertEqual(context.errors, ['test.asm:1: error: Generator must return a string, not function'])
 
 
 if __name__ == '__main__':

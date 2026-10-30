@@ -149,8 +149,8 @@ class TestMain(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             prgFile = os.path.join(directory, 'a.prg')
             for name, source, expected, printed, diagnostics in [
-                ('ok.asm',    '.print "hi"\n.warning "careful"\nlda #1\n', 0, ['hi', 'Memory used: $1000-$1001 (2 bytes)'], ['ok.asm:2 warning: careful']),
-                ('error.asm', '.print "hi"\n.error "stop"\n',               1, ['hi'],                                       ['error.asm:2 error: stop'])]:
+                ('ok.asm',    '.print "hi"\n.warning "careful"\nlda #1\n', 0, ['hi', 'Memory used: $1000-$1001 (2 bytes)'], ['ok.asm:2: warning: careful']),
+                ('error.asm', '.print "hi"\n.error "stop"\n',               1, ['hi'],                                       ['error.asm:2: error: stop'])]:
                 with self.subTest(source=source):
                     asmFile = os.path.join(directory, name)
                     with open(asmFile, 'w') as f:
@@ -173,7 +173,7 @@ class TestMain(unittest.TestCase):
             output = subprocess.run([sys.executable, '-m', 'code64.main', asmFile], cwd=root,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True).stdout
         lines = [line.split('/')[-1] for line in output.splitlines()]
-        self.assertEqual(lines[:2], ['hi', 'test.asm:2 warning: careful'])
+        self.assertEqual(lines[:2], ['hi', 'test.asm:2: warning: careful'])
 
     def testMissingSource(self):
         """A missing source exits with 1, and an error on stderr."""

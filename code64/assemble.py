@@ -141,7 +141,7 @@ class TestAssemble(unittest.TestCase):
     def testDuplicateLabel(self):
         anyErrors, output = self._assemble('a: nop\na: nop\n')
         self.assertTrue(anyErrors)
-        self.assertIn('test.asm:2 error: Label was already defined: "a"', output)
+        self.assertIn('test.asm:2: error: Label was already defined: "a"', output)
 
     def testConstants(self):
         """Upper case symbols are constants, other symbols can be assigned again."""
@@ -153,13 +153,13 @@ class TestAssemble(unittest.TestCase):
         # only the assignment that changes the value is an error
         anyErrors, output = self._assemble('MY_VALUE = 123\nMY_VALUE = 124\n')
         errors = [line.split('/')[-1] for line in output.splitlines() if ' error: ' in line]
-        self.assertEqual(errors, ['test.asm:2 error: Constant "MY_VALUE" cannot be changed from 123 to 124'])
+        self.assertEqual(errors, ['test.asm:2: error: Constant "MY_VALUE" cannot be changed from 123 to 124'])
 
         # built-in constants, from the imports folder
         anyErrors, output = self._assemble('VIC_BORDER_COLOR = $d020\n')
         self.assertFalse(anyErrors, output)
         anyErrors, output = self._assemble('VIC_BORDER_COLOR = 1\n')
-        self.assertIn('test.asm:1 error: Constant "VIC_BORDER_COLOR" cannot be changed from 53280 to 1', output)
+        self.assertIn('test.asm:1: error: Constant "VIC_BORDER_COLOR" cannot be changed from 53280 to 1', output)
 
     def testSymbolTypes(self):
         """A symbol keeps its type, e.g. an int can't become a str."""
@@ -167,14 +167,14 @@ class TestAssemble(unittest.TestCase):
         self.assertFalse(anyErrors, output)
 
         for source, message in [
-            ('x = 1\nx = "a"\n',          'test.asm:2 error: Symbol "x" cannot change type from int to str'),
-            ('f = lambda v: v\nf = 1\n',  'test.asm:2 error: Symbol "f" cannot change type from function to int'),
-            ('x = "a"\nx: nop\n',         'test.asm:2 error: Symbol "x" cannot change type from str to int'),
-            ('.zpbyte "x"\nx = "a"\n',    'test.asm:2 error: Symbol "x" cannot change type from int to str'),
+            ('x = 1\nx = "a"\n',          'test.asm:2: error: Symbol "x" cannot change type from int to str'),
+            ('f = lambda v: v\nf = 1\n',  'test.asm:2: error: Symbol "f" cannot change type from function to int'),
+            ('x = "a"\nx: nop\n',         'test.asm:2: error: Symbol "x" cannot change type from str to int'),
+            ('.zpbyte "x"\nx = "a"\n',    'test.asm:2: error: Symbol "x" cannot change type from int to str'),
             # the math module is protected
-            ('pi = 3\n',                  'test.asm:1 error: Symbol "pi" cannot change type from float to int'),
-            ('e: nop\n',                  'test.asm:1 error: Symbol "e" cannot change type from float to int'),
-            ('sin: nop\n',                'test.asm:1 error: Symbol "sin" cannot change type from builtin_function_or_method to int'),
+            ('pi = 3\n',                  'test.asm:1: error: Symbol "pi" cannot change type from float to int'),
+            ('e: nop\n',                  'test.asm:1: error: Symbol "e" cannot change type from float to int'),
+            ('sin: nop\n',                'test.asm:1: error: Symbol "sin" cannot change type from builtin_function_or_method to int'),
         ]:
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(source)
@@ -185,7 +185,7 @@ class TestAssemble(unittest.TestCase):
         for source in ['.byte "B"', '.word "B"', '.bytefill 1, "x: \'B\'"', '.wordfill 1, "x: \'B\'"']:
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(f'B = 5\n{source}\n')
-                self.assertIn('test.asm:2 error:', output)
+                self.assertIn('test.asm:2: error:', output)
 
     def testGeneratorNotString(self):
         """A generator must return assembly code as a string, or it is an error."""
@@ -193,14 +193,14 @@ class TestAssemble(unittest.TestCase):
                              ('.python\ndef emit(): pass\n.end\n@emit()\n', 4)]: # forgot to return the code
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(source)
-                self.assertIn(f'test.asm:{line} error:', output)
+                self.assertIn(f'test.asm:{line}: error:', output)
 
     def testForLoopLimit(self):
         """A .for loop whose condition is never false is an error, not a hang."""
         from unittest import mock
         with mock.patch.object(directives, 'MAX_ITERATIONS', 100): # the real limit takes seconds
             anyErrors, output = self._assemble('.for a=0, a>=0, a+=1\n.end\n')
-        self.assertIn('test.asm:2 error: For loop did not end after 100 iterations', output)
+        self.assertIn('test.asm:2: error: For loop did not end after 100 iterations', output)
 
     def testPrgStart(self):
         """A .prg file is the load address, the lowest address used or $1000 if nothing is stored,
@@ -277,39 +277,39 @@ class TestAssemble(unittest.TestCase):
     def testMessages(self):
         """Errors and warnings, each reported at the line that causes it."""
         for source, message in [
-            ('.org $1000\n.byte 1\n.org $1000\n.byte 2\n', 'test.asm:4 warning: $1000 is overwritten ($01 to $02)'),
-            ('.org $ffff\n.byte 1, 2\n',            'test.asm:2 error: Destination memory address out of range: $10000'),
-            ('jmp ($10ff)\n',                        'test.asm:1 warning: Indirect address located on page boundary: $10ff'),
-            ('stx $100,y\n',                         'test.asm:1 error: Unknown instruction or address mode: stx 0x100,y'),
-            ('.text "a"\n',                          'test.asm:1 error: Unknown character "a" in text "a"'),
-            ('.align 0\n',                           'test.asm:1 error: Alignment must be positive: 0'),
+            ('.org $1000\n.byte 1\n.org $1000\n.byte 2\n', 'test.asm:4: warning: $1000 is overwritten ($01 to $02)'),
+            ('.org $ffff\n.byte 1, 2\n',            'test.asm:2: error: Destination memory address out of range: $10000'),
+            ('jmp ($10ff)\n',                        'test.asm:1: warning: Indirect address located on page boundary: $10ff'),
+            ('stx $100,y\n',                         'test.asm:1: error: Unknown instruction or address mode: stx 0x100,y'),
+            ('.text "a"\n',                          'test.asm:1: error: Unknown character "a" in text "a"'),
+            ('.align 0\n',                           'test.asm:1: error: Alignment must be positive: 0'),
             ('.print 1 + 1\n',                       '2\n'),
-            ('.warning "careful"\n',                 'test.asm:1 warning: careful'),
-            ('.error "stop"\n',                      'test.asm:1 error: stop'),
-            ('.end\n',                               'test.asm:1 error: End without matching repeat, for or if'),
-            ('.else\n',                              'test.asm:1 error: Else without matching if'),
-            ('.if 0\n.else\n.else\n.end\n',          'test.asm:3 error: Else already used for this if'),
-            ('.if 0\n',                              'test.asm:1 error: If without matching end'),
-            ('.if 1\n.else\n',                       'test.asm:2 error: Else without matching end'),
-            ('.repeat "i", 2\n.end\n',               'test.asm:1 error: Expected .repeat count'), # the old syntax
-            ('.repeat 0\n',                          'test.asm:1 error: Repeat without matching end'),
-            ('.for a=0, a<1\n',                      'test.asm:1 error: Expected .for initial, condition, step'),
-            ('.for a=0, a<0, a+=1\n',                'test.asm:1 error: For without matching end'),
-            ('.for a=, a<1, a+=1\n.end\n',           'test.asm:1 error: Failed to execute python code: "a="'),
-            ('.for a=0, a<1, b+=1\n.end\n',          'test.asm:2 error: Failed to execute python code: "b+=1"'),
-            ('.python\n1/0\n.end\n',                    'test.asm:1 error: Failed to execute python code: "1/0" (ZeroDivisionError: division by zero)'),
-            ('.python\nx = 1\n',                         'test.asm:1 error: Invalid directive: .python'), # no .end
-            ('.python "1/0"\n',                      'test.asm:1 error: Invalid syntax'), # only python blocks
-            ('.import "nothere.py"\n',               'test.asm:1 error: Failed to execute python code: "nothere.py" (FileNotFoundError: '),
-            ('.org undefinedSymbol\n',               'test.asm:1 error: Invalid directive: .org undefinedSymbol'),
-            ('.import "nothere.asm"\n',              'test.asm:1 error: File not found: "nothere.asm"'),
-            ('.binary "nothere.bin"\n',              'test.asm:1 error: File not found: "nothere.bin"'),
-            ('.music "nothere.sid", "M"\n',          'test.asm:1 error: File not found: "nothere.sid"'),
-            ('.music "nothere.sid", "M"\n',          'test.asm:1 error: Music not loaded: "nothere.sid"'),
-            ('.zpbyte "a"\n.zpbyte "a"\n',           'test.asm:2 error: Label was already defined: "a"'),
+            ('.warning "careful"\n',                 'test.asm:1: warning: careful'),
+            ('.error "stop"\n',                      'test.asm:1: error: stop'),
+            ('.end\n',                               'test.asm:1: error: End without matching repeat, for or if'),
+            ('.else\n',                              'test.asm:1: error: Else without matching if'),
+            ('.if 0\n.else\n.else\n.end\n',          'test.asm:3: error: Else already used for this if'),
+            ('.if 0\n',                              'test.asm:1: error: If without matching end'),
+            ('.if 1\n.else\n',                       'test.asm:2: error: Else without matching end'),
+            ('.repeat "i", 2\n.end\n',               'test.asm:1: error: Expected .repeat count'), # the old syntax
+            ('.repeat 0\n',                          'test.asm:1: error: Repeat without matching end'),
+            ('.for a=0, a<1\n',                      'test.asm:1: error: Expected .for initial, condition, step'),
+            ('.for a=0, a<0, a+=1\n',                'test.asm:1: error: For without matching end'),
+            ('.for a=, a<1, a+=1\n.end\n',           'test.asm:1: error: Failed to execute python code: "a="'),
+            ('.for a=0, a<1, b+=1\n.end\n',          'test.asm:2: error: Failed to execute python code: "b+=1"'),
+            ('.python\n1/0\n.end\n',                    'test.asm:1: error: Failed to execute python code: "1/0" (ZeroDivisionError: division by zero)'),
+            ('.python\nx = 1\n',                         'test.asm:1: error: Invalid directive: .python'), # no .end
+            ('.python "1/0"\n',                      'test.asm:1: error: Invalid syntax'), # only python blocks
+            ('.import "nothere.py"\n',               'test.asm:1: error: Failed to execute python code: "nothere.py" (FileNotFoundError: '),
+            ('.org undefinedSymbol\n',               'test.asm:1: error: Invalid directive: .org undefinedSymbol'),
+            ('.import "nothere.asm"\n',              'test.asm:1: error: File not found: "nothere.asm"'),
+            ('.binary "nothere.bin"\n',              'test.asm:1: error: File not found: "nothere.bin"'),
+            ('.music "nothere.sid", "M"\n',          'test.asm:1: error: File not found: "nothere.sid"'),
+            ('.music "nothere.sid", "M"\n',          'test.asm:1: error: Music not loaded: "nothere.sid"'),
+            ('.zpbyte "a"\n.zpbyte "a"\n',           'test.asm:2: error: Label was already defined: "a"'),
             ('.for i=0, i<127, i+=1\n.zpword "v{i}"\n.end\n.zpbyte "last"\n', # $02-$ff is full
-                                                     'test.asm:4 error: No space for zero page variable: "last"'),
-            ('hello world\n',                        'test.asm:1 error: Invalid syntax'),
+                                                     'test.asm:4: error: No space for zero page variable: "last"'),
+            ('hello world\n',                        'test.asm:1: error: Invalid syntax'),
         ]:
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(source)
