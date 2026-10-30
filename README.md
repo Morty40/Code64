@@ -35,7 +35,7 @@ python3 -m code64.main hello.asm -o hello.prg
 ## Usage
 
 ```
-code64 <asmFile> -o <outFile> [-i none|stable|all]
+code64 <asmFile> -o <outFile> [-i none|stable|all] [-l <labelFile>]
 code64 -d <binFile> [-o <asmFile>] [-i none|stable|all]
 code64 --version
 ```
@@ -46,10 +46,11 @@ code64 --version
 | `-d`, `--disassemble <binFile>` | disassemble the `.prg` or binary file instead, see [Disassembling](#disassembling) |
 | `-o`, `--output <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write. Without `-o` the source is printed |
 | `-i`, `--illegal <none\|stable\|all>` | the [illegal instructions](#illegal-instructions) to use: none, the stable ones (the default), or all |
+| `-l`, `--labels <labelFile>` | the [VICE label file](#vice-label-file) to write |
 | `-h`, `--help` | print the usage |
 | `--version` | print the version |
 
-The output file is only written when there are no errors. Errors and warnings are printed to stderr with file name and line number, and the exit code is 1 on errors. After a successful assembly, Code64 prints the memory range used, the address of every global label, and a map of the 256 memory pages.
+The output file is only written when there are no errors. Errors and warnings are printed to stderr with file name and line number, and the exit code is 1 on errors. After a successful assembly, Code64 prints the memory range used, and a map of the 256 memory pages.
 
 The `.prg` file starts with the 2-byte load address (the lowest address used), followed by every byte up to the highest address used. Gaps are filled with zeros.
 
@@ -58,6 +59,23 @@ A Makefile rule for building `.prg` files:
 ```make
 %.prg: %.asm
 	code64 $< -o $@
+```
+
+
+### VICE label file
+
+`-l` writes the labels as commands for the VICE monitor, so it shows and accepts label names instead of addresses:
+
+```
+al C:080d .start
+al C:083b .start_loop
+al C:0841 .irq
+```
+
+The file has every label, including zero page variables, sorted by address. A local label is named after its global label, e.g. `_loop` after `start:` is `start_loop`. A local label in generated code is named after the generator and how many times it was called, e.g. `_loop` in the second `@wait()` is `wait2_loop`. Other symbols, such as `VALUE = 5`, are not included. Load the file when starting VICE, or in the monitor with `ll "game.lbl"`:
+
+```
+x64sc -moncommands game.lbl game.prg
 ```
 
 
@@ -583,13 +601,13 @@ The Python files in `code64/imports/` are imported automatically, and define sym
 |---|---|
 | `basic.py` | BASIC ROM addresses and tokens, and generators for a BASIC start line: `basicStart()`, `basicSys(lineNumber, address)`, `basicRem(lineNumber, text)`, `basicEnd()` |
 | `cia.py` | CIA 1 and 2 registers, `CIA1_...` and `CIA2_...` |
-| `cpu.py` | generators: `nop(n)`, `ldax(value)`, `lday(value)`, `ldxy(value)`, `stax(address)`, `stay(address)`, `stxy(address)` |
 | `ioport.py` | the 6510 processor port at `$00` and `$01`, `IO_PORT_DATA_DIRECTION` and `IO_PORT_DATA`, which chooses RAM, ROM or I/O at `$a000`, `$d000` and `$e000` |
 | `kernal.py` | KERNAL ROM routines, `KERNAL_ROM_...` |
 | `keyboard.py` | keyboard matrix codes, `KEYBOARD_CODE_...` |
 | `sid.py` | SID registers, `SID_...` |
 | `stack.py` | `STACK_ADDRESS`, and generators: `pushRegisters()`, `pullRegisters()`, `storeRegisters(restore)`, `restoreRegisters()` |
 | `std.py` | `CHAR_ROM` |
+| `utility.py` | generators: `nop(n)`, `ldax(value)`, `lday(value)`, `ldxy(value)`, `stax(address)`, `stay(address)`, `stxy(address)` |
 | `vector.py` | interrupt vectors, `INTERRUPT_VECTOR_...` |
 | `vic.py` | VIC-II registers, `VIC_...` |
 
