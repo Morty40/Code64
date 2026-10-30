@@ -286,6 +286,10 @@ class TestAssemble(unittest.TestCase):
             ('.print 1 + 1\n',                       '2\n'),
             ('.warning "careful"\n',                 'test.asm:1: warning: careful'),
             ('.error "stop"\n',                      'test.asm:1: error: stop'),
+            ('.assert 2 > 3\n',                      'test.asm:1: error: Assertion failed'),
+            ('.assert 2 > 3, "Something is wrong"\n', 'test.asm:1: error: Something is wrong'),
+            ('.assert\n',                            'test.asm:1: error: Invalid directive: .assert'),
+            ('.assert 2 > 3, 42\n',                  'test.asm:1: error: Invalid directive: .assert'), # the message must be a string
             ('.end\n',                               'test.asm:1: error: End without matching repeat, for or if'),
             ('.else\n',                              'test.asm:1: error: Else without matching if'),
             ('.if 0\n.else\n.else\n.end\n',          'test.asm:3: error: Else already used for this if'),
@@ -324,6 +328,15 @@ class TestAssemble(unittest.TestCase):
         anyErrors, output = self._assemble('.print "before"\n.error "stop"\n')
         self.assertTrue(anyErrors)
         self.assertIn('before\n', output)
+
+    def testAssert(self):
+        """.assert reports nothing if the condition is true, also for labels defined later."""
+        for source in ['.assert 2 < 3\n', '.assert 2 < 3, "Something is wrong"\n',
+                       '.assert later == $1003\njmp later\nlater: rts\n']:
+            with self.subTest(source=source):
+                anyErrors, output = self._assemble(source)
+                self.assertFalse(anyErrors, output)
+                self.assertNotIn('Assertion failed', output)
 
     def testBrokenBuiltinImport(self):
         """A built-in import that fails raises its exception, with the import file in the traceback."""

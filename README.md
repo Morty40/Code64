@@ -562,6 +562,18 @@ Reports a warning. Assembly continues.
 ```
 Reports an error. The output file is not written.
 
+#### .assert
+```
+.assert condition[, "message"]
+```
+Reports an error if the Python expression `condition` is false, with the message, or `Assertion failed` without one. The condition is checked in the last pass, so it can use labels defined later. For example, to check the memory layout:
+
+```
+            .assert _ <= $1000, "The code overlaps the music at $1000"
+            .assert hi(table) == hi(tableEnd - 1), "The table crosses a page"
+            .assert sprite % 64 == 0
+```
+
 
 ## Built-in symbols
 

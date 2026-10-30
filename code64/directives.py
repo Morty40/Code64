@@ -220,6 +220,13 @@ def error(context, message: str):
     context.reportError(message)
 
 
+@directive('assert')
+def assertion(context, condition, message: str = 'Assertion failed'):
+    """Report an error if the condition is false."""
+    if not condition:
+        context.reportError(message)
+
+
 ################################################################################
 # blocks: .repeat, .for and .if, each ended by .end
 

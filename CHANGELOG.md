@@ -12,6 +12,7 @@ The first release.
 - generators: Python functions that return assembly code
 - local labels, zero page variable allocation, `.repeat`, `.for` and `.if` blocks
 - PETSCII and screen code text encodings
+- `.assert` to check conditions while assembling, e.g. the memory layout
 - import of source files, Python files, binary files and SID music
 - built-in symbols for the C64 hardware (VIC, SID, CIA, KERNAL, BASIC)
 - `.prg` output, and a memory map after a successful assembly
