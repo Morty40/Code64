@@ -148,7 +148,8 @@ def _fill(context, n: int, function: str, store, valueExpression):
         try:
             value = f(x)
         except Exception as exception:
-            context.reportError(f'{str(exception).capitalize()}')
+            message = str(exception) # capitalize only the first letter, keeping the case of names
+            context.reportError(f'{message[:1].upper()}{message[1:]}')
             value = 0
         store(valueExpression(repr(value), context))
 

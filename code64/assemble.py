@@ -314,6 +314,8 @@ class TestAssemble(unittest.TestCase):
             ('.for i=0, i<127, i+=1\n.zpword "v{i}"\n.end\n.zpbyte "last"\n', # $02-$ff is full
                                                      'test.asm:4: error: No space for zero page variable: "last"'),
             ('hello world\n',                        'test.asm:1: error: Invalid syntax'),
+            ('lda #MAX_Speed\n',                     'test.asm:1: error: Name \'MAX_Speed\' is not defined: "MAX_Speed"'), # only the first letter capitalized
+            ('.bytefill 1, "x: MAX_Speed"\n',        'test.asm:1: error: Name \'MAX_Speed\' is not defined\n'),
         ]:
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(source)

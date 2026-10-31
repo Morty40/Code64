@@ -15,7 +15,8 @@ def expression(e: str, context: Context):
     try:
         value = builtins.eval(e, context.symbols)
     except Exception as exception:
-        context.reportError(f'{str(exception).capitalize()}: "{e}"')
+        message = str(exception) # capitalize only the first letter, keeping the case of names
+        context.reportError(f'{message[:1].upper()}{message[1:]}: "{e}"')
     return value
 
 
