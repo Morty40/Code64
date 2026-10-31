@@ -36,7 +36,7 @@ python3 -m code64.main hello.asm -o hello.prg
 
 ```
 code64 <asmFile> -o <outFile> [-i none|stable|all] [-l <labelsFile>] [--vice <viceFile>]
-code64 -d <binFile> [-o <asmFile>] [-i none|stable|all]
+code64 -d <binFile> [-o <asmFile>] [-i none|stable|all] [-l <labelsFile>]
 code64 --version
 ```
 
@@ -46,7 +46,7 @@ code64 --version
 | `-d`, `--disassemble <binFile>` | disassemble the `.prg` or binary file instead, see [Disassembling](#disassembling) |
 | `-o`, `--output <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write. Without `-o` the source is printed |
 | `-i`, `--illegal <none\|stable\|all>` | the [illegal instructions](#illegal-instructions) to use: none, the stable ones (the default), or all |
-| `-l`, `--labels <labelsFile>` | the [labels](#labels-file) file to write, as Python assignments |
+| `-l`, `--labels <labelsFile>` | the [labels](#labels-file) file to write, as Python assignments. When disassembling, the labels file to read |
 | `--vice <viceFile>` | the [VICE monitor commands](#vice-monitor-commands) file to write: labels and breakpoints |
 | `-h`, `--help` | print the usage |
 | `--version` | print the version |
@@ -99,7 +99,8 @@ x64sc -moncommands game.vmc game.prg
 `code64 -d game.prg -o game.asm` turns a program back into source, which assembles to exactly the same `.prg` file. A `.prg` file starts with its load address, and any other file is loaded at `$1000`.
 
 - Code is found by trying each byte as the start of some code, following branches, `jmp` and `jsr`. It is only code if every path ends with `jmp`, `rts` or `rti` before it runs into an unknown opcode, `brk`, the middle of another instruction, or the end. Nothing is assumed about BASIC lines.
-- Branch, `jmp` and `jsr` destinations get labels like `l1000`.
+- Branch, `jmp` and `jsr` destinations get labels like `l1000`. Labels are alone on their line.
+- With `-l game.py`, the names from a [labels file](#labels-file) are used instead, for the operands and as labels, also in the data: `jsr irq`, `lda sinTable,x`. A name the code uses for an address outside the program, such as a zero page variable, is assigned at the top: `frame = $02`. Local labels keep their `global_local` names.
 - Bytes the code doesn't reach are written as `.byte`, and 16 or more of the same byte as `.bytefill`. Code that is only reached through jump tables or self-modifying code becomes data too.
 - An absolute address below `$100`, e.g. `lda $0010` as `ad 10 00`, is written as `.byte`, as Code64 assembles it with zero page addressing.
 
@@ -310,6 +311,8 @@ Besides the Python built-ins, these are available:
 | `ord(char)`, `chr(value)` | convert between a character and its value, in the current text encoding |
 | `sin`, `cos`, `pi`, `floor`, ... | everything from Python's `math` module, protected by the [symbol types](#symbol-types) |
 | `ENCODING_...` | the text encodings, see `.encoding` |
+
+Code64 prefers readable names to symbols, so the low and high byte are `lo(x)` and `hi(x)`, instead of the `<x` and `>x` of other assemblers.
 
 Strings in double quotes are Python f-strings, so `{expression}` inside a string is replaced with its value:
 

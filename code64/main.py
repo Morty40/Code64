@@ -75,18 +75,16 @@ def main():
     parser.add_argument('-o', '--output', dest='outFile', help='the .prg file to write, or the source file when disassembling (default: print it)')
     parser.add_argument('-i', '--illegal', dest='illegal', choices=['none', 'stable', 'all'], default='stable',
                         help='the illegal instructions to use: none, the stable ones (default), or all')
-    parser.add_argument('-l', '--labels', dest='labelsFile', help='the labels file to write, as Python assignments')
+    parser.add_argument('-l', '--labels', dest='labelsFile', help='the labels file, as Python assignments: written when assembling, read when disassembling')
     parser.add_argument('--vice', dest='viceFile', help='the VICE monitor commands file to write: labels and breakpoints')
     parser.add_argument('--version', action='version', version=f'Code64 v{__version__} (c) Morten Perriard 2021-2026')
     arguments = parser.parse_args()
-    if arguments.disassemble and arguments.labelsFile:
-        parser.error('-l/--labels can only be used when assembling')
     if arguments.disassemble and arguments.viceFile:
         parser.error('--vice can only be used when assembling')
     cpu.setIllegalInstructions(arguments.illegal)
     try:
         if arguments.disassemble:
-            source = disassemble.disassembleFile(arguments.file, arguments.outFile)
+            source = disassemble.disassembleFile(arguments.file, arguments.outFile, arguments.labelsFile)
             if not arguments.outFile:
                 print(source, end='')
             anyErrors = False
@@ -213,7 +211,7 @@ class TestMain(unittest.TestCase):
 
     def testLabels(self):
         """-l writes the labels and local labels, as global_local, and generator labels, as generator1_local,
-        as Python assignments sorted by address. Other symbols are not included."""
+        as Python assignments sorted by address. Other symbols are not included. With -d, -l reads them."""
         source = 'VALUE = 5\n.zpbyte "counter"\nstart: lda #VALUE\n_loop: dex\nbne _loop\nrts\n' \
                  '.python\ndef wait():\n    return "_x: dex\\nbne _x"\n.end\n@wait()\n'
         expected = 'counter = 0x0002\nstart = 0x1000\nstart_loop = 0x1002\nwait1_x = 0x1006\n'
@@ -227,9 +225,15 @@ class TestMain(unittest.TestCase):
                     self.assertEqual(code, 0, errors)
                     with open(labelsFile) as f:
                         self.assertEqual(f.read(), expected)
-            code, output, errors = self._main(['-d', asmFile, '-l', labelsFile]) # only when assembling
-            self.assertEqual(code, 2)
-            self.assertIn('-l/--labels can only be used when assembling', errors)
+            prgFile, disassembledFile = os.path.join(directory, 'test.prg'), os.path.join(directory, 'disassembled.asm')
+            code, output, errors = self._main([asmFile, '-o', prgFile, '-l', labelsFile])
+            self.assertEqual(code, 0, errors)
+            code, output, errors = self._main(['-d', prgFile, '-l', labelsFile]) # reads the labels when disassembling
+            self.assertEqual(code, 0, errors)
+            lines = [line.strip() for line in output.splitlines()]
+            for line in ['start:', 'start_loop:', 'bne start_loop', 'wait1_x:']: # wait1_x is data: no rts after it
+                self.assertIn(line, lines)
+            self.assertNotIn('counter = $02', lines) # not used by the code
 
     def testOutputOrder(self):
         """With stderr in the same pipe as stdout (2>&1), .print output comes before the warnings, as on a terminal."""

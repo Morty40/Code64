@@ -79,24 +79,38 @@ def _findCode(data: bytes, start: int) -> dict:
     return code
 
 
-def disassemble(data: bytes, start: int) -> str:
+def disassemble(data: bytes, start: int, names: dict = None) -> str:
     """Disassemble data at the start address into Code64 source.
 
     Code is found anywhere, other bytes are data, and branch and jump destinations get labels.
+    names, {address: name} e.g. from a labels file, are used for their addresses instead.
     """
     end = start + len(data)
     code = _findCode(data, start)
+    names = names or {}
+    inside = {a for address, (*_, size) in code.items() for a in range(address + 1, address + size)}
     labels = {operand: f'l{operand:04x}' for instruction, mode, operand, _ in code.values()
               if _jumpsTo(instruction, mode) and operand in code}
+    labels.update({address: name for address, name in names.items() if start <= address < end and address not in inside})
+    assigned = {} # the names used by the code that aren't labels: outside the program, or inside an instruction
+
+    def symbol(address: int, digits: int) -> str:
+        """The label or name for an address, or else the address."""
+        if address in labels:
+            return labels[address]
+        if address in names:
+            assigned[address] = names[address]
+            return names[address]
+        return f'${address:0{digits}x}'
 
     def line(address: int, text: str) -> str:
-        label = labels[address] + ':' if address in labels else ''
-        return f'{label:<12}{text}'
+        indented = f'{"":<12}{text}'
+        return f'{labels[address]}:\n{indented}' if address in labels else indented
 
     def byteList(values) -> str:
         return '.byte ' + ', '.join(f'${b:02x}' for b in values)
 
-    lines = ['; disassembled by Code64', '', f'{"":<12}.org ${start:04x}', '']
+    lines = ['']
     address, wasCode = start, None
     while address < end:
         if lines[-1] and (address in code) != wasCode:
@@ -108,13 +122,15 @@ def disassemble(data: bytes, start: int) -> str:
                 text = byteList(data[address-start:address-start+size]) # would assemble as zero page
             else:
                 if size == 3 or mode is AddressMode.relative:
-                    operand = labels.get(operand, f'${operand:04x}')
-                elif size == 2:
+                    operand = symbol(operand, 4)
+                elif mode is AddressMode.immediate:
                     operand = f'${operand:02x}'
+                elif size == 2:
+                    operand = symbol(operand, 2)
                 text = f'{instruction.mnemonic} {mode.syntax(operand)}'.strip()
         else:
             # data up to the next code: 16 or more of the same byte, or else up to 16 bytes
-            stop = next((a for a in range(address, end) if a in code), end)
+            stop = next((a for a in range(address + 1, end) if a in code or a in labels), end)
             chunk = data[address-start:stop-start]
             size = len(chunk) - len(chunk.lstrip(chunk[:1])) # the bytes equal to the first
             if size >= 16:
@@ -127,13 +143,30 @@ def disassemble(data: bytes, start: int) -> str:
             lines.append('') # something new most likely starts here
         address += size
 
-    return '\n'.join(lines).rstrip() + '\n'
+    header = ['; disassembled by Code64', '']
+    header += [f'{name} = ${address:0{2 if address < 0x100 else 4}x}' for address, name in sorted(assigned.items())]
+    header += [''] if assigned else []
+    header += [f'{"":<12}.org ${start:04x}']
+    return '\n'.join(header + lines).rstrip() + '\n'
 
 
-def disassembleFile(inFile: str, outFile: str = None) -> str:
+def readLabels(labelsFile: str) -> dict:
+    """Read a labels file, Python like the one -l writes, and return {address: name} for its int values.
+    The first name is used for each address."""
+    symbols = {}
+    with open(labelsFile) as f:
+        exec(compile(f.read(), labelsFile, 'exec'), symbols)
+    labels = {}
+    for name, value in symbols.items():
+        if type(value) is int and 0 <= value <= 0xffff:
+            labels.setdefault(value, name)
+    return labels
+
+
+def disassembleFile(inFile: str, outFile: str = None, labelsFile: str = None) -> str:
     """Disassemble a .prg file, which starts with its load address, or another binary file
-    loaded at the default address. Saves the source to outFile, if given, and returns it.
-    Raises OSError if a file can't be read or written.
+    loaded at the default address, with the names from labelsFile, if given. Saves the source
+    to outFile, if given, and returns it. Raises OSError if a file can't be read or written.
     """
     with open(inFile, 'rb') as f:
         data = f.read()
@@ -143,7 +176,7 @@ def disassembleFile(inFile: str, outFile: str = None) -> str:
     else:
         start = assemble.DEFAULT_ORIGIN
 
-    source = disassemble(data, start)
+    source = disassemble(data, start, readLabels(labelsFile) if labelsFile else None)
     if outFile:
         with open(outFile, 'w') as f:
             f.write(source)
@@ -198,9 +231,49 @@ class TestDisassemble(unittest.TestCase):
                                       0x02,               # $100b data
                                       0x8d, 0x20, 0xd0,   # $100c sta $d020
                                       0x60]),             # $100f rts
-            ['ldx #$05', 'l1002: dex', 'bne l1002', 'jsr l100c', 'jmp $ffd2', '',
+            ['ldx #$05', 'l1002:', 'dex', 'bne l1002', 'jsr l100c', 'jmp $ffd2', '',
              '.byte $02', '',
-             'l100c: sta $d020', 'rts'])
+             'l100c:', 'sta $d020', 'rts'])
+
+    def testNames(self):
+        """Names, e.g. from a labels file, are used for their addresses, with generated labels for the other destinations.
+        Labels are alone on their line, and split the data. Names outside the program, or inside an instruction,
+        are assigned at the top if the code uses them."""
+        data = bytes([0xa5, 0x02,         # $1000 lda $02
+                      0x20, 0x08, 0x10,   # $1002 jsr $1008
+                      0x4c, 0x05, 0x10,   # $1005 jmp $1005
+                      0xbd, 0x0c, 0x10,   # $1008 lda $100c,x
+                      0x60,               # $100b rts
+                      0x01, 0x02, 0x03])  # $100c data
+        names = {0x0002: 'counter', 0x1008: 'draw', 0x100c: 'table', 0x100e: 'table_end',
+                 0x1009: 'draw_operand', 0xffd2: 'CHROUT'} # not used, so not assigned
+        self.assertEqual(disassemble(data, 0x1000, names),
+            '; disassembled by Code64\n'
+            '\n'
+            'counter = $02\n'
+            '\n'
+            '            .org $1000\n'
+            '\n'
+            '            lda counter\n'
+            '            jsr draw\n'
+            'l1005:\n'
+            '            jmp l1005\n'
+            'draw:\n'
+            '            lda table,x\n'
+            '            rts\n'
+            '\n'
+            'table:\n'
+            '            .byte $01, $02\n'
+            'table_end:\n'
+            '            .byte $03\n')
+
+    def testReadLabels(self):
+        """A labels file is Python: its int values are names for addresses, the first name for each address."""
+        with tempfile.TemporaryDirectory() as directory:
+            labelsFile = os.path.join(directory, 'labels.py')
+            with open(labelsFile, 'w') as f:
+                f.write('start = 0x1000\nstart_loop = 0x1000\nirq = 0x1040\nNAME = "text"\n')
+            self.assertEqual(readLabels(labelsFile), {0x1000: 'start', 0x1040: 'irq'})
 
     def testFindCode(self):
         """Code is found anywhere, e.g. after a BASIC line, or an interrupt handler only reached through a vector."""
@@ -230,7 +303,7 @@ class TestDisassemble(unittest.TestCase):
                                       0x40,               # rti
                                       0x02,               # data
                                       0x60]),             # rts, at the end
-            ['jsr l1005', 'rti', '', '.byte $02', '', 'l1005: rts'])
+            ['jsr l1005', 'rti', '', '.byte $02', '', 'l1005:', 'rts'])
 
     def testFiles(self):
         """A .prg file starts with its address, other files are at the default address. The source is

@@ -18,7 +18,7 @@ The first release.
 - `.prg` output, and a memory map after a successful assembly
 - labels file, as Python assignments: `code64 game.asm -l game.py`
 - VICE monitor commands file with labels and `.break` breakpoints: `code64 game.asm --vice game.vmc`
-- disassembler: `code64 -d <binFile>`, to a file with `-o` or printed
+- disassembler: `code64 -d <binFile>`, to a file with `-o` or printed, with the names from a labels file with `-l`
 - Python API: `code64.assembleFile`, `code64.disassembleFile` and `code64.Context`
 - warnings and errors on stderr, and exit code 1 on errors
 - `code64 --version` and `code64 -h`
