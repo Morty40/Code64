@@ -16,6 +16,7 @@ The first release.
 - import of source files, Python files, binary files and SID music
 - built-in symbols for the C64 hardware (VIC, SID, CIA, KERNAL, BASIC)
 - `.prg` output, and a memory map after a successful assembly
+- labels file, as Python assignments: `code64 game.asm -l game.py`
 - VICE monitor commands file with labels and `.break` breakpoints: `code64 game.asm --vice game.vmc`
 - disassembler: `code64 -d <binFile>`, to a file with `-o` or printed
 - Python API: `code64.assembleFile`, `code64.disassembleFile` and `code64.Context`

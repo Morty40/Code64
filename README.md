@@ -35,7 +35,7 @@ python3 -m code64.main hello.asm -o hello.prg
 ## Usage
 
 ```
-code64 <asmFile> -o <outFile> [-i none|stable|all] [--vice <viceFile>]
+code64 <asmFile> -o <outFile> [-i none|stable|all] [-l <labelsFile>] [--vice <viceFile>]
 code64 -d <binFile> [-o <asmFile>] [-i none|stable|all]
 code64 --version
 ```
@@ -46,6 +46,7 @@ code64 --version
 | `-d`, `--disassemble <binFile>` | disassemble the `.prg` or binary file instead, see [Disassembling](#disassembling) |
 | `-o`, `--output <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write. Without `-o` the source is printed |
 | `-i`, `--illegal <none\|stable\|all>` | the [illegal instructions](#illegal-instructions) to use: none, the stable ones (the default), or all |
+| `-l`, `--labels <labelsFile>` | the [labels](#labels-file) file to write, as Python assignments |
 | `--vice <viceFile>` | the [VICE monitor commands](#vice-monitor-commands) file to write: labels and breakpoints |
 | `-h`, `--help` | print the usage |
 | `--version` | print the version |
@@ -61,6 +62,19 @@ A Makefile rule for building `.prg` files:
 	code64 $< -o $@
 ```
 
+
+### Labels file
+
+`-l` writes the labels to a file, as Python assignments sorted by address:
+
+```python
+counter = 0x0002
+start = 0x080d
+start_loop = 0x083b
+irq = 0x0841
+```
+
+The labels are named as in the [VICE monitor commands](#vice-monitor-commands), and other symbols, such as `VALUE = 5`, are not included. Another source can use the labels with `.import "game.py"`, and Python scripts with `from game import irq`.
 
 ### VICE monitor commands
 

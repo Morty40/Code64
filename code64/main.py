@@ -50,10 +50,19 @@ def printMemoryUse(context: Context):
         print(f"${i*16*256:04x}: {pageString[i*16:(i+1)*16]}")
 
 
+def sortedLabels(context: Context) -> list:
+    """Return the (address, label) of each label, sorted by address. Local labels are named global_local."""
+    return sorted((context.symbols[label], label[1:] if label.startswith('_') else label) for label in context.labels)
+
+
+def pythonLabels(context: Context) -> str:
+    """Return the labels as Python assignments, sorted by address."""
+    return ''.join(f'{label} = 0x{address:04x}\n' for address, label in sortedLabels(context))
+
+
 def viceMonitorCommands(context: Context) -> str:
-    """Return the VICE monitor commands: the labels, sorted by address, then the breakpoints. Local labels are named global_local."""
-    labels = sorted((context.symbols[label], label[1:] if label.startswith('_') else label) for label in context.labels)
-    commands = [f'al C:{address:04x} .{label}' for address, label in labels]
+    """Return the VICE monitor commands: the labels, sorted by address, then the breakpoints."""
+    commands = [f'al C:{address:04x} .{label}' for address, label in sortedLabels(context)]
     commands += [f'break C:{address:04x}' + (f' if {condition}' if condition else '') for address, condition in context.breakpoints]
     return ''.join(f'{command}\n' for command in commands)
 
@@ -66,9 +75,12 @@ def main():
     parser.add_argument('-o', '--output', dest='outFile', help='the .prg file to write, or the source file when disassembling (default: print it)')
     parser.add_argument('-i', '--illegal', dest='illegal', choices=['none', 'stable', 'all'], default='stable',
                         help='the illegal instructions to use: none, the stable ones (default), or all')
+    parser.add_argument('-l', '--labels', dest='labelsFile', help='the labels file to write, as Python assignments')
     parser.add_argument('--vice', dest='viceFile', help='the VICE monitor commands file to write: labels and breakpoints')
     parser.add_argument('--version', action='version', version=f'Code64 v{__version__} (c) Morten Perriard 2021-2026')
     arguments = parser.parse_args()
+    if arguments.disassemble and arguments.labelsFile:
+        parser.error('-l/--labels can only be used when assembling')
     if arguments.disassemble and arguments.viceFile:
         parser.error('--vice can only be used when assembling')
     cpu.setIllegalInstructions(arguments.illegal)
@@ -88,6 +100,9 @@ def main():
             anyErrors = len(context.errors) > 0
             if not anyErrors:
                 printMemoryUse(context)
+                if arguments.labelsFile:
+                    with open(arguments.labelsFile, 'w') as f:
+                        f.write(pythonLabels(context))
                 if arguments.viceFile:
                     with open(arguments.viceFile, 'w') as f:
                         f.write(viceMonitorCommands(context))
@@ -112,7 +127,8 @@ class TestMain(unittest.TestCase):
     def testUsage(self):
         """Missing or incorrect arguments print the usage, and exit with 2."""
         for arguments in [[], ['-o', 'x.prg'], ['-d'], ['x.asm', 'extra'], ['-x'], ['-a', 'x.asm'],
-                          ['x.asm', '-i', 'some'], ['x.asm', '-i'], ['x.asm', '--vice'], ['x.asm', '-v', 'x.vmc']]: # --vice has no short form
+                          ['x.asm', '-i', 'some'], ['x.asm', '-i'], ['x.asm', '--vice'], ['x.asm', '-v', 'x.vmc'], # --vice has no short form
+                          ['x.asm', '-l'], ['x.asm', '--labels']]:
             with self.subTest(arguments=arguments):
                 code, output, errors = self._main(arguments)
                 self.assertEqual(code, 2)
@@ -127,6 +143,7 @@ class TestMain(unittest.TestCase):
         self.assertIn('-d, --disassemble', output)
         self.assertIn('--output OUTFILE', output) # Python 3.13 shows '-o, --output OUTFILE', older versions '-o OUTFILE, --output OUTFILE'
         self.assertIn('--illegal {none,stable,all}', output)
+        self.assertIn('--labels LABELSFILE', output)
         self.assertIn('--vice VICEFILE', output)
         self.assertNotIn('-v VICEFILE', output) # no short form, in either Python's help format
         self.assertNotIn('-v, --vice', output)
@@ -193,6 +210,26 @@ class TestMain(unittest.TestCase):
             code, output, errors = self._main(['-d', asmFile, '--vice', viceFile]) # only when assembling
             self.assertEqual(code, 2)
             self.assertIn('--vice can only be used when assembling', errors)
+
+    def testLabels(self):
+        """-l writes the labels and local labels, as global_local, and generator labels, as generator1_local,
+        as Python assignments sorted by address. Other symbols are not included."""
+        source = 'VALUE = 5\n.zpbyte "counter"\nstart: lda #VALUE\n_loop: dex\nbne _loop\nrts\n' \
+                 '.python\ndef wait():\n    return "_x: dex\\nbne _x"\n.end\n@wait()\n'
+        expected = 'counter = 0x0002\nstart = 0x1000\nstart_loop = 0x1002\nwait1_x = 0x1006\n'
+        with tempfile.TemporaryDirectory() as directory:
+            asmFile, labelsFile = os.path.join(directory, 'test.asm'), os.path.join(directory, 'test.py')
+            with open(asmFile, 'w') as f:
+                f.write(source)
+            for option in ['-l', '--labels']:
+                with self.subTest(option=option):
+                    code, output, errors = self._main([asmFile, option, labelsFile])
+                    self.assertEqual(code, 0, errors)
+                    with open(labelsFile) as f:
+                        self.assertEqual(f.read(), expected)
+            code, output, errors = self._main(['-d', asmFile, '-l', labelsFile]) # only when assembling
+            self.assertEqual(code, 2)
+            self.assertIn('-l/--labels can only be used when assembling', errors)
 
     def testOutputOrder(self):
         """With stderr in the same pipe as stdout (2>&1), .print output comes before the warnings, as on a terminal."""
