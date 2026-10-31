@@ -406,8 +406,8 @@ def importFile(context, fileName: str):
 
 
 @directive('binary')
-def binary(context, fileName: str):
-    """Store the contents of a binary file."""
+def binary(context, fileName: str, offset: int = 0, length: int = None):
+    """Store the contents of a binary file, optionally from an offset, and with a length."""
     try:
         with open(os.path.join(context.path, fileName), 'rb') as f:
             data = f.read()
@@ -415,7 +415,7 @@ def binary(context, fileName: str):
         context.reportError(f'File not found: "{fileName}"')
         return
 
-    for b in data:
+    for b in data[offset:None if length is None else offset+length]:
         context.store(b)
 
 

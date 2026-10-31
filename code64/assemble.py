@@ -231,6 +231,22 @@ class TestAssemble(unittest.TestCase):
             self.assertEqual(context.errors, [])
             self.assertEqual((context.memory[0x1000], context.memory[0x1001], context.memory[0x2000]), (0x01, 0x02, 0x60))
 
+    def testBinaryOffsetLength(self):
+        """.binary stores the whole file, or from an offset, or from an offset with a length."""
+        with tempfile.TemporaryDirectory() as directory:
+            with open(os.path.join(directory, 'data.bin'), 'wb') as f:
+                f.write(bytes([1, 2, 3, 4, 5]))
+            asmFile = os.path.join(directory, 'data.asm')
+            for source, expected in [('.binary "data.bin"\n',       [1, 2, 3, 4, 5]),
+                                     ('.binary "data.bin", 2\n',    [3, 4, 5]),
+                                     ('.binary "data.bin", 1, 2\n', [2, 3])]:
+                with self.subTest(source=source):
+                    with open(asmFile, 'w') as f:
+                        f.write(source)
+                    context = assembleFile(asmFile)
+                    self.assertEqual(context.errors, [])
+                    self.assertEqual(list(context.memory.values()), expected)
+
     def testSourceChanges(self):
         """The source is read again in each assembly, so a changed source is not stale."""
         with tempfile.TemporaryDirectory() as directory:

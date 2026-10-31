@@ -465,9 +465,12 @@ Imports a file, with the path relative to the folder of the main source file. A 
 
 #### .binary
 ```
-.binary "file"
+.binary "file"[, offset[, length]]
 ```
-Stores the contents of a binary file, with the path relative to the folder of the main source file.
+Stores the contents of a binary file, with the path relative to the folder of the main source file. With an offset, the bytes before it are skipped, and with a length, only that many bytes are stored:
+```
+            .binary "sprites.bin", 64, 128 ; the second and third sprite
+```
 
 #### .music
 ```
