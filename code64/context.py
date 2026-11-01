@@ -18,7 +18,7 @@ class Context:
     def __init__(self, symbols: dict):
         """Create the state for a pass. The symbols are shared by all passes."""
         self.readPointerStack = []
-        
+
         # math, and ord/chr in the current text encoding, for expressions
         symbols.update(math.__dict__)
         symbols['ord'] = lambda char: text.ord(char, self.encoding)

@@ -65,14 +65,14 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
             if readPointer is None: break
 
             fileName, lineIndex = readPointer
-            
+
             if not fileName in chunks:
                 chunks[fileName] = list(lexer.splitByNewline(lexer.tokenizeFile(fileName)))
 
             allChunks = chunks[fileName]
 
             if lineIndex < len(allChunks):
-                
+
                 lineTokens = allChunks[lineIndex]
                 advance = True
 
@@ -93,7 +93,7 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
 
                 elif len(lineTokens) >= 2 and lineTokens[0].string == '.':
                     advance = directives.assemble(lineTokens, context, chunks)
-            
+
                 elif len(lineTokens) >= 2 and lineTokens[0].string == '@':
                     advance = generators.assemble(lineTokens, context, chunks)
 
@@ -102,10 +102,10 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
 
                 if advance:
                     context.advanceReadPointer()
-                
+
             else:
                 context.popReadPointer() # end of file, back to the importing file
-                
+
         # done when there are no errors, and the output is unchanged
         if len(context.errors) == 0 and context.memory == lastMemory:
             break
@@ -121,7 +121,7 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
         with open(outFile, 'wb') as f:
             f.write(bytes([lo(start), hi(start)] + data))
     return context
-        
+
 
 ################################################################################
 

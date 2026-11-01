@@ -39,17 +39,17 @@ def translateLocalLabels(tokens: list, lastLabel: str='') -> list:
     """Prefix local labels (starting with _) with the last global label."""
     newTokens = []
     for lineTokens in splitByNewline(tokens):
-        
+
         if len(lineTokens) >= 2 and not lineTokens[0].string.startswith('_') and lineTokens[1].string == ':':
             lastLabel = lineTokens[0].string
-            
+
         for token in lineTokens:
             if len(token.string) > 1 and token.string.startswith('_'):
                 token.string = '_' + lastLabel + token.string
             newTokens.append(token)
 
         newTokens.append(Token('\n'))
-        
+
     return newTokens
 
 
@@ -225,6 +225,6 @@ class TestLexer(unittest.TestCase):
         lines = [[token.string for token in lineTokens] for lineTokens in splitByNewline(tokens)]
         self.assertEqual(lines, [['a'], ['b', 'c'], [], ['d']])
 
-        
+
 if __name__ == '__main__':
     unittest.main()

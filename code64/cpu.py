@@ -84,7 +84,7 @@ _instructionSet = {
     Instruction('clv', implied=0xb8),
     Instruction('cmp', absolute=0xcd, absoluteX=0xdd, absoluteY=0xd9, immediate=0xc9, indirectX=0xc1, indirectY=0xd1, zeroPage=0xc5, zeroPageX=0xd5),
     Instruction('cpx', absolute=0xec, immediate=0xe0, zeroPage=0xe4),
-    Instruction('cpy', absolute=0xcc, immediate=0xc0, zeroPage=0xc4),    
+    Instruction('cpy', absolute=0xcc, immediate=0xc0, zeroPage=0xc4),
     Instruction('dec', absolute=0xce, absoluteX=0xde, zeroPage=0xc6, zeroPageX=0xd6),
     Instruction('dex', implied=0xca),
     Instruction('dey', implied=0x88),
@@ -98,7 +98,7 @@ _instructionSet = {
     Instruction('ldx', absolute=0xae, absoluteY=0xbe, immediate=0xa2, zeroPage=0xa6, zeroPageY=0xb6),
     Instruction('ldy', absolute=0xac, absoluteX=0xbc, immediate=0xa0, zeroPage=0xa4, zeroPageX=0xb4),
     Instruction('lsr', absolute=0x4e, absoluteX=0x5e, accumulator=0x4a, zeroPage=0x46, zeroPageX=0x56),
-    Instruction('nop', implied=0xea),        
+    Instruction('nop', implied=0xea),
     Instruction('ora', absolute=0x0d, absoluteX=0x1d, absoluteY=0x19, immediate=0x09, indirectX=0x01, indirectY=0x11, zeroPage=0x05, zeroPageX=0x15),
     Instruction('pha', implied=0x48),
     Instruction('php', implied=0x08),
@@ -107,7 +107,7 @@ _instructionSet = {
     Instruction('rol', absolute=0x2e, absoluteX=0x3e, accumulator=0x2a, zeroPage=0x26, zeroPageX=0x36),
     Instruction('ror', absolute=0x6e, absoluteX=0x7e, accumulator=0x6a, zeroPage=0x66, zeroPageX=0x76),
     Instruction('rti', implied=0x40),
-    Instruction('rts', implied=0x60),    
+    Instruction('rts', implied=0x60),
     Instruction('sbc', absolute=0xed, absoluteX=0xfd, absoluteY=0xf9, immediate=0xe9, indirectX=0xe1, indirectY=0xf1, zeroPage=0xe5, zeroPageX=0xf5),
     Instruction('sec', implied=0x38),
     Instruction('sed', implied=0xf8),
@@ -190,7 +190,7 @@ class TestCpu(unittest.TestCase):
     def testInstructionSet(self):
         """The table has all instructions, and they can be looked up by mnemonic."""
         self.assertEqual(len(_instructionSet), 56) # the documented 6502 instructions
-        
+
         i = instructionWithMnemonic('lda')
         self.assertEqual(i.mnemonic, 'lda')
 
@@ -305,7 +305,7 @@ class TestCpu(unittest.TestCase):
     def testUnknownAddressMode(self):
         """A misspelled address mode in the table is an error when the module is loaded."""
         self.assertRaises(KeyError, Instruction, 'xxx', zeroPagee=0x00)
-        
+
 
 if __name__ == '__main__':
     unittest.main()

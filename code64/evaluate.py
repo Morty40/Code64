@@ -32,8 +32,8 @@ def intExpression(e: str, context: Context) -> int:
         context.reportError(f'Expected an int value instead of: "{e}"')
         value = 0
     return value
-    
-    
+
+
 def byteExpression(e: str, context: Context) -> int:
     """Evaluate a byte from -128 to 255, negative in two's complement."""
     value = intExpression(e, context)
@@ -118,7 +118,7 @@ class TestEvaluate(unittest.TestCase):
         self.assertEqual(value, 0xff)
         self.assertEqual(len(context.warnings), 0)
         self.assertEqual(len(context.errors), 1)
-        
+
 
     def testEvalWordExpression(self):
         """A negative word is two's complement. Out of range is an error, and keeps the low word."""
@@ -180,7 +180,7 @@ class TestEvaluate(unittest.TestCase):
         self.assertEqual(value, None)
         self.assertEqual(len(context.warnings), 0)
         self.assertEqual(len(context.errors), 1)
-        
+
 
 if __name__ == '__main__':
     unittest.main()

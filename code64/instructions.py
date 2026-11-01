@@ -17,22 +17,22 @@ def assemble(tokens: list, context: Context):
     """
     mnemonic = tokens[0].string
     operand = lexer.join(tokens[1:])
-        
+
     instruction = cpu.instructionWithMnemonic(mnemonic)
     opcodes = instruction.opcodes
-        
+
     data = []
-    
+
     if cpu.AddressMode.accumulator in opcodes and not operand:
         data = [opcodes[cpu.AddressMode.accumulator]]
-        
+
     elif cpu.AddressMode.implied in opcodes and not operand:
         data = [opcodes[cpu.AddressMode.implied]]
-        
+
     elif cpu.AddressMode.immediate in opcodes and operand.startswith('#'):
         v = evaluate.byteExpression(operand[1:], context)
         data = [opcodes[cpu.AddressMode.immediate], v]
-        
+
     elif cpu.AddressMode.indirectX in opcodes and operand.startswith('(') and operand.endswith(',x)'):
         v = evaluate.byteExpression(operand[1:-3], context)
         data = [opcodes[cpu.AddressMode.indirectX], v]
@@ -79,7 +79,7 @@ def assemble(tokens: list, context: Context):
 
     if len(data) <= 0:
         context.reportError(f'Unknown instruction or address mode: {mnemonic} {operand}')
-        
+
     # store the bytes
     for b in data:
         context.store(b)
