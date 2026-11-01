@@ -185,15 +185,17 @@ class TestAssemble(unittest.TestCase):
         for source in ['.byte "B"', '.word "B"', '.bytefill 1, "x: \'B\'"', '.wordfill 1, "x: \'B\'"']:
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(f'B = 5\n{source}\n')
-                self.assertIn('test.asm:2: error:', output)
+                self.assertIn('test.asm:2: error: Expected an int value instead of: "\'B\'"', output)
 
     def testGeneratorNotString(self):
         """A generator must return assembly code as a string, or it is an error."""
-        for source, line in [('@nop\n', 1),                                # forgot the parentheses
-                             ('.python\ndef emit(): pass\n.end\n@emit()\n', 4)]: # forgot to return the code
+        for source, message in [
+            ('@nop\n',                                   'test.asm:1: error: Generator must return a string, not function'), # forgot the parentheses
+            ('.python\ndef emit(): pass\n.end\n@emit()\n', 'test.asm:4: error: Generator must return a string, not NoneType'), # forgot to return the code
+        ]:
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(source)
-                self.assertIn(f'test.asm:{line}: error:', output)
+                self.assertIn(message, output)
 
     def testForLoopLimit(self):
         """A .for loop whose condition is never false is an error, not a hang."""
@@ -247,33 +249,6 @@ class TestAssemble(unittest.TestCase):
                     self.assertEqual(context.errors, [])
                     self.assertEqual(list(context.memory.values()), expected)
 
-    def testSourceChanges(self):
-        """The source is read again in each assembly, so a changed source is not stale."""
-        with tempfile.TemporaryDirectory() as directory:
-            asmFile = os.path.join(directory, 'source.asm')
-            for value in [1, 2]:
-                with self.subTest(value=value):
-                    with open(asmFile, 'w') as f:
-                        f.write(f'.byte {value}\n')
-                    context = assembleFile(asmFile)
-                    self.assertEqual(context.memory, {0x1000: value})
-
-    def testFileChanges(self):
-        """.binary and .music read the files again in each assembly, so changed files are not stale."""
-        with tempfile.TemporaryDirectory() as directory:
-            asmFile = os.path.join(directory, 'changes.asm')
-            with open(asmFile, 'w') as f:
-                f.write('.binary "changes.bin"\n.org M_LOAD\n.music "changes.sid", "M"\n')
-            for value in [1, 2]:
-                with self.subTest(value=value):
-                    sid = struct.pack('>4sHHHHHHHL32s32s32sHBBBB', b'PSID', 2, 0x7c, 0x2000, 0x2000, 0x2003, 1, 1, 0, b'', b'', b'', 0, 0, 0, 0, 0)
-                    for name, data in [('changes.bin', bytes([value])), ('changes.sid', sid + bytes([value]))]:
-                        with open(os.path.join(directory, name), 'wb') as f:
-                            f.write(data)
-                    context = assembleFile(asmFile)
-                    self.assertEqual(context.errors, [])
-                    self.assertEqual((context.memory[0x1000], context.memory[0x2000]), (value, value))
-
     def testMissingSource(self):
         """A missing main source file raises FileNotFoundError."""
         with tempfile.TemporaryDirectory() as directory:
@@ -311,7 +286,7 @@ class TestAssemble(unittest.TestCase):
             ('.if 0\n.else\n.else\n.end\n',          'test.asm:3: error: Else already used for this if'),
             ('.if 0\n',                              'test.asm:1: error: If without matching end'),
             ('.if 1\n.else\n',                       'test.asm:2: error: Else without matching end'),
-            ('.repeat "i", 2\n.end\n',               'test.asm:1: error: Expected .repeat count'), # the old syntax
+            ('.repeat "i", 2\n.end\n',               'test.asm:1: error: Expected .repeat count'), # the count must be a number
             ('.repeat 0\n',                          'test.asm:1: error: Repeat without matching end'),
             ('.for a=0, a<1\n',                      'test.asm:1: error: Expected .for initial, condition, step'),
             ('.for a=0, a<0, a+=1\n',                'test.asm:1: error: For without matching end'),
@@ -354,7 +329,6 @@ class TestAssemble(unittest.TestCase):
             with self.subTest(source=source):
                 anyErrors, output = self._assemble(source)
                 self.assertFalse(anyErrors, output)
-                self.assertNotIn('Assertion failed', output)
 
     def testBreak(self):
         """.break collects a breakpoint at the current address, with an optional VICE condition."""

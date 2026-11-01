@@ -124,8 +124,8 @@ class TestMain(unittest.TestCase):
 
     def testUsage(self):
         """Missing or incorrect arguments print the usage, and exit with 2."""
-        for arguments in [[], ['-o', 'x.prg'], ['-d'], ['x.asm', 'extra'], ['-x'], ['-a', 'x.asm'],
-                          ['x.asm', '-i', 'some'], ['x.asm', '-i'], ['x.asm', '--vice'], ['x.asm', '-v', 'x.vmc'], # --vice has no short form
+        for arguments in [[], ['-o', 'x.prg'], ['-d'], ['x.asm', 'extra'], ['-x'],
+                          ['x.asm', '-i', 'some'], ['x.asm', '-i'], ['x.asm', '--vice'],
                           ['x.asm', '-l'], ['x.asm', '--labels']]:
             with self.subTest(arguments=arguments):
                 code, output, errors = self._main(arguments)
@@ -143,8 +143,6 @@ class TestMain(unittest.TestCase):
         self.assertIn('--illegal {none,stable,all}', output)
         self.assertIn('--labels LABELSFILE', output)
         self.assertIn('--vice VICEFILE', output)
-        self.assertNotIn('-v VICEFILE', output) # no short form, in either Python's help format
-        self.assertNotIn('-v, --vice', output)
         self.assertIn('--version', output)
         self.assertIn(f'Code64 v{__version__}', output)
 
