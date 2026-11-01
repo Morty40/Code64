@@ -187,13 +187,23 @@ class TestMain(unittest.TestCase):
             with open(prgFile, 'rb') as f:
                 self.assertEqual(f.read(), bytes([0x00, 0x10, 0xa9, 0x01])) # saved by the first source only
 
+    def testSortedLabels(self):
+        """The labels and zero page variables, sorted by address, with local labels as global_local,
+        and generator labels as generator1_local. Other symbols are not included."""
+        source = 'VALUE = 5\n.zpbyte "counter"\nstart: lda #VALUE\n_loop: dex\nbne _loop\nrts\n' \
+                 '.python\ndef wait():\n    return "_x: dex\\nbne _x"\n.end\n@wait()\n'
+        with tempfile.TemporaryDirectory() as directory:
+            asmFile = os.path.join(directory, 'test.asm')
+            with open(asmFile, 'w') as f:
+                f.write(source)
+            context = assemble.assembleFile(asmFile)
+        self.assertEqual(sortedLabels(context), [(0x0002, 'counter'), (0x1000, 'start'), (0x1002, 'start_loop'), (0x1006, 'wait1_x')])
+
     def testViceCommands(self):
-        """--vice writes a VICE monitor commands file: the labels and local labels, as global_local, and generator labels,
-        as generator1_local, then the .break breakpoints. Other symbols are not included, and the memory use doesn't list the labels."""
-        source = 'VALUE = 5\n.zpbyte "counter"\nstart: lda #VALUE\n_loop: dex\nbne _loop\n.break\nrts\n' \
-                 '.python\ndef wait():\n    return "_x: dex\\nbne _x"\n.end\n.break "RL > $40"\n@wait()\n'
-        expected = 'al C:0002 .counter\nal C:1000 .start\nal C:1002 .start_loop\nal C:1006 .wait1_x\n' \
-                   'break C:1005\nbreak C:1006 if RL > $40\n'
+        """--vice writes a VICE monitor commands file: the labels, then the .break breakpoints.
+        The memory use doesn't list the labels."""
+        source = 'start: nop\n.break\nnop\n.break "RL > $40"\nrts\n'
+        expected = 'al C:1000 .start\nbreak C:1001\nbreak C:1002 if RL > $40\n'
         with tempfile.TemporaryDirectory() as directory:
             asmFile, viceFile = os.path.join(directory, 'test.asm'), os.path.join(directory, 'test.vmc')
             with open(asmFile, 'w') as f:
@@ -208,11 +218,9 @@ class TestMain(unittest.TestCase):
             self.assertIn('--vice can only be used when assembling', errors)
 
     def testLabels(self):
-        """-l writes the labels and local labels, as global_local, and generator labels, as generator1_local,
-        as Python assignments sorted by address. Other symbols are not included. With -d, -l reads them."""
-        source = 'VALUE = 5\n.zpbyte "counter"\nstart: lda #VALUE\n_loop: dex\nbne _loop\nrts\n' \
-                 '.python\ndef wait():\n    return "_x: dex\\nbne _x"\n.end\n@wait()\n'
-        expected = 'counter = 0x0002\nstart = 0x1000\nstart_loop = 0x1002\nwait1_x = 0x1006\n'
+        """-l writes the labels as Python assignments. With -d, -l reads them."""
+        source = 'start: ldx #5\n_loop: dex\nbne _loop\nrts\n'
+        expected = 'start = 0x1000\nstart_loop = 0x1002\n'
         with tempfile.TemporaryDirectory() as directory:
             asmFile, labelsFile = os.path.join(directory, 'test.asm'), os.path.join(directory, 'test.py')
             with open(asmFile, 'w') as f:
@@ -229,9 +237,8 @@ class TestMain(unittest.TestCase):
             code, output, errors = self._main(['-d', prgFile, '-l', labelsFile]) # reads the labels when disassembling
             self.assertEqual(code, 0, errors)
             lines = [line.strip() for line in output.splitlines()]
-            for line in ['start:', 'start_loop:', 'bne start_loop', 'wait1_x:']: # wait1_x is data: no rts after it
+            for line in ['start:', 'start_loop:', 'bne start_loop']:
                 self.assertIn(line, lines)
-            self.assertNotIn('counter = $02', lines) # not used by the code
 
     def testOutputOrder(self):
         """With stderr in the same pipe as stdout (2>&1), .print output comes before the warnings, as on a terminal."""

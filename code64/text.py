@@ -125,31 +125,18 @@ class TestText(unittest.TestCase):
                 self.assertEqual(ord(char, ENCODING_SCREEN_MIXED), None)
                 self.assertEqual(ord(char, ENCODING_PETSCII_MIXED), None)
 
-    def testChr_A(self):
-        """Upper case A, in every encoding."""
-        self.assertEqual(chr(1, ENCODING_SCREEN_UPPER), 'A')
-        self.assertEqual(chr(65, ENCODING_SCREEN_MIXED), 'A')
-        self.assertEqual(chr(65, ENCODING_PETSCII_UPPER), 'A')
-        self.assertEqual(chr(97, ENCODING_PETSCII_MIXED), 'A')
-
-    def testChr_a(self):
-        """Lower case a, in the mixed case encodings."""
-        self.assertEqual(chr(1, ENCODING_SCREEN_MIXED), 'a')
-        self.assertEqual(chr(65, ENCODING_PETSCII_MIXED), 'a')
-
-    def testOrd_A(self):
-        """Upper case A, in every encoding."""
-        self.assertEqual(ord('A', ENCODING_SCREEN_UPPER), 1)
-        self.assertEqual(ord('A', ENCODING_SCREEN_MIXED), 65)
-        self.assertEqual(ord('A', ENCODING_PETSCII_UPPER), 65)
-        self.assertEqual(ord('A', ENCODING_PETSCII_MIXED), 97)
-
-    def testOrd_a(self):
-        """Lower case a, which the upper case encodings do not have."""
-        self.assertEqual(ord('a', ENCODING_SCREEN_UPPER), None)
-        self.assertEqual(ord('a', ENCODING_SCREEN_MIXED), 1)
-        self.assertEqual(ord('a', ENCODING_PETSCII_UPPER), None)
-        self.assertEqual(ord('a', ENCODING_PETSCII_MIXED), 65)
+    def testLetters(self):
+        """The codes of A and a in each encoding. The upper case encodings have no lower case letters."""
+        for encoding, upper, lower in [(ENCODING_SCREEN_UPPER,  1,  None),
+                                       (ENCODING_SCREEN_MIXED,  65, 1),
+                                       (ENCODING_PETSCII_UPPER, 65, None),
+                                       (ENCODING_PETSCII_MIXED, 97, 65)]:
+            with self.subTest(encoding=encoding):
+                self.assertEqual(ord('A', encoding), upper)
+                self.assertEqual(chr(upper, encoding), 'A')
+                self.assertEqual(ord('a', encoding), lower)
+                if lower is not None:
+                    self.assertEqual(chr(lower, encoding), 'a')
 
 if __name__ == '__main__':
     unittest.main()

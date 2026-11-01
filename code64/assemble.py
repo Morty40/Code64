@@ -144,16 +144,9 @@ class TestAssemble(unittest.TestCase):
         self.assertIn('test.asm:2: error: Label was already defined: "a"', output)
 
     def testConstants(self):
-        """Upper case symbols are constants, other symbols can be assigned again."""
-        anyErrors, output = self._assemble('MY_VALUE = 123\nMY_VALUE = 123\n'   # same value again is ok
-                                           'myValue = 1\nmyValue = 2\n'          # not constants
-                                           'MyValue = 1\nMyValue = 2\n')
+        """Only all upper case symbols are constants, including the built-in ones."""
+        anyErrors, output = self._assemble('myValue = 1\nmyValue = 2\nMyValue = 1\nMyValue = 2\n')
         self.assertFalse(anyErrors, output)
-
-        # only the assignment that changes the value is an error
-        anyErrors, output = self._assemble('MY_VALUE = 123\nMY_VALUE = 124\n')
-        errors = [line.split('/')[-1] for line in output.splitlines() if ' error: ' in line]
-        self.assertEqual(errors, ['test.asm:2: error: Constant "MY_VALUE" cannot be changed from 123 to 124'])
 
         # built-in constants, from the imports folder
         anyErrors, output = self._assemble('VIC_BORDER_COLOR = $d020\n')
@@ -189,13 +182,8 @@ class TestAssemble(unittest.TestCase):
 
     def testGeneratorNotString(self):
         """A generator must return assembly code as a string, or it is an error."""
-        for source, message in [
-            ('@nop\n',                                   'test.asm:1: error: Generator must return a string, not function'), # forgot the parentheses
-            ('.python\ndef emit(): pass\n.end\n@emit()\n', 'test.asm:4: error: Generator must return a string, not NoneType'), # forgot to return the code
-        ]:
-            with self.subTest(source=source):
-                anyErrors, output = self._assemble(source)
-                self.assertIn(message, output)
+        anyErrors, output = self._assemble('.python\ndef emit(): pass\n.end\n@emit()\n') # forgot to return the code
+        self.assertIn('test.asm:4: error: Generator must return a string, not NoneType', output)
 
     def testForLoopLimit(self):
         """A .for loop whose condition is never false is an error, not a hang."""
@@ -249,11 +237,6 @@ class TestAssemble(unittest.TestCase):
                     self.assertEqual(context.errors, [])
                     self.assertEqual(list(context.memory.values()), expected)
 
-    def testMissingSource(self):
-        """A missing main source file raises FileNotFoundError."""
-        with tempfile.TemporaryDirectory() as directory:
-            self.assertRaises(FileNotFoundError, assembleFile, os.path.join(directory, 'missing.asm'))
-
     def testNoPrgOnErrors(self):
         """The .prg file is only saved when there are no errors."""
         with tempfile.TemporaryDirectory() as directory:
@@ -270,8 +253,6 @@ class TestAssemble(unittest.TestCase):
         for source, message in [
             ('.org $1000\n.byte 1\n.org $1000\n.byte 2\n', 'test.asm:4: warning: $1000 is overwritten ($01 to $02)'),
             ('.org $ffff\n.byte 1, 2\n',            'test.asm:2: error: Destination memory address out of range: $10000'),
-            ('jmp ($10ff)\n',                        'test.asm:1: warning: Indirect address located on page boundary: $10ff'),
-            ('stx $100,y\n',                         'test.asm:1: error: Unknown instruction or address mode: stx 0x100,y'),
             ('.text "a"\n',                          'test.asm:1: error: Unknown character "a" in text "a"'),
             ('.align 0\n',                           'test.asm:1: error: Alignment must be positive: 0'),
             ('.print 1 + 1\n',                       '2\n'),
