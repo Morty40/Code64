@@ -248,20 +248,51 @@ class TestAssemble(unittest.TestCase):
             self.assertEqual(len(context.errors), 1)
             self.assertFalse(os.path.exists(prgFile))
 
-    def testMessages(self):
-        """Errors and warnings, each reported at the line that causes it."""
-        for source, message in [
+    def _assertMessages(self, cases: list):
+        """Assemble each source, and check the output has its message, at the line that causes it."""
+        for source, message in cases:
+            with self.subTest(source=source):
+                anyErrors, output = self._assemble(source)
+                self.assertIn(message, output)
+
+    def testMemoryMessages(self):
+        """Storing outside memory, or over bytes already stored."""
+        self._assertMessages([
             ('.org $1000\n.byte 1\n.org $1000\n.byte 2\n', 'test.asm:4: warning: $1000 is overwritten ($01 to $02)'),
-            ('.org $ffff\n.byte 1, 2\n',            'test.asm:2: error: Destination memory address out of range: $10000'),
+            ('.org $ffff\n.byte 1, 2\n',                   'test.asm:2: error: Destination memory address out of range: $10000'),
+        ])
+
+    def testValueMessages(self):
+        """Directive and instruction values that are unknown or not allowed."""
+        self._assertMessages([
             ('.text "a"\n',                          'test.asm:1: error: Unknown character "a" in text "a"'),
             ('.align 0\n',                           'test.asm:1: error: Alignment must be positive: 0'),
+            ('.org undefinedSymbol\n',               'test.asm:1: error: Invalid directive: .org undefinedSymbol'),
+            ('hello world\n',                        'test.asm:1: error: Invalid syntax'),
+            ('lda #MAX_Speed\n',                     'test.asm:1: error: Name \'MAX_Speed\' is not defined: "MAX_Speed"'), # only the first letter capitalized
+            ('.bytefill 1, "x: MAX_Speed"\n',        'test.asm:1: error: Name \'MAX_Speed\' is not defined\n'),
+        ])
+
+    def testReportMessages(self):
+        """.print, .warning and .error report their text."""
+        self._assertMessages([
             ('.print 1 + 1\n',                       '2\n'),
             ('.warning "careful"\n',                 'test.asm:1: warning: careful'),
             ('.error "stop"\n',                      'test.asm:1: error: stop'),
-            ('.assert 2 > 3\n',                      'test.asm:1: error: Assertion failed'),
+        ])
+
+    def testAssertMessages(self):
+        """A failed .assert, and an .assert with the wrong arguments."""
+        self._assertMessages([
+            ('.assert 2 > 3\n',                       'test.asm:1: error: Assertion failed'),
             ('.assert 2 > 3, "Something is wrong"\n', 'test.asm:1: error: Something is wrong'),
-            ('.assert\n',                            'test.asm:1: error: Invalid directive: .assert'),
-            ('.assert 2 > 3, 42\n',                  'test.asm:1: error: Invalid directive: .assert'), # the message must be a string
+            ('.assert\n',                             'test.asm:1: error: Invalid directive: .assert'),
+            ('.assert 2 > 3, 42\n',                   'test.asm:1: error: Invalid directive: .assert'), # the message must be a string
+        ])
+
+    def testBlockMessages(self):
+        """Blocks that are not opened or closed correctly."""
+        self._assertMessages([
             ('.end\n',                               'test.asm:1: error: End without matching repeat, for or if'),
             ('.else\n',                              'test.asm:1: error: Else without matching if'),
             ('.if 0\n.else\n.else\n.end\n',          'test.asm:3: error: Else already used for this if'),
@@ -271,27 +302,35 @@ class TestAssemble(unittest.TestCase):
             ('.repeat 0\n',                          'test.asm:1: error: Repeat without matching end'),
             ('.for a=0, a<1\n',                      'test.asm:1: error: Expected .for initial, condition, step'),
             ('.for a=0, a<0, a+=1\n',                'test.asm:1: error: For without matching end'),
+            ('.python\nx = 1\n',                     'test.asm:1: error: Invalid directive: .python'), # no .end
+        ])
+
+    def testPythonMessages(self):
+        """Python code that fails, in .for, .python and .import."""
+        self._assertMessages([
             ('.for a=, a<1, a+=1\n.end\n',           'test.asm:1: error: Failed to execute python code: "a="'),
             ('.for a=0, a<1, b+=1\n.end\n',          'test.asm:2: error: Failed to execute python code: "b+=1"'),
-            ('.python\n1/0\n.end\n',                    'test.asm:1: error: Failed to execute python code: "1/0" (ZeroDivisionError: division by zero)'),
-            ('.python\nx = 1\n',                         'test.asm:1: error: Invalid directive: .python'), # no .end
+            ('.python\n1/0\n.end\n',                 'test.asm:1: error: Failed to execute python code: "1/0" (ZeroDivisionError: division by zero)'),
             ('.python "1/0"\n',                      'test.asm:1: error: Invalid syntax'), # only python blocks
             ('.import "nothere.py"\n',               'test.asm:1: error: Failed to execute python code: "nothere.py" (FileNotFoundError: '),
-            ('.org undefinedSymbol\n',               'test.asm:1: error: Invalid directive: .org undefinedSymbol'),
+        ])
+
+    def testFileMessages(self):
+        """Files that are not found."""
+        self._assertMessages([
             ('.import "nothere.asm"\n',              'test.asm:1: error: File not found: "nothere.asm"'),
             ('.binary "nothere.bin"\n',              'test.asm:1: error: File not found: "nothere.bin"'),
             ('.music "nothere.sid", "M"\n',          'test.asm:1: error: File not found: "nothere.sid"'),
             ('.music "nothere.sid", "M"\n',          'test.asm:1: error: Music not loaded: "nothere.sid"'),
+        ])
+
+    def testZeroPageMessages(self):
+        """.zpbyte and .zpword names that are used twice, or that do not fit."""
+        self._assertMessages([
             ('.zpbyte "a"\n.zpbyte "a"\n',           'test.asm:2: error: Label was already defined: "a"'),
             ('.for i=0, i<127, i+=1\n.zpword "v{i}"\n.end\n.zpbyte "last"\n', # $02-$ff is full
                                                      'test.asm:4: error: No space for zero page variable: "last"'),
-            ('hello world\n',                        'test.asm:1: error: Invalid syntax'),
-            ('lda #MAX_Speed\n',                     'test.asm:1: error: Name \'MAX_Speed\' is not defined: "MAX_Speed"'), # only the first letter capitalized
-            ('.bytefill 1, "x: MAX_Speed"\n',        'test.asm:1: error: Name \'MAX_Speed\' is not defined\n'),
-        ]:
-            with self.subTest(source=source):
-                anyErrors, output = self._assemble(source)
-                self.assertIn(message, output)
+        ])
 
     def testPrint(self):
         """.print prints once, after the last pass, so values are final, even with errors."""

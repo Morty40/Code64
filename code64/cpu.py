@@ -207,30 +207,55 @@ class TestCpu(unittest.TestCase):
         self.assertEqual(instructionForOpcode(0x02), None) # jam, freezes the cpu
 
 
-    def testIllegalInstructions(self):
-        """Illegal instructions can be left out, or the stable ones (the default), or all of them added."""
-        def opcodes() -> int:
-            return sum(instructionForOpcode(opcode) is not None for opcode in range(256))
+    def _setIllegalInstructions(self, illegal: str):
+        """Choose the illegal instructions for this test only."""
         self.addCleanup(setIllegalInstructions, 'stable')
+        setIllegalInstructions(illegal)
+
+
+    def _opcodeCount(self) -> int:
+        """The number of opcodes in use."""
+        return sum(instructionForOpcode(opcode) is not None for opcode in range(256))
+
+
+    def testIllegalInstructionSets(self):
+        """The number of stable and unstable illegal instructions."""
         self.assertEqual(len(_stableIllegalInstructionSet), 13)
         self.assertEqual(len(_unstableIllegalInstructionSet), 6)
-        self.assertEqual(opcodes(), 208) # the default
 
-        setIllegalInstructions('none')
-        self.assertEqual(opcodes(), 151) # the documented 6502 opcodes
+
+    def testIllegalDefault(self):
+        """The stable illegal instructions are the default."""
+        self.assertEqual(self._opcodeCount(), 208)
+
+
+    def testIllegalNone(self):
+        """'none' leaves only the documented 6502 opcodes."""
+        self._setIllegalInstructions('none')
+        self.assertEqual(self._opcodeCount(), 151)
         self.assertEqual((isMnemonic('lax'), instructionForOpcode(0xa7)), (False, None))
 
-        setIllegalInstructions('stable')
-        self.assertEqual(opcodes(), 208)
-        self.assertEqual(instructionForOpcode(0xa7), (instructionWithMnemonic('lax'), AddressMode.zeroPage))
-        self.assertEqual(instructionForOpcode(0x04), None) # an illegal nop, left out
-        self.assertEqual(instructionForOpcode(0xeb), None) # usbc, the same as sbc #, left out
-        self.assertEqual(isMnemonic('sha'), False) # unstable
 
-        setIllegalInstructions('all')
-        self.assertEqual(opcodes(), 215)
+    def testIllegalStable(self):
+        """'stable' adds the stable illegal instructions, but not the illegal nops, usbc, or the unstable ones."""
+        self._setIllegalInstructions('stable')
+        self.assertEqual(self._opcodeCount(), 208)
+        self.assertEqual(instructionForOpcode(0xa7), (instructionWithMnemonic('lax'), AddressMode.zeroPage))
+        self.assertEqual(instructionForOpcode(0x04), None) # an illegal nop
+        self.assertEqual(instructionForOpcode(0xeb), None) # usbc, the same as sbc #
+        self.assertEqual(isMnemonic('sha'), False)         # unstable
+
+
+    def testIllegalAll(self):
+        """'all' also adds the unstable illegal instructions, but still not the illegal nops."""
+        self._setIllegalInstructions('all')
+        self.assertEqual(self._opcodeCount(), 215)
         self.assertEqual(instructionWithMnemonic('nop').opcodes, {AddressMode.implied: 0xea})
         self.assertEqual(instructionForOpcode(0x9f), (instructionWithMnemonic('sha'), AddressMode.absoluteY))
+
+
+    def testIllegalUnknown(self):
+        """Any other choice is an error."""
         self.assertRaises(KeyError, setIllegalInstructions, 'some')
 
 

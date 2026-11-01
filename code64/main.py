@@ -168,24 +168,31 @@ class TestMain(unittest.TestCase):
                     self.assertEqual(code, expected, output)
 
     def testAssemble(self):
-        """Assembling prints the .print output, and with no errors the memory use, and saves the -o file.
-        Warnings and errors go to stderr. Exits with 1 on errors."""
+        """Assembling prints the .print output and the memory use, sends warnings to stderr, and saves the -o file."""
         with tempfile.TemporaryDirectory() as directory:
-            prgFile = os.path.join(directory, 'a.prg')
-            for name, source, expected, printed, diagnostics in [
-                ('ok.asm',    '.print "hi"\n.warning "careful"\nlda #1\n', 0, ['hi', 'Memory used: $1000-$1001 (2 bytes)'], ['ok.asm:2: warning: careful']),
-                ('error.asm', '.print "hi"\n.error "stop"\n',               1, ['hi'],                                       ['error.asm:2: error: stop'])]:
-                with self.subTest(source=source):
-                    asmFile = os.path.join(directory, name)
-                    with open(asmFile, 'w') as f:
-                        f.write(source)
-                    code, output, errors = self._main([asmFile, '-o', prgFile])
-                    self.assertEqual(code, expected, output + errors)
-                    lines = [line.split('/')[-1] for line in output.splitlines()]
-                    self.assertEqual([line for line in lines if line.startswith(tuple(printed))], printed)
-                    self.assertEqual([line.split('/')[-1] for line in errors.splitlines()], diagnostics)
+            asmFile, prgFile = os.path.join(directory, 'a.asm'), os.path.join(directory, 'a.prg')
+            with open(asmFile, 'w') as f:
+                f.write('.print "hi"\n.warning "careful"\nlda #1\n')
+            code, output, errors = self._main([asmFile, '-o', prgFile])
+            self.assertEqual(code, 0, errors)
+            self.assertIn('hi', output.splitlines())
+            self.assertIn('Memory used: $1000-$1001 (2 bytes)', output.splitlines())
+            self.assertEqual(errors, f'{asmFile}:2: warning: careful\n')
             with open(prgFile, 'rb') as f:
-                self.assertEqual(f.read(), bytes([0x00, 0x10, 0xa9, 0x01])) # saved by the first source only
+                self.assertEqual(f.read(), bytes([0x00, 0x10, 0xa9, 0x01]))
+
+    def testAssembleError(self):
+        """With an error, assembling still prints the .print output, but not the memory use, and saves nothing. Exits with 1."""
+        with tempfile.TemporaryDirectory() as directory:
+            asmFile, prgFile = os.path.join(directory, 'a.asm'), os.path.join(directory, 'a.prg')
+            with open(asmFile, 'w') as f:
+                f.write('.print "hi"\n.error "stop"\n')
+            code, output, errors = self._main([asmFile, '-o', prgFile])
+            self.assertEqual(code, 1)
+            self.assertIn('hi', output.splitlines())
+            self.assertNotIn('Memory used', output)
+            self.assertEqual(errors, f'{asmFile}:2: error: stop\n')
+            self.assertFalse(os.path.exists(prgFile))
 
     def testSortedLabels(self):
         """The labels and zero page variables, sorted by address, with local labels as global_local,
@@ -218,23 +225,27 @@ class TestMain(unittest.TestCase):
             self.assertIn('--vice can only be used when assembling', errors)
 
     def testLabels(self):
-        """-l writes the labels as Python assignments. With -d, -l reads them."""
-        source = 'start: ldx #5\n_loop: dex\nbne _loop\nrts\n'
-        expected = 'start = 0x1000\nstart_loop = 0x1002\n'
+        """-l writes the labels as Python assignments."""
         with tempfile.TemporaryDirectory() as directory:
             asmFile, labelsFile = os.path.join(directory, 'test.asm'), os.path.join(directory, 'test.py')
             with open(asmFile, 'w') as f:
-                f.write(source)
+                f.write('start: ldx #5\n_loop: dex\nbne _loop\nrts\n')
             for option in ['-l', '--labels']:
                 with self.subTest(option=option):
                     code, output, errors = self._main([asmFile, option, labelsFile])
                     self.assertEqual(code, 0, errors)
                     with open(labelsFile) as f:
-                        self.assertEqual(f.read(), expected)
-            prgFile, disassembledFile = os.path.join(directory, 'test.prg'), os.path.join(directory, 'disassembled.asm')
+                        self.assertEqual(f.read(), 'start = 0x1000\nstart_loop = 0x1002\n')
+
+    def testLabelsDisassemble(self):
+        """With -d, -l reads the labels, and the disassembly uses their names."""
+        with tempfile.TemporaryDirectory() as directory:
+            asmFile, prgFile, labelsFile = (os.path.join(directory, name) for name in ['test.asm', 'test.prg', 'test.py'])
+            with open(asmFile, 'w') as f:
+                f.write('start: ldx #5\n_loop: dex\nbne _loop\nrts\n')
             code, output, errors = self._main([asmFile, '-o', prgFile, '-l', labelsFile])
             self.assertEqual(code, 0, errors)
-            code, output, errors = self._main(['-d', prgFile, '-l', labelsFile]) # reads the labels when disassembling
+            code, output, errors = self._main(['-d', prgFile, '-l', labelsFile])
             self.assertEqual(code, 0, errors)
             lines = [line.strip() for line in output.splitlines()]
             for line in ['start:', 'start_loop:', 'bne start_loop']:
@@ -269,30 +280,47 @@ class TestMain(unittest.TestCase):
         self.assertIn('Pages used: 1 full, 1 partial', output.getvalue())
         self.assertIn('$1000: █▒░░░░░░░░░░░░░░', output.getvalue())
 
-    def testDisassemble(self):
-        """-d disassembles to the -o file, and exits with 1 and an error on stderr if a file can't be read or written."""
+    def _prgFile(self, directory: str) -> str:
+        """Write a .prg file with an rts at $1000, and return its name."""
+        prgFile = os.path.join(directory, 'a.prg')
+        with open(prgFile, 'wb') as f:
+            f.write(bytes([0x00, 0x10, 0x60]))
+        return prgFile
+
+    def testDisassembleToFile(self):
+        """-d disassembles to the -o file, also with the long option names."""
         with tempfile.TemporaryDirectory() as directory:
-            prgFile, asmFile = os.path.join(directory, 'a.prg'), os.path.join(directory, 'a.asm')
-            with open(prgFile, 'wb') as f:
-                f.write(bytes([0x00, 0x10, 0x60])) # rts at $1000
-            code, output, errors = self._main(['-d', prgFile, '-o', asmFile])
-            self.assertEqual(code, 0)
-            with open(asmFile) as f:
-                self.assertIn('rts', f.read())
-            code, output, errors = self._main(['--disassemble', prgFile, '--output', asmFile]) # the long names
-            self.assertEqual(code, 0)
-            with open(asmFile) as f:
-                self.assertEqual(f.read(), disassemble.disassembleFile(prgFile))
-            code, output, errors = self._main(['-d', prgFile]) # without -o, only the source is printed
+            prgFile, asmFile = self._prgFile(directory), os.path.join(directory, 'a.asm')
+            for arguments in [['-d', prgFile, '-o', asmFile], ['--disassemble', prgFile, '--output', asmFile]]:
+                with self.subTest(arguments=arguments[0]):
+                    code, output, errors = self._main(arguments)
+                    self.assertEqual(code, 0)
+                    with open(asmFile) as f:
+                        self.assertEqual(f.read(), disassemble.disassembleFile(prgFile))
+                    os.remove(asmFile)
+
+    def testDisassemblePrints(self):
+        """Without -o, only the source is printed."""
+        with tempfile.TemporaryDirectory() as directory:
+            prgFile = self._prgFile(directory)
+            code, output, errors = self._main(['-d', prgFile])
             self.assertEqual(code, 0)
             self.assertEqual(output, disassemble.disassembleFile(prgFile))
             self.assertEqual(errors, '')
+
+    def testDisassembleMissingFile(self):
+        """A file that can't be read exits with 1, and an error on stderr."""
+        with tempfile.TemporaryDirectory() as directory:
             missingFile = os.path.join(directory, 'missing.prg')
-            code, output, errors = self._main(['-d', missingFile, '-o', asmFile])
+            code, output, errors = self._main(['-d', missingFile, '-o', os.path.join(directory, 'a.asm')])
             self.assertEqual(code, 1)
             self.assertIn(f'error: No such file or directory: "{missingFile}"', errors)
+
+    def testDisassembleMissingFolder(self):
+        """A file that can't be written exits with 1, and an error on stderr."""
+        with tempfile.TemporaryDirectory() as directory:
             missingFolder = os.path.join(directory, 'missing', 'a.asm')
-            code, output, errors = self._main(['-d', prgFile, '-o', missingFolder])
+            code, output, errors = self._main(['-d', self._prgFile(directory), '-o', missingFolder])
             self.assertEqual(code, 1)
             self.assertIn(f'error: No such file or directory: "{missingFolder}"', errors)
 
