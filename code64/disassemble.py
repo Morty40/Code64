@@ -104,10 +104,12 @@ def disassemble(data: bytes, start: int, names: dict = None) -> str:
         return f'${address:0{digits}x}'
 
     def line(address: int, text: str) -> str:
+        """A line of source at an address, indented, after its label if it has one."""
         indented = f'{"":<12}{text}'
         return f'{labels[address]}:\n{indented}' if address in labels else indented
 
     def byteList(values) -> str:
+        """A .byte directive with the values."""
         return '.byte ' + ', '.join(f'${b:02x}' for b in values)
 
     lines = ['']
@@ -186,6 +188,7 @@ def disassembleFile(inFile: str, outFile: str = None, labelsFile: str = None) ->
 ################################################################################
 
 class TestDisassemble(unittest.TestCase):
+    """Tests of finding the code, and of the source written for code and data."""
 
     def _assemble(self, asmFile: str, prgFile: str) -> bytes:
         """Assemble a file without errors, and return the .prg file's bytes."""

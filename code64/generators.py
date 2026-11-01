@@ -40,6 +40,7 @@ def assemble(tokens: list, context: Context, chunks: dict) -> bool:
 ################################################################################
 
 class TestGenerators(unittest.TestCase):
+    """Tests of generated code and its local labels."""
 
     def _assemble(self, line: str, symbols: dict):
         """Assemble a generator line, as line 1 of test.asm, and return the context and chunks."""

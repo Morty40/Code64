@@ -125,6 +125,7 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
 ################################################################################
 
 class TestAssemble(unittest.TestCase):
+    """Tests of assembling source files: messages, files, and the .prg output."""
 
     def _assemble(self, source: str):
         """Assemble source, and return (anyErrors, printed output and messages)."""

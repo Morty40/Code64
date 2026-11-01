@@ -27,6 +27,7 @@ def directive(name: str, raw: bool = False):
     A raw directive gets its arguments as tokens, and the tokenized files.
     """
     def register(function):
+        """Add the function to the directives table."""
         DIRECTIVES[name] = function
         if raw:
             _rawDirectives.add(name)
@@ -104,6 +105,7 @@ def storeString(context, *texts):
 
 
 def _storeTexts(context, texts, zeroTerminated: bool):
+    """Store texts in the current encoding, each optionally followed by a zero byte."""
     for t in texts:
         for char in t:
             o = text.ord(char, context.encoding)
@@ -143,6 +145,7 @@ def wordfill(context, n: int, function: str = None):
 
 
 def _fill(context, n: int, function: str, store, valueExpression):
+    """Store n values, using the store function, each checked by valueExpression."""
     f = evaluate.lambdaExpression(function, context) if function is not None else lambda x: 0
     for x in range(0, n):
         try:
@@ -188,6 +191,7 @@ def zpword(context, name, *names):
 
 
 def _allocate(context, names, size: int):
+    """Allocate size zero page bytes for each name, and define it as a label."""
     for name in names:
         if context.zpAddress+size <= 0x100:
             if name not in context.labels:
@@ -437,6 +441,7 @@ def loadMusic(context, fileName: str, prefix: str):
 ################################################################################
 
 class TestDirectives(unittest.TestCase):
+    """Tests of the directive arguments."""
 
     def testMatches(self):
         """Arguments are checked against the parameters, and their type annotations."""

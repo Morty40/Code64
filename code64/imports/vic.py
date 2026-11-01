@@ -1,3 +1,4 @@
+"""The VIC-II chip: its banks and registers."""
 
 VIC_BANK0_ADDRESS = 0x0000
 VIC_BANK1_ADDRESS = 0x4000

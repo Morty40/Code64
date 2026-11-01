@@ -1,3 +1,4 @@
+"""The registers of the SID chip."""
 
 SID_VOICE1_FREQUENCY_LO    = 0xd400
 SID_VOICE1_FREQUENCY_HI    = 0xd401

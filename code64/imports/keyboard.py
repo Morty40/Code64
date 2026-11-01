@@ -1,3 +1,4 @@
+"""The keyboard codes."""
 
 KEYBOARD_CODE_INST_DEL        = 0x00
 KEYBOARD_CODE_RETURN          = 0x01

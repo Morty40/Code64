@@ -88,6 +88,7 @@ def assemble(tokens: list, context: Context):
 ################################################################################
 
 class TestInstructions(unittest.TestCase):
+    """Tests of choosing the address mode, and the bytes stored."""
 
     def _assemble(self, line: str):
         """Assemble one instruction at $1000, and return the bytes and the context."""

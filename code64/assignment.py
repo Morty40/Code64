@@ -28,8 +28,10 @@ def assemble(tokens: list, context: Context):
 ################################################################################
 
 class TestAssignment(unittest.TestCase):
+    """Tests of assigning symbols."""
 
     def _assemble(self, line: str, context: Context):
+        """Assemble one assignment line."""
         assemble(lexer.tokenize(line)[:-1], context)
 
     def testAssignment(self):

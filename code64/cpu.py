@@ -9,8 +9,13 @@ import re
 import unittest
 
 # the low and high byte of a 16-bit value, the 6502 stores words low byte first
-def lo(x): return x&0xff
-def hi(x): return (x>>8)&0xff
+def lo(x):
+    """The low byte."""
+    return x&0xff
+
+def hi(x):
+    """The high byte."""
+    return (x>>8)&0xff
 
 
 class AddressMode(Enum):

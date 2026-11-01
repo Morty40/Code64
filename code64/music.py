@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+"""SID music files: reads the header and music data of PSID and RSID files, for .music."""
 
 import os
 import struct
@@ -147,8 +148,10 @@ def load(fileName: str, context):
 ################################################################################
 
 class TestMusic(unittest.TestCase):
+    """Tests of reading SID files."""
 
     def setUp(self):
+        """Create a temporary folder for the SID files."""
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         self.directory = directory.name

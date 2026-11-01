@@ -33,6 +33,7 @@ def printMemoryUse(context: Context):
 
     # one symbol for each 256-byte page: unused, partly used, or full
     def _pageSymbol(used):
+        """The symbol for a page with this number of bytes used."""
         if used <= 0: return '░'
         elif used > 0 and used < 256: return '▒'
         elif used >= 256: return '█'
@@ -112,6 +113,7 @@ def main():
 ################################################################################
 
 class TestMain(unittest.TestCase):
+    """Tests of the command line."""
 
     def _main(self, arguments: list):
         """Run main() with the arguments. Returns the exit code, and the output and error output."""

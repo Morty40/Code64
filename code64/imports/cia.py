@@ -1,3 +1,4 @@
+"""The registers of the two CIA chips."""
 
 CIA1_DATA_PORTA           = 0xdc00
 CIA1_DATA_PORTB           = 0xdc01

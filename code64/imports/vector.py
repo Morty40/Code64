@@ -1,3 +1,4 @@
+"""The interrupt vectors of the 6502: NMI, reset and IRQ."""
 
 INTERRUPT_VECTOR_NMI      = 0xfffa
 INTERRUPT_VECTOR_NMI_LO   = INTERRUPT_VECTOR_NMI+0

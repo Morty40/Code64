@@ -20,6 +20,7 @@ class Token:
     lineNumber: int = 0
 
     def __repr__(self):
+        """The token with its file and line, for debugging."""
         s = self.string.replace('\n', '\\n')
         return f'{s} ({self.fileName}:{self.lineNumber})'
 
@@ -156,6 +157,7 @@ def splitByNewline(tokens: list) -> Iterator[list]:
 ################################################################################
 
 class TestLexer(unittest.TestCase):
+    """Tests of tokenizing source code."""
 
 
     def testFixPrefix(self):
@@ -170,6 +172,7 @@ class TestLexer(unittest.TestCase):
     def testModulo(self):
         """% is modulo after a number, name or closing bracket, and otherwise a binary prefix."""
         def strings(line):
+            """The tokens of a line as strings, without the newline."""
             return [t.string for t in tokenize(line) if t.string != '\n']
         self.assertEqual(strings('7 % 4'),        ['7', '%', '4'])
         self.assertEqual(strings('7%4'),          ['7%4'])

@@ -1,3 +1,4 @@
+"""The KERNAL ROM routines."""
 
 KERNAL_ROM        = 0xe000
 

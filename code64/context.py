@@ -124,6 +124,7 @@ class Context:
 ################################################################################
 
 class TestContext(unittest.TestCase):
+    """Tests of the read pointer stack and the messages."""
 
     def testReadPointerStack(self):
         """The read pointer stack, including the empty stack cases."""

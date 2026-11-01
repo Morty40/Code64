@@ -62,6 +62,7 @@ def lambdaExpression(e: str, context: Context):
 ################################################################################
 
 class TestEvaluate(unittest.TestCase):
+    """Tests of evaluating expressions."""
 
     def testEvalExpression(self):
         """Any Python expression, with the symbols as variables. A failure is an error, and gives None."""
