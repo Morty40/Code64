@@ -181,27 +181,25 @@ def align(context, n: int):
 @directive('zpbyte')
 def zpbyte(context, name, *names):
     """Allocate a zero page byte for each name, and define it as a label."""
-    _allocate(context, (name,) + names, 1)
+    _zpAllocate(context, (name,) + names, 1)
 
 
 @directive('zpword')
 def zpword(context, name, *names):
     """Allocate two zero page bytes for each name, and define it as a label."""
-    _allocate(context, (name,) + names, 2)
+    _zpAllocate(context, (name,) + names, 2)
 
 
-def _allocate(context, names, size: int):
+def _zpAllocate(context, names, size: int):
     """Allocate size zero page bytes for each name, and define it as a label."""
     for name in names:
-        if context.zpAddress+size <= 0x100:
-            if name not in context.labels:
-                if context.setSymbol(name, context.zpAddress):
-                    context.labels.add(name)
-                    context.zpAddress += size
-            else:
-                context.reportError(f'Label was already defined: "{name}"')
-        else:
+        if context.zpAddress+size > 0x100:
             context.reportError(f'No space for zero page variable: "{name}"')
+        elif name in context.labels:
+            context.reportError(f'Label was already defined: "{name}"')
+        elif context.setSymbol(name, context.zpAddress):
+            context.labels.add(name)
+            context.zpAddress += size
 
 
 ################################################################################
