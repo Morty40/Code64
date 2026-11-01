@@ -159,6 +159,7 @@ class TestLexer(unittest.TestCase):
 
 
     def testFixPrefix(self):
+        """The number prefixes $ and % become Python's 0x and 0b."""
         self.assertEqual(_fixPrefix(''), '')
         self.assertEqual(_fixPrefix('abc'), 'abc')
         self.assertEqual(_fixPrefix('$1234'), '0x1234')
@@ -167,6 +168,7 @@ class TestLexer(unittest.TestCase):
 
 
     def testModulo(self):
+        """% is modulo after a number, name or closing bracket, and otherwise a binary prefix."""
         def strings(line):
             return [t.string for t in tokenize(line) if t.string != '\n']
         self.assertEqual(strings('7 % 4'),        ['7', '%', '4'])
@@ -188,6 +190,7 @@ class TestLexer(unittest.TestCase):
 
 
     def testTokenRepr(self):
+        """A token is shown with its file and line."""
         self.assertEqual(repr(Token('lda', 'a.asm', 3)), 'lda (a.asm:3)')
         self.assertEqual(repr(Token('\n')), '\\n (:0)') # newline is shown escaped
 

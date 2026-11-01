@@ -139,6 +139,7 @@ class TestAssemble(unittest.TestCase):
         return len(context.errors) > 0, output.getvalue() + messages
 
     def testDuplicateLabel(self):
+        """A label can only be defined once."""
         anyErrors, output = self._assemble('a: nop\na: nop\n')
         self.assertTrue(anyErrors)
         self.assertIn('test.asm:2: error: Label was already defined: "a"', output)

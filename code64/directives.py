@@ -453,6 +453,7 @@ class TestDirectives(unittest.TestCase):
 
 
     def testBitsWithInt(self):
+        """.bits needs a string with the bit pattern."""
         context = Context({})
         assemble(lexer.tokenize('.bits 3')[:-1], context)
         self.assertEqual(context.errors, ['error: Invalid directive: .bits 3'])

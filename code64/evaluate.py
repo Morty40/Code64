@@ -64,6 +64,7 @@ def lambdaExpression(e: str, context: Context):
 class TestEvaluate(unittest.TestCase):
 
     def testEvalExpression(self):
+        """Any Python expression, with the symbols as variables. A failure is an error, and gives None."""
         context = Context({})
         value = expression('123', context)
         self.assertEqual(value, 123)
@@ -84,6 +85,7 @@ class TestEvaluate(unittest.TestCase):
 
 
     def testEvalIntExpression(self):
+        """A float is truncated, with a warning."""
         context = Context({})
         value = intExpression('12', context)
         self.assertEqual(value, 12)
@@ -98,6 +100,7 @@ class TestEvaluate(unittest.TestCase):
 
 
     def testEvalByteExpression(self):
+        """A negative byte is two's complement. Out of range is an error, and keeps the low byte."""
         context = Context({})
         value = byteExpression('-10', context)
         self.assertEqual(value, 0xf6)
@@ -118,6 +121,7 @@ class TestEvaluate(unittest.TestCase):
         
 
     def testEvalWordExpression(self):
+        """A negative word is two's complement. Out of range is an error, and keeps the low word."""
         context = Context({})
         value = wordExpression('-10', context)
         self.assertEqual(value, 0xfff6)
@@ -138,6 +142,7 @@ class TestEvaluate(unittest.TestCase):
 
 
     def testEvalLambdaExpression(self):
+        """The text after "lambda" becomes a function, with the symbols and the math functions available."""
         context = Context({'k': 1})
         value = lambdaExpression('x: x + k + round(cos(0))', context)
         self.assertEqual(isinstance(value, types.FunctionType), True)
@@ -147,6 +152,7 @@ class TestEvaluate(unittest.TestCase):
 
 
     def testEvalLambdaExpressionError(self):
+        """Text that isn't a function is an error, and gives the identity function."""
         context = Context({})
         value = lambdaExpression('1', context) # not a lambda: "lambda 1" is invalid syntax
         self.assertEqual(isinstance(value, types.FunctionType), True)
@@ -157,6 +163,7 @@ class TestEvaluate(unittest.TestCase):
 
 
     def testEncodingFunctions(self):
+        """ord() and chr() in expressions use the current encoding."""
         context = Context({})
         self.assertEqual(expression('ord("A")', context), 1)
         self.assertEqual(expression('chr(1)', context), 'A')
@@ -167,6 +174,7 @@ class TestEvaluate(unittest.TestCase):
 
 
     def testDivZeroExpression(self):
+        """Dividing by zero is an error, and gives None."""
         context = Context({})
         value = expression('0/0', context)
         self.assertEqual(value, None)

@@ -135,6 +135,7 @@ class TestInstructions(unittest.TestCase):
                 self.assertEqual(context.errors, [f'error: Unknown instruction or address mode: {line.split()[0]} {operand}'])
 
     def testBranchOutOfRange(self):
+        """A branch reaches -128 to +127 bytes. One byte more is an error."""
         # one byte beyond +127 and -128, counted from $1002, the address after the branch
         for target, dist in [('$1082', 128), ('$0f81', -129)]:
             context = Context({'_': 0x1000})
