@@ -103,7 +103,7 @@ class Context:
             return self.readPointerStack[-1]
 
 
-    def __formattedReadPointer(self):
+    def _formattedReadPointer(self):
         """Return the current position as 'file:line: ', for messages, as in gcc."""
         rp = self.readPointer()
         return f'{rp[0]}:{rp[1]+1}: ' if rp else ''
@@ -111,13 +111,13 @@ class Context:
 
     def reportWarning(self, text: str):
         """Add a warning, at the current file and line."""
-        rp = self.__formattedReadPointer()
+        rp = self._formattedReadPointer()
         self.warnings.append(f'{rp}warning: {text}')
 
 
     def reportError(self, text: str):
         """Add an error, at the current file and line."""
-        rp = self.__formattedReadPointer()
+        rp = self._formattedReadPointer()
         self.errors.append(f'{rp}error: {text}')
 
 
