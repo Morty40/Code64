@@ -12,7 +12,6 @@ import glob
 from . import assignment
 from . import cpu
 from . import directives
-from . import evaluate
 from . import generators
 from . import instructions
 from . import lexer
