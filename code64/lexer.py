@@ -217,20 +217,10 @@ class TestLexer(unittest.TestCase):
         self.assertRaises(FileNotFoundError, tokenizeFile, os.path.join(os.path.dirname(__file__), 'missing.asm'))
 
     def testSplitByNewline(self):
+        """The tokens of each line, without the newlines. An empty line has no tokens."""
         tokens = [Token('a'), Token('\n'), Token('b'), Token('c'), Token('\n'), Token('\n'), Token('d')]
-        for index, lineTokens in enumerate(splitByNewline(tokens)):
-            if index==0:
-                self.assertEqual(len(lineTokens), 1)
-                self.assertEqual(lineTokens[0].string, 'a')
-            if index==1:
-                self.assertEqual(len(lineTokens), 2)
-                self.assertEqual(lineTokens[0].string, 'b')
-                self.assertEqual(lineTokens[1].string, 'c')
-            if index==2:
-                self.assertEqual(len(lineTokens), 0)
-            if index==3:
-                self.assertEqual(len(lineTokens), 1)
-                self.assertEqual(lineTokens[0].string, 'd')
+        lines = [[token.string for token in lineTokens] for lineTokens in splitByNewline(tokens)]
+        self.assertEqual(lines, [['a'], ['b', 'c'], [], ['d']])
 
         
 if __name__ == '__main__':

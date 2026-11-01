@@ -241,6 +241,7 @@ class TestCpu(unittest.TestCase):
         self.assertEqual(isMnemonic('lda'), True)
         self.assertEqual(isMnemonic('sta'), True)
         self.assertEqual(isMnemonic('nop'), True)
+        self.assertEqual(isMnemonic('LDA'), False)
 
 
     def testSize(self):
