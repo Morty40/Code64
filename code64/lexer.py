@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 """The lexer: splits source code into tokens, one line at a time."""
 
+import errno
 import os
 import re
 import shlex
@@ -138,8 +139,12 @@ def tokenize(text: str, fileName: str='') -> list:
 
 def tokenizeFile(fileName: str) -> list:
     """Tokenize a source file, and translate its local labels. Raises OSError if the file can't be read."""
-    with open(fileName, 'r') as f:
-        text = f.read()
+    try:
+        with open(fileName, 'r', encoding='utf-8') as f:
+            text = f.read()
+    except UnicodeDecodeError as exception:
+        line = exception.object.count(b'\n', 0, exception.start) + 1
+        raise OSError(errno.EILSEQ, f'Not valid UTF-8 on line {line}', fileName)
 
     tokens = tokenize(text, fileName)
     tokens = translateLocalLabels(tokens)

@@ -310,6 +310,20 @@ class TestMain(unittest.TestCase):
             self.assertEqual(output, disassemble.disassembleFile(prgFile))
             self.assertEqual(errors, '')
 
+    def testSourceNotUtf8(self):
+        """A source file that is not UTF-8, also when imported, gives an error with its name and line."""
+        with tempfile.TemporaryDirectory() as directory:
+            badFile, importFile = os.path.join(directory, 'bad.asm'), os.path.join(directory, 'import.asm')
+            with open(badFile, 'wb') as f:
+                f.write(b'nop\n; caf\xe9\n')
+            with open(importFile, 'w') as f:
+                f.write('.import "bad.asm"\n')
+            for asmFile in [badFile, importFile]:
+                with self.subTest(asmFile=asmFile):
+                    code, output, errors = self._main([asmFile])
+                    self.assertEqual(code, 1)
+                    self.assertEqual(errors, f'error: Not valid UTF-8 on line 2: "{badFile}"\n')
+
     def testDisassembleMissingFile(self):
         """A file that can't be read exits with 1, and an error on stderr."""
         with tempfile.TemporaryDirectory() as directory:
