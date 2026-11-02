@@ -105,6 +105,8 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
             else:
                 context.popReadPointer() # end of file, back to the importing file
 
+        directives.reportOpenBlocks(context)
+
         # done when there are no errors, and the output is unchanged
         if len(context.errors) == 0 and context.memory == lastMemory:
             break
@@ -323,6 +325,16 @@ class TestAssemble(unittest.TestCase):
             ('.binary "nothere.bin"\n',              'test.asm:1: error: File not found: "nothere.bin"'),
             ('.music "nothere.sid", "M"\n',          'test.asm:1: error: File not found: "nothere.sid"'),
             ('.music "nothere.sid", "M"\n',          'test.asm:1: error: Music not loaded: "nothere.sid"'),
+        ])
+
+    def testUnclosedBlockMessages(self):
+        """A block without .end gives an error at the line that started it."""
+        self._assertMessages([
+            ('.repeat 2\nnop\n',               'test.asm:1: error: Repeat without matching end'),
+            ('.for a=0, a<2, a+=1\nnop\n',      'test.asm:1: error: For without matching end'),
+            ('.if 1\nnop\n',                   'test.asm:1: error: If without matching end'),
+            ('.if 0\n.else\nnop\n',            'test.asm:2: error: If without matching end'), # at the .else
+            ('nop\n.repeat 2\n.if 1\n.end\n',  'test.asm:2: error: Repeat without matching end'), # the outer block
         ])
 
     def testZeroPageMessages(self):

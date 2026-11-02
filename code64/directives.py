@@ -369,6 +369,14 @@ def elseBlock(context, tokens: list, chunks: dict):
     _skipBlock(context, chunks, 'else')
 
 
+def reportOpenBlocks(context):
+    """Report each block without .end at the line that started it, at the end of a pass."""
+    for block in context.blockStack:
+        context.pushReadPointer(block[-1])
+        context.reportError(f'{block[0].capitalize()} without matching end')
+        context.popReadPointer()
+
+
 ################################################################################
 # python and files
 
