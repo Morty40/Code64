@@ -329,6 +329,9 @@ class TestAssemble(unittest.TestCase):
         """.zpbyte and .zpword names that are used twice, or that do not fit."""
         self._assertMessages([
             ('.zpbyte "a"\n.zpbyte "a"\n',           'test.asm:2: error: Label was already defined: "a"'),
+            ('.zpbyte []\n',                         'test.asm:1: error: Invalid directive: .zpbyte []'),
+            ('.zpbyte 1\n',                          'test.asm:1: error: Invalid directive: .zpbyte 1'),
+            ('.zpword "a", 1\n',                     'test.asm:1: error: Invalid directive: .zpword f"a",1'),
             ('.for i=0, i<127, i+=1\n.zpword "v{i}"\n.end\n.zpbyte "last"\n', # $02-$ff is full
                                                      'test.asm:4: error: No space for zero page variable: "last"'),
         ])

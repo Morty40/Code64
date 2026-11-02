@@ -179,13 +179,13 @@ def align(context, n: int):
 
 
 @directive('zpbyte')
-def zpbyte(context, name, *names):
+def zpbyte(context, name: str, *names: str):
     """Allocate a zero page byte for each name, and define it as a label."""
     _zpAllocate(context, (name,) + names, 1)
 
 
 @directive('zpword')
-def zpword(context, name, *names):
+def zpword(context, name: str, *names: str):
     """Allocate two zero page bytes for each name, and define it as a label."""
     _zpAllocate(context, (name,) + names, 2)
 
