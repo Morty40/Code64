@@ -2,6 +2,7 @@
 """The disassembler: turns a .prg or binary file into source that assembles to the same bytes."""
 
 import contextlib
+import errno
 import glob
 import io
 import os
@@ -154,10 +155,15 @@ def disassemble(data: bytes, start: int, names: dict = None) -> str:
 
 def readLabels(labelsFile: str) -> dict:
     """Read a labels file, Python like the one -l writes, and return {address: name} for its int values.
-    The first name is used for each address."""
+    The first name is used for each address. Raises OSError if the file can't be read or executed."""
     symbols = {}
-    with open(labelsFile) as f:
-        exec(compile(f.read(), labelsFile, 'exec'), symbols)
+    try:
+        with open(labelsFile) as f:
+            exec(compile(f.read(), labelsFile, 'exec'), symbols)
+    except OSError:
+        raise
+    except Exception as exception:
+        raise OSError(errno.EINVAL, f'Invalid labels file ({type(exception).__name__}: {exception})', labelsFile)
     labels = {}
     for name, value in symbols.items():
         if type(value) is int and 0 <= value <= 0xffff:

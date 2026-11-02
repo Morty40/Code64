@@ -34,9 +34,9 @@ def printMemoryUse(context: Context):
     # one symbol for each 256-byte page: unused, partly used, or full
     def _pageSymbol(used):
         """The symbol for a page with this number of bytes used."""
-        if used <= 0: return '░'
-        elif used > 0 and used < 256: return '▒'
-        elif used >= 256: return '█'
+        if used <= 0: return '.'
+        elif used > 0 and used < 256: return '+'
+        elif used >= 256: return '#'
 
     pages = [0]*256
     for address in context.memory:
@@ -280,7 +280,7 @@ class TestMain(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()) as output:
             printMemoryUse(context)
         self.assertIn('Pages used: 1 full, 1 partial', output.getvalue())
-        self.assertIn('$1000: █▒░░░░░░░░░░░░░░', output.getvalue())
+        self.assertIn('$1000: #+..............', output.getvalue())
 
     def _prgFile(self, directory: str) -> str:
         """Write a .prg file with an rts at $1000, and return its name."""
@@ -331,6 +331,27 @@ class TestMain(unittest.TestCase):
             code, output, errors = self._main(['-d', missingFile, '-o', os.path.join(directory, 'a.asm')])
             self.assertEqual(code, 1)
             self.assertIn(f'error: No such file or directory: "{missingFile}"', errors)
+
+    def testDisassembleInvalidLabels(self):
+        """A labels file that can't be used exits with 1, and an error with its name on stderr."""
+        with tempfile.TemporaryDirectory() as directory:
+            prgFile, labelsFile = self._prgFile(directory), os.path.join(directory, 'labels.py')
+            for content, exception in [(b'x = (\n', 'SyntaxError'), (b'x = nope\n', 'NameError'), (b'\xff\n', 'UnicodeDecodeError')]:
+                with self.subTest(content=content):
+                    with open(labelsFile, 'wb') as f:
+                        f.write(content)
+                    code, output, errors = self._main(['-d', prgFile, '-l', labelsFile])
+                    self.assertEqual(code, 1)
+                    self.assertIn(f'error: Invalid labels file ({exception}: ', errors)
+                    self.assertIn(f'"{labelsFile}"', errors)
+
+    def testDisassembleMissingLabels(self):
+        """A labels file that doesn't exist gives the usual error for a missing file."""
+        with tempfile.TemporaryDirectory() as directory:
+            labelsFile = os.path.join(directory, 'missing.py')
+            code, output, errors = self._main(['-d', self._prgFile(directory), '-l', labelsFile])
+            self.assertEqual(code, 1)
+            self.assertIn(f'error: No such file or directory: "{labelsFile}"', errors)
 
     def testDisassembleMissingFolder(self):
         """A file that can't be written exits with 1, and an error on stderr."""
