@@ -12,6 +12,7 @@ The first release.
 - generators: Python functions that return assembly code
 - local labels, zero page variable allocation, `.repeat`, `.for` and `.if` blocks
 - `ref("label")`, to only assemble an `.if` block if its label is referenced
+- `.optional` blocks, only assembled if one of their global labels is referenced
 - PETSCII and screen code text encodings
 - `.assert` to check conditions while assembling, e.g. the memory layout
 - import of source files, Python files, binary files and SID music

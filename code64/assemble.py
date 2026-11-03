@@ -385,6 +385,46 @@ class TestAssemble(unittest.TestCase):
             ('.if ref("t")\nt: nop\n.zpbyte "v"\n.end\nlda v\n', "test.asm:5: error: Name 'v' is not defined"),
         ])
 
+    def testOptional(self):
+        """An optional block is only assembled if one of its global labels was referenced in the last pass."""
+        table = '.optional\nmyTable: .byte 1, 2, 3\n.end\n'
+        functions = '.optional\nfunc1: nop\nrts\nfunc2: nop\nrts\n.end\n'
+        zeroPage = '.optional\n.zpbyte "xyz"\nfunc3: lda xyz\nrts\n.end\n'
+        selfUse = '.optional\nfunc6: dex\nbne func6\nrts\n.end\n'
+        for source, expected in [
+            ('.byte 0\n' + table,                         [0]),                                # not referenced
+            ('.word myTable\n' + table,                   [0x02, 0x10, 1, 2, 3]),
+            (table + '.word myTable\n',                   [1, 2, 3, 0x00, 0x10]),              # referenced after the block
+            ('.word func1\n' + functions,                 [0x02, 0x10, 0xea, 0x60, 0xea, 0x60]), # any of its labels
+            ('.word func2\n' + functions,                 [0x04, 0x10, 0xea, 0x60, 0xea, 0x60]),
+            ('.byte 0\n' + zeroPage,                      [0]),
+            ('.word func3\n' + zeroPage,                  [0x02, 0x10, 0xa5, 0x02, 0x60]),
+            ('.optional\n.byte 1, 2, 3\n.end\n',          []),                                 # no global labels
+            ('.optional\n_x: .byte 1\n.end\n',            []),                                 # only a local label
+            ('.byte 0\n' + selfUse,                       [0]),                                # only by itself
+            ('jsr func6\n' + selfUse,                     [0x20, 0x03, 0x10, 0xca, 0xd0, 0xfd, 0x60]),
+            ('.word a\n.optional\na: .word b\n.end\n.optional\nb: .byte 9\n.end\n', [0x02, 0x10, 0x04, 0x10, 9]), # by a block
+            ('.print "myTable"\n.byte 0\n' + table,       [0]),                                # text in a string
+            ('.word f\n.optional\n.if 1\nf: nop\n.end\n.end\n', [0x02, 0x10, 0xea]),          # in an .if in the block
+        ]:
+            with self.subTest(source=source):
+                self.assertEqual(self._memory(source), expected)
+
+    def testOptionalNested(self):
+        """A nested block is only assembled if the outer block is, and they each check their own labels."""
+        nested = '.optional\nfunc4: .byte 4\n.optional\nfunc5: .byte 5\n.end\n.end\n'
+        self.assertEqual(self._memory('.byte 0\n' + nested), [0])
+        self.assertEqual(self._memory('.word func4\n' + nested), [0x02, 0x10, 4])
+        self.assertEqual(self._memory('.word func4, func5\n' + nested), [0x04, 0x10, 0x05, 0x10, 4, 5])
+
+    def testOptionalMessages(self):
+        """An optional block needs an .end, and its symbols are not defined when it is left out."""
+        self._assertMessages([
+            ('.optional\nt: nop\n',                      'test.asm:1: error: Optional without matching end'),
+            ('.optional\nf: nop\n.optional\ng: nop\n.end\n.end\njmp g\n', "test.asm:7: error: Name 'g' is not defined"),
+            ('.optional\nf: nop\nK = 2\n.end\nlda #K\n',  "test.asm:5: error: Name 'K' is not defined"),
+        ])
+
     def testZeroPageMessages(self):
         """.zpbyte and .zpword names that are used twice, or that do not fit."""
         self._assertMessages([

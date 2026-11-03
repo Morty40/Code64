@@ -577,6 +577,31 @@ myTable:    .byte 1, 2, 3
 
 `ref` is false in the first pass, so a block starts out left out, and is added in the following passes once something references its label. A block that only references itself is never added. Symbols set in a block that is left out are not defined.
 
+#### .optional, .end
+```
+.optional
+...
+.end
+```
+Like `.if` with `ref` of each global label in the block, so the names are not repeated. The lines up to `.end` are assembled if any of the block's global labels is referenced:
+
+```
+            jsr func2
+
+            .optional           ; assembled, as func2 is referenced
+func1:      nop
+            rts
+func2:      nop
+            rts
+            .end
+
+            .optional           ; not referenced, so nothing is stored
+myTable:    .byte 1, 2, 3
+            .end
+```
+
+Only labels written directly in the block count, so not `.zpbyte` names, or labels from generated code or an imported file. A block without global labels is never assembled. A nested block is only assembled if the outer block is, and each block only checks its own labels. For anything else, use `.if` with `ref`.
+
 ### Python
 
 #### .python
