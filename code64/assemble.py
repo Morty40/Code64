@@ -49,6 +49,7 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
             exec(compile(f.read(), fileName, 'exec'), symbols) # the file name shows in tracebacks
 
     lastMemory = {}
+    lastReferences = set()
     chunks = {} # the tokenized files and generated code, by name: tokenized once, for all passes
 
     for _ in range(MAX_PASSES):
@@ -56,6 +57,7 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
         symbols['_'] = DEFAULT_ORIGIN
         context = Context(symbols)
         context.path = path
+        context.lastReferences = lastReferences
         context.pushReadPointer( (inFile, 0) )
 
         # assemble line by line, from the file on top of the read pointer stack
@@ -107,12 +109,13 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
 
         directives.reportOpenBlocks(context)
 
-        # done when there are no errors, and the output is unchanged
-        if len(context.errors) == 0 and context.memory == lastMemory:
+        # done when there are no errors, and the output and references are unchanged
+        if len(context.errors) == 0 and context.memory == lastMemory and context.references == lastReferences:
             break
 
         # prepare for next pass
         lastMemory = dict(context.memory)
+        lastReferences = context.references
 
     # save the .prg: the load address, the lowest address used or DEFAULT_ORIGIN, then memory from there to the end
     if outFile and not context.errors:
@@ -335,6 +338,51 @@ class TestAssemble(unittest.TestCase):
             ('.if 1\nnop\n',                   'test.asm:1: error: If without matching end'),
             ('.if 0\n.else\nnop\n',            'test.asm:2: error: If without matching end'), # at the .else
             ('nop\n.repeat 2\n.if 1\n.end\n',  'test.asm:2: error: Repeat without matching end'), # the outer block
+        ])
+
+    def _memory(self, source: str) -> list:
+        """Assemble source without errors, and return the bytes in memory, by address."""
+        with tempfile.TemporaryDirectory() as directory:
+            fileName = os.path.join(directory, 'test.asm')
+            with open(fileName, 'w') as f:
+                f.write(source)
+            context = assembleFile(fileName)
+        self.assertEqual(context.errors, [])
+        return [context.memory[address] for address in sorted(context.memory)]
+
+    def testRef(self):
+        """ref(label) is true if the label was referenced in the last pass, wherever and however."""
+        block = '.if ref("t")\nt: .byte 8\n.end\n'
+        chain = ''.join(f'.if ref("f{i}")\nf{i}: .word f{i + 1}\n.end\n' for i in range(20)) + '.if ref("f20")\nf20: .byte 9\n.end\n'
+        for source, expected in [
+            ('.byte 0\n' + block,                         [0]),                                # not referenced
+            ('.word t\n' + block,                         [0x02, 0x10, 8]),
+            (block + '.word t\n',                         [8, 0x00, 0x10]),                    # referenced after the block
+            ('.word a\n.if ref("a")\na: .word b\n.end\n.if ref("b")\nb: .byte 9\n.end\n', [0x02, 0x10, 0x04, 0x10, 9]), # by a block
+            ('.word f0\n' + chain,                        [0x02, 0x10] + [x for i in range(20) for x in (0x04 + 2 * i, 0x10)] + [9]),
+            ('.byte 0\n' + chain,                         [0]),                                # nothing to start the chain
+            ('.byte 0\n.if ref("s")\ns: .word s\n.end\n', [0]),                                # only by itself
+            ('.byte 0\n.if ref("x")\nx: .word y\n.end\n.if ref("y")\ny: .word x\n.end\n', [0]), # only by each other
+            ('.if 0\n.word t\n.end\n.byte 0\n' + block,   [0]),                                # not referenced if skipped
+            ('.print "t"\n.byte 0\n' + block,             [0]),                                # text in a string
+            ('.print \'t\'\n.byte 0\n' + block,           [0]),
+            (".if ref('t')\nt: .byte 8\n.end\n.byte 0\n", [0]),                                # single quotes
+            ('.print "{t}"\n' + block,                    [8]),                                # an expression in a string
+            ('lda #lo(t)\n' + block,                      [0xa9, 0x02, 8]),                    # in an expression
+            ('.bytefill 1, "x: lo(t)"\n' + block,         [0x01, 8]),                          # in a lambda
+            ('@"jmp t"\n' + block,                        [0x4c, 0x03, 0x10, 8]),              # by generated code
+            ('.python\ndef f():\n    return t\n.end\n.word f()\n' + block, [0x02, 0x10, 8]), # by Python code
+            ('.if ref("t")\nt: .byte 8\n.else\n.byte 7\n.end\n',  [7]),                         # with .else
+            ('.if ref("nothing")\n.byte 1\n.end\n',       []),
+        ]:
+            with self.subTest(source=source[:50]):
+                self.assertEqual(self._memory(source), expected)
+
+    def testRefOtherSymbols(self):
+        """A symbol in a block that is not assembled is not defined."""
+        self._assertMessages([
+            ('.if ref("t")\nt: nop\nK = 2\n.end\nlda #K\n', "test.asm:5: error: Name 'K' is not defined"),
+            ('.if ref("t")\nt: nop\n.zpbyte "v"\n.end\nlda v\n', "test.asm:5: error: Name 'v' is not defined"),
         ])
 
     def testZeroPageMessages(self):

@@ -2,6 +2,7 @@
 """The assembler state: symbols, memory, messages and the current line."""
 
 import math
+import types
 import unittest
 
 from . import text
@@ -23,6 +24,7 @@ class Context:
         symbols.update(math.__dict__)
         symbols['ord'] = lambda char: text.ord(char, self.encoding)
         symbols['chr'] = lambda value: text.chr(value, self.encoding)
+        symbols['ref'] = lambda label: label in self.lastReferences
         self.symbols = symbols
         self.labels = set() # labels defined in this pass, to find duplicates
         self.memory = {} # address: byte
@@ -35,6 +37,16 @@ class Context:
         self.breakpoints = [] # (address, VICE condition or None) for each .break
         self.path = '' # folder of the main source file, for .import and .binary
         self.encoding = text.ENCODING_SCREEN_UPPER
+        self.references = set() # the names used by the Python code and expressions in this pass
+        self.lastReferences = set() # the same from the last pass, for ref()
+
+
+    def noteReferences(self, code):
+        """Note the names used by compiled Python code, including the functions in it."""
+        self.references.update(code.co_names)
+        for constant in code.co_consts:
+            if isinstance(constant, types.CodeType):
+                self.noteReferences(constant)
 
 
     def setSymbol(self, name: str, value) -> bool:

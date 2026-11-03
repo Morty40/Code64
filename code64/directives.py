@@ -383,7 +383,9 @@ def reportOpenBlocks(context):
 def _execute(context, code: str) -> bool:
     """Execute Python code. Returns False after reporting an error."""
     try:
-        exec(code, context.symbols)
+        compiled = compile(code, '<string>', 'exec')
+        context.noteReferences(compiled)
+        exec(compiled, context.symbols)
         return True
     except Exception as exception:
         context.reportError(f'Failed to execute python code: "{code}" ({type(exception).__name__}: {exception})')
@@ -404,7 +406,9 @@ def importFile(context, fileName: str):
         try:
             with open(path) as f:
                 py = f.read()
-            exec(py, context.symbols)
+            compiled = compile(py, '<string>', 'exec')
+            context.noteReferences(compiled)
+            exec(compiled, context.symbols)
         except Exception as exception:
             context.reportError(f'Failed to execute python code: "{fileName}" ({type(exception).__name__}: {exception})')
     elif not os.path.isfile(path):

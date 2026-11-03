@@ -309,6 +309,7 @@ Besides the Python built-ins, these are available:
 | `_` | the current address |
 | `lo(x)`, `hi(x)` | the low and high byte of a 16-bit value |
 | `ord(char)`, `chr(value)` | convert between a character and its value, in the current text encoding |
+| `ref("label")` | true if the label was referenced in the last pass, see below |
 | `sin`, `cos`, `pi`, `floor`, ... | everything from Python's `math` module, protected by the [symbol types](#symbol-types) |
 | `ENCODING_...` | the text encodings, see `.encoding` |
 
@@ -557,6 +558,24 @@ Assembles the lines up to `.else` if the Python expression `condition` is true, 
             nop
             .end
 ```
+
+With `ref("label")` as the condition, a library of code and data only adds what the program needs:
+
+```
+            jsr clearScreen
+
+            .if ref("clearScreen")      ; assembled, as clearScreen is referenced
+clearScreen:
+            lda #$20
+            rts
+            .end
+
+            .if ref("myTable")          ; not referenced, so nothing is stored
+myTable:    .byte 1, 2, 3
+            .end
+```
+
+`ref` is false in the first pass, so a block starts out left out, and is added in the following passes once something references its label. A block that only references itself is never added. Symbols set in a block that is left out are not defined.
 
 ### Python
 

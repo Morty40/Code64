@@ -13,7 +13,9 @@ def expression(e: str, context: Context):
     """Evaluate a Python expression, or report an error and return None."""
     value = None
     try:
-        value = builtins.eval(e, context.symbols)
+        code = compile(e, '<string>', 'eval')
+        context.noteReferences(code)
+        value = builtins.eval(code, context.symbols)
     except Exception as exception:
         message = str(exception) # capitalize only the first letter, keeping the case of names
         context.reportError(f'{message[:1].upper()}{message[1:]}: "{e}"')
