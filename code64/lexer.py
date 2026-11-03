@@ -152,6 +152,11 @@ def tokenizeFile(fileName: str) -> list:
     return tokens
 
 
+def referenceText(token: Token) -> str:
+    """The part of a token that can use symbols: of a string, only the expressions in {}."""
+    return ' '.join(re.findall(r'{(.*?)}', token.string)) if token.string.startswith('f"') else token.string
+
+
 def splitByNewline(tokens: list) -> Iterator[list]:
     """A generator that splits a list of tokens by newlines."""
     indices = [i for i, token in enumerate(tokens) if token.string=='\n']

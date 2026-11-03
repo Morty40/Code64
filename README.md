@@ -558,6 +558,31 @@ Assembles the lines up to `.else` if the Python expression `condition` is true, 
             .end
 ```
 
+#### .optional, .end
+```
+.optional
+...
+.end
+```
+Assembles the lines up to `.end` only if one of the block's global labels is used outside the block, so a library of code and data only adds what the program needs. Other symbols in the block, such as local labels, assignments and `.zpbyte` names, don't count, and a block without global labels is never assembled. Only use a block's global labels from outside it, as other symbols keep their old value when the block is left out.
+
+A nested block is only assembled if the outer block is, and each block only checks its own labels. So use a global label in an outer block too, for a nested block to be assembled.
+
+```
+            jsr func1
+
+            .optional           ; assembled, as func1 is used
+func1:      nop
+            rts
+func2:      nop
+            rts
+            .end
+
+            .optional           ; not used, so nothing is stored
+myTable:    .byte 1, 2, 3
+            .end
+```
+
 ### Python
 
 #### .python

@@ -240,9 +240,9 @@ def setBreakpoint(context, condition: str = None):
 
 
 ################################################################################
-# blocks: .repeat, .for and .if, each ended by .end
+# blocks: .repeat, .for, .if and .optional, each ended by .end
 
-BLOCKS = ('repeat', 'for', 'if') # the directives that start a block
+BLOCKS = ('repeat', 'for', 'if', 'optional') # the directives that start a block
 MAX_ITERATIONS = 0x10000 # a .for loop that runs longer is an error, e.g. a condition that is never false
 
 
@@ -367,6 +367,39 @@ def elseBlock(context, tokens: list, chunks: dict):
         context.reportError('Else already used for this if')
         return
     _skipBlock(context, chunks, 'else')
+
+
+def _globalLabels(lines: list) -> set:
+    """The global labels in the lines, except those in nested optional blocks."""
+    labels, blocks = set(), []
+    for line in lines:
+        if len(line) >= 2 and line[1].string == ':':
+            if line[0].string[0] != '_' and 'optional' not in blocks:
+                labels.add(line[0].string)
+            line = line[2:]
+        if len(line) >= 2 and line[0].string == '.':
+            if line[1].string in BLOCKS:
+                blocks.append(line[1].string)
+            elif line[1].string == 'end':
+                blocks.pop()
+    return labels
+
+
+@directive('optional', raw=True)
+def optional(context, tokens: list, chunks: dict):
+    """Start an optional block, skipped if none of its global labels was used outside it in the last pass.
+
+    All blocks are assembled in the first pass, to find what they use.
+    """
+    start = context.readPointer()
+    if _skipBlock(context, chunks, 'optional') is None:
+        return
+    fileName, end = context.readPointer()
+    labels = _globalLabels(chunks[fileName][start[1] + 1:end])
+    if context.lastReferences is None or any(word in labels and not (file == fileName and start[1] <= index <= end)
+                                             for word, file, index in context.lastReferences):
+        context.jumpReadPointer(start)
+        context.blockStack.append( ('optional', start) )
 
 
 def reportOpenBlocks(context):

@@ -11,6 +11,7 @@ The first release.
 - Python expressions, f-strings and lambdas in operands and directives
 - generators: Python functions that return assembly code
 - local labels, zero page variable allocation, `.repeat`, `.for` and `.if` blocks
+- `.optional` blocks of code or data, only assembled if one of their global labels is used
 - PETSCII and screen code text encodings
 - `.assert` to check conditions while assembling, e.g. the memory layout
 - import of source files, Python files, binary files and SID music

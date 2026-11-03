@@ -35,6 +35,8 @@ class Context:
         self.breakpoints = [] # (address, VICE condition or None) for each .break
         self.path = '' # folder of the main source file, for .import and .binary
         self.encoding = text.ENCODING_SCREEN_UPPER
+        self.references = set() # (word, fileName, lineIndex) of each word on the assembled lines, for .optional
+        self.lastReferences = None # the references of the last pass, None in the first pass
 
 
     def setSymbol(self, name: str, value) -> bool:

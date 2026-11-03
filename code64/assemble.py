@@ -8,6 +8,7 @@ import struct
 import tempfile
 import unittest
 import glob
+import re
 
 from . import assignment
 from . import cpu
@@ -49,6 +50,7 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
             exec(compile(f.read(), fileName, 'exec'), symbols) # the file name shows in tracebacks
 
     lastMemory = {}
+    lastReferences = None
     chunks = {} # the tokenized files and generated code, by name: tokenized once, for all passes
 
     for _ in range(MAX_PASSES):
@@ -56,6 +58,7 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
         symbols['_'] = DEFAULT_ORIGIN
         context = Context(symbols)
         context.path = path
+        context.lastReferences = lastReferences
         context.pushReadPointer( (inFile, 0) )
 
         # assemble line by line, from the file on top of the read pointer stack
@@ -83,6 +86,8 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
                     context.setSymbol(label, context.symbols['_'])
                     context.labels.add(label)
                     lineTokens = lineTokens[2:]
+
+                context.references.update((word, fileName, lineIndex) for word in re.findall(r'\w+', ' '.join(map(lexer.referenceText, lineTokens))))
 
                 if len(lineTokens) >= 1 and cpu.isMnemonic(lineTokens[0].string):
                     instructions.assemble(lineTokens, context)
@@ -113,6 +118,7 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
 
         # prepare for next pass
         lastMemory = dict(context.memory)
+        lastReferences = context.references
 
     # save the .prg: the load address, the lowest address used or DEFAULT_ORIGIN, then memory from there to the end
     if outFile and not context.errors:
@@ -336,6 +342,60 @@ class TestAssemble(unittest.TestCase):
             ('.if 0\n.else\nnop\n',            'test.asm:2: error: If without matching end'), # at the .else
             ('nop\n.repeat 2\n.if 1\n.end\n',  'test.asm:2: error: Repeat without matching end'), # the outer block
         ])
+
+    def _memory(self, source: str) -> list:
+        """Assemble source without errors, and return the bytes in memory, by address."""
+        with tempfile.TemporaryDirectory() as directory:
+            fileName = os.path.join(directory, 'test.asm')
+            with open(fileName, 'w') as f:
+                f.write(source)
+            context = assembleFile(fileName)
+        self.assertEqual(context.errors, [])
+        return [context.memory[address] for address in sorted(context.memory)]
+
+    def testOptional(self):
+        """An optional block is only assembled if one of its global labels is used outside it."""
+        table = '.optional\nmyTable: .byte 1, 2, 3\n.end\n'
+        functions = '.optional\nfunc1: nop\nrts\nfunc2: nop\nrts\n.end\n'
+        zeroPage = '.optional\n.zpbyte "xyz"\nfunc3: lda xyz\nrts\n.end\n'
+        block = '.optional\nt: .byte 8\n.end\n'
+        for source, expected in [
+            ('.byte 0\n' + table,                         [0]),                                # not used
+            ('.word myTable\n' + table,                   [0x02, 0x10, 1, 2, 3]),
+            (table + '.word myTable\n',                   [1, 2, 3, 0x00, 0x10]),              # used after the block
+            ('.word func1\n' + functions,                 [0x02, 0x10, 0xea, 0x60, 0xea, 0x60]), # any of its labels
+            ('.word func2\n' + functions,                 [0x04, 0x10, 0xea, 0x60, 0xea, 0x60]),
+            ('.byte 0\n' + zeroPage,                      [0]),                                # a .zpbyte name is ignored
+            ('.word func3\n' + zeroPage,                  [0x02, 0x10, 0xa5, 0x02, 0x60]),
+            ('.optional\n.byte 1, 2, 3\n.end\n',          []),                                 # no global labels
+            ('.optional\n_x: .byte 1\n.end\n',            []),                                 # only a local label
+            ('.word a\n.optional\na: .word b\n.end\n.optional\nb: .byte 9\n.end\n', [0x02, 0x10, 0x04, 0x10, 9]), # by another block
+            ('.byte 0\n.optional\ns: .word s\n.end\n',    [0]),                                # only used by itself
+            ('.word s\n.optional\ns: .word s\n.end\n',    [0x02, 0x10, 0x02, 0x10]),
+            ('.byte 0\n.optional\nloop: dex\nbne loop\nrts\n.end\n', [0]),                       # inside references don't count
+            ('jsr loop\n.optional\nloop: dex\nbne loop\nrts\n.end\n', [0x20, 0x03, 0x10, 0xca, 0xd0, 0xfd, 0x60]),
+            ('.print "t"\n' + block,                      []),                                 # text in a string is not a use
+            ('.encoding ENCODING_SCREEN_MIXED\n.text "t"\n' + block, [0x14]),
+            ('.print "{t}"\n' + block,                    [8]),                                # an expression in a string is
+            ('.if 0\n.word t\n.end\n.byte 0\n' + block,   [0]),                                # not used if skipped
+            ('lda #lo(t)\n' + block,                      [0xa9, 0x02, 8]),                    # in an expression
+            ('@"jmp t"\n' + block,                        [0x4c, 0x03, 0x10, 8]),              # by generated code
+            ('.python\ndef f():\n    return t\n.end\n.word f()\n' + block, [0x02, 0x10, 8]), # by Python code
+            ('.word f\n.optional\n.if 1\nf: nop\n.end\n.end\n', [0x02, 0x10, 0xea]),          # in an .if in the block
+        ]:
+            with self.subTest(source=source):
+                self.assertEqual(self._memory(source), expected)
+
+    def testOptionalNested(self):
+        """A nested block is only assembled if the outer block is, and they each check their own labels."""
+        nested = '.optional\nfunc4: .byte 4\n.optional\nfunc5: .byte 5\n.end\n.end\n'
+        self.assertEqual(self._memory('.byte 0\n' + nested), [0])
+        self.assertEqual(self._memory('.word func4\n' + nested), [0x02, 0x10, 4])
+        self.assertEqual(self._memory('.word func4, func5\n' + nested), [0x04, 0x10, 0x05, 0x10, 4, 5])
+
+    def testOptionalWithoutEnd(self):
+        """An optional block needs an .end."""
+        self._assertMessages([('.optional\nt: nop\n', 'test.asm:1: error: Optional without matching end')])
 
     def testZeroPageMessages(self):
         """.zpbyte and .zpword names that are used twice, or that do not fit."""
