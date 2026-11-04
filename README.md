@@ -35,7 +35,7 @@ python3 -m code64.main hello.asm -o hello.prg
 ## Usage
 
 ```
-code64 <asmFile> -o <outFile> [-t c16|c64|vic20] [-i none|stable|all] [-l <labelsFile>] [--vice <viceFile>]
+code64 <asmFile> -o <outFile> [-t c128|c16|c64|plus4|vic20] [-i none|stable|all] [-l <labelsFile>] [--vice <viceFile>]
 code64 -d <binFile> [-o <asmFile>] [-i none|stable|all] [-l <labelsFile>]
 code64 --version
 ```
@@ -45,7 +45,7 @@ code64 --version
 | `<asmFile>` | the source file to assemble |
 | `-d`, `--disassemble <binFile>` | disassemble the `.prg` or binary file instead, see [Disassembling](#disassembling) |
 | `-o`, `--output <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write. Without `-o` the source is printed |
-| `-t`, `--target <c16\|c64\|vic20>` | the target machine, whose [symbols and generators](#built-in-symbols) are imported. Without it, only the generic 6502 ones are |
+| `-t`, `--target <c128\|c16\|c64\|plus4\|vic20>` | the target machine, whose [symbols and generators](#built-in-symbols) are imported. Without it, only the generic 6502 ones are |
 | `-i`, `--illegal <none\|stable\|all>` | the [illegal instructions](#illegal-instructions) to use: none, the stable ones (the default), or all |
 | `-l`, `--labels <labelsFile>` | the [labels](#labels-file) file to write, as Python assignments. When disassembling, the labels file to read |
 | `--vice <viceFile>` | the [VICE monitor commands](#vice-monitor-commands) file to write: labels and breakpoints |
@@ -120,7 +120,7 @@ for message in context.warnings + context.errors:
 source = code64.disassembleFile('game.prg')
 ```
 
-`assembleFile(inFile, outFile=None, target=None)` assembles `inFile` for the target (`'c16'`, `'c64'`, `'vic20'` or none), saves `outFile` if given and there are no errors, and returns the `Context` of the last pass. Its `memory` is a dict of address to byte, `symbols` has the labels and other symbols, `printed` the `.print` output, and `warnings` and `errors` the messages.
+`assembleFile(inFile, outFile=None, target=None)` assembles `inFile` for the target (`'c128'`, `'c16'`, `'c64'`, `'plus4'`, `'vic20'` or none), saves `outFile` if given and there are no errors, and returns the `Context` of the last pass. Its `memory` is a dict of address to byte, `symbols` has the labels and other symbols, `printed` the `.print` output, and `warnings` and `errors` the messages.
 
 `disassembleFile(inFile, outFile=None)` returns the source, and saves it to `outFile` if given.
 
@@ -691,8 +691,21 @@ The Python files in `code64/imports/` are always imported, and are not specific 
 | `c64` | `music.py` | SID music files, and the generator `importMusic(file, prefix)` |
 | `c64` | `sid.py` | SID registers, `SID_...` |
 | `c64` | `vic.py` | VIC-II registers, `VIC_...` |
-| `c16` | `basic.py` | `BASIC_START_ADDRESS` (`$1001`) |
-| `vic20` | `basic.py` | `BASIC_START_ADDRESS` (`$1001`, without a memory expansion) |
+| `c16` | `basic.py` | `BASIC_START_ADDRESS` (`$1001`), and BASIC ROM addresses |
+| `c16` | `kernal.py` | KERNAL ROM routines, `KERNAL_ROM_...` |
+| `c16` | `machine.py` | `SCREEN_RAM` and `COLOR_RAM` |
+| `c16` | `ted.py` | TED registers and colors, `TED_...`, and `tedColor(color, luminance)` |
+| `plus4` | | the same files as `c16` |
+| `c128` | `basic.py` | `BASIC_START_ADDRESS` (`$1C01`), and BASIC ROM addresses |
+| `c128` | `cia.py`, `sid.py`, `vic.py`, `ioport.py` | the same as `c64` |
+| `c128` | `kernal.py` | KERNAL ROM routines, `KERNAL_ROM_...` |
+| `c128` | `machine.py` | `SCREEN_RAM`, `COLOR_RAM` and `CHAR_ROM`, in 40 columns |
+| `c128` | `mmu.py`, `vdc.py` | MMU and VDC registers, `MMU_...` and `VDC_...` |
+| `vic20` | `basic.py` | `BASIC_START_ADDRESS` (`$1001`, without a memory expansion), and BASIC ROM addresses |
+| `vic20` | `kernal.py` | KERNAL ROM routines, `KERNAL_ROM_...`, without `SCINIT`, `IOINIT` and `RAMTAS` |
+| `vic20` | `machine.py` | `SCREEN_RAM` and `COLOR_RAM`, and `SCREEN_RAM_EXPANDED` and `COLOR_RAM_EXPANDED` with 8K or more of memory expansion |
+| `vic20` | `via.py` | VIA 1 and 2 registers, `VIA1_...` and `VIA2_...` |
+| `vic20` | `vic.py` | VIC registers and colors, `VIC_...` |
 
 `importMusic(file, prefix)`, with `-t c64`, stores the music data from a SID file, without the header. PSID versions 1 to 4 and RSID versions 2 to 4 are supported, but not Compute!'s Sidplayer MUS data. The symbols `prefix_LOAD`, `prefix_INIT` and `prefix_PLAY` are defined with the load, init and play addresses. The path is relative to the folder of the main source file:
 

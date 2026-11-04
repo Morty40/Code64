@@ -81,8 +81,8 @@ BASIC_TOKEN_RIGHT      = 0xc9 # RIGHT$
 BASIC_TOKEN_MID        = 0xca # MID$
 BASIC_TOKEN_GO         = 0xcb
 
-# Only on the C16 (and Plus/4), BASIC 3.5. PET BASIC 4 and the CBM-II use these values for other keywords,
-# and are not included.
+# Only on the C16, Plus/4 and C128, except RLUM on the C128. PET BASIC 4 and the CBM-II use these values
+# for other keywords, and are not included.
 BASIC_TOKEN_RGR        = 0xcc
 BASIC_TOKEN_RCLR       = 0xcd
 BASIC_TOKEN_RLUM       = 0xce

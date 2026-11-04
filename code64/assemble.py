@@ -24,7 +24,7 @@ MAX_PASSES = 42
 
 DEFAULT_ORIGIN = 0x1000 # the address when there is no .org
 
-TARGETS = ('c16', 'c64', 'vic20') # the folders in imports/target
+TARGETS = ('c128', 'c16', 'c64', 'plus4', 'vic20') # the folders in imports/target
 
 
 def assembleFile(inFile: str, outFile: str = None, target: str = None) -> Context:
@@ -573,13 +573,111 @@ class TestAssemble(unittest.TestCase):
     def testTargets(self):
         """A target adds the imports of its folder, to the generic ones."""
         source = '@basicStart()\n@basicLine(10, "SYS {start}")\n@basicEnd()\nstart: @ldax($1234)\n'
-        for target, start in [('c64', 0x0801), ('vic20', 0x1001), ('c16', 0x1001)]:
+        for target, start in [('c64', 0x0801), ('vic20', 0x1001), ('c16', 0x1001), ('plus4', 0x1001), ('c128', 0x1c01)]:
             with self.subTest(target=target):
                 context = self._assembleForTarget(source, target)
                 self.assertEqual(context.errors, [])
                 self.assertEqual(min(context.memory), start)
                 self.assertEqual(context.symbols['BASIC_START_ADDRESS'], start)
         self.assertEqual(self._assembleForTarget('.word VIC_BORDER_COLOR, CHAR_ROM\n', 'c64').errors, [])
+
+    def testVic20Vic(self):
+        """The VIC-20 has its own VIC registers and colors, also where the name is the same as on the C64."""
+        symbols = self._assembleForTarget('nop\n', 'vic20').symbols
+        for name, value in [('VIC_ORIGIN_X', 0x9000), ('VIC_ORIGIN_Y', 0x9001), ('VIC_COLUMNS', 0x9002), ('VIC_ROWS', 0x9003),
+                            ('VIC_RASTER_COUNTER', 0x9004), ('VIC_MEMORY_POINTERS', 0x9005),
+                            ('VIC_LIGHT_PEN_X', 0x9006), ('VIC_LIGHT_PEN_Y', 0x9007), ('VIC_PADDLE_X', 0x9008), ('VIC_PADDLE_Y', 0x9009),
+                            ('VIC_OSCILLATOR1', 0x900a), ('VIC_OSCILLATOR2', 0x900b), ('VIC_OSCILLATOR3', 0x900c), ('VIC_NOISE', 0x900d),
+                            ('VIC_AUXILIARY_COLOR_VOLUME', 0x900e), ('VIC_BACKGROUND_BORDER_COLOR', 0x900f),
+                            ('VIC_COLOR_BLACK', 0), ('VIC_COLOR_YELLOW', 7), ('VIC_COLOR_ORANGE', 8), ('VIC_COLOR_LIGHT_YELLOW', 15)]:
+            with self.subTest(name=name):
+                self.assertEqual(symbols[name], value)
+        self.assertEqual(self._assembleForTarget('nop\n', 'c64').symbols['VIC_RASTER_COUNTER'], 0xd012)
+        self.assertIn("Name 'VIC_BORDER_COLOR' is not defined", self._assembleForTarget('.word VIC_BORDER_COLOR\n', 'vic20').errors[0])
+        self.assertIn("Name 'VIC_ORIGIN_X' is not defined", self._assembleForTarget('.word VIC_ORIGIN_X\n', 'c16').errors[0])
+
+    def testVic20Via(self):
+        """The VIC-20 has two VIA chips, with the same registers from $9110 and $9120."""
+        symbols = self._assembleForTarget('nop\n', 'vic20').symbols
+        registers = ['DATA_PORTB', 'DATA_PORTA', 'DATA_DIRECTION_PORTB', 'DATA_DIRECTION_PORTA',
+                     'TIMER1_COUNTER_LO', 'TIMER1_COUNTER_HI', 'TIMER1_LATCH_LO', 'TIMER1_LATCH_HI', 'TIMER2_LO', 'TIMER2_HI',
+                     'SERIAL_SHIFT', 'AUXILIARY_CONTROL', 'PERIPHERAL_CONTROL', 'INTERRUPT_FLAG', 'INTERRUPT_ENABLE', 'DATA_PORTA_NO_HANDSHAKE']
+        for chip, base in [('VIA1', 0x9110), ('VIA2', 0x9120)]:
+            for offset, register in enumerate(registers):
+                with self.subTest(register=f'{chip}_{register}'):
+                    self.assertEqual(symbols[f'{chip}_{register}'], base + offset)
+        self.assertIn("Name 'VIA1_DATA_PORTA' is not defined", self._assembleForTarget('.word VIA1_DATA_PORTA\n', 'c64').errors[0])
+
+    def testVic20Machine(self):
+        """The screen and color RAM of the VIC-20, without and with 8K or more of memory expansion."""
+        symbols = self._assembleForTarget('nop\n', 'vic20').symbols
+        for name, value in [('SCREEN_RAM', 0x1e00), ('COLOR_RAM', 0x9600), ('SCREEN_RAM_EXPANDED', 0x1000), ('COLOR_RAM_EXPANDED', 0x9400)]:
+            with self.subTest(name=name):
+                self.assertEqual(symbols[name], value)
+        self.assertIn("Name 'SCREEN_RAM' is not defined", self._assembleForTarget('.word SCREEN_RAM\n', 'c64').errors[0])
+
+    def testC16Ted(self):
+        """The C16 has the TED registers and colors, and only there."""
+        symbols = self._assembleForTarget('nop\n', 'c16').symbols
+        for name, value in [('TED_TIMER1_LO', 0xff00), ('TED_TIMER3_HI', 0xff05), ('TED_CONTROL_SCROLL_Y', 0xff06), ('TED_CONTROL_SCROLL_X', 0xff07),
+                            ('TED_KEYBOARD', 0xff08), ('TED_INTERRUPT_REGISTER', 0xff09), ('TED_INTERRUPT_ENABLED', 0xff0a), ('TED_RASTER_COMPARE', 0xff0b),
+                            ('TED_CURSOR_HI', 0xff0c), ('TED_CURSOR_LO', 0xff0d),
+                            ('TED_VOICE1_FREQUENCY_LO', 0xff0e), ('TED_VOICE2_FREQUENCY_LO', 0xff0f), ('TED_VOICE2_FREQUENCY_HI', 0xff10),
+                            ('TED_SOUND_CONTROL', 0xff11), ('TED_VOICE1_FREQUENCY_HI', 0xff12), ('TED_CHARSET', 0xff13), ('TED_SCREEN', 0xff14),
+                            ('TED_BACKGROUND_COLOR0', 0xff15), ('TED_BACKGROUND_COLOR3', 0xff18), ('TED_BORDER_COLOR', 0xff19),
+                            ('TED_CHARACTER_POSITION_HI', 0xff1a), ('TED_CHARACTER_POSITION_LO', 0xff1b), ('TED_RASTER_HI', 0xff1c), ('TED_RASTER_LO', 0xff1d),
+                            ('TED_HORIZONTAL_POSITION', 0xff1e), ('TED_CHARACTER_LINE_FLASH', 0xff1f), ('TED_ROM_SELECT', 0xff3e), ('TED_RAM_SELECT', 0xff3f),
+                            ('TED_COLOR_BLACK', 0), ('TED_COLOR_YELLOW', 7), ('TED_COLOR_LIGHT_GREEN', 15)]:
+            with self.subTest(name=name):
+                self.assertEqual(symbols[name], value)
+        self.assertEqual(symbols['tedColor'](symbols['TED_COLOR_RED'], 5), 0x52)
+        self.assertIn("Name 'TED_BORDER_COLOR' is not defined", self._assembleForTarget('.word TED_BORDER_COLOR\n', 'c64').errors[0])
+
+    def testKernal(self):
+        """The KERNAL routines of each target, from their jump tables, which mostly have the same addresses."""
+        routines = ['RESTOR', 'VECTOR', 'SETMSG', 'LSTNSA', 'TALKSA', 'MEMBOT', 'MEMTOP', 'SCNKEY', 'SETTMO', 'IECIN', 'IECOUT', 'UNTALK',
+                    'UNLSTN', 'LISTEN', 'TALK', 'READST', 'SETLFS', 'SETNAM', 'OPEN', 'CLOSE', 'CHKIN', 'CHKOUT', 'CLRCHN', 'CHRIN', 'CHROUT',
+                    'LOAD', 'SAVE', 'SETTIM', 'RDTIM', 'STOP', 'GETIN', 'CLALL', 'UDTIM', 'SCREEN', 'PLOT', 'IOBASE']
+        symbols = {target: self._assembleForTarget('nop\n', target).symbols for target in TARGETS}
+        for routine in routines:
+            with self.subTest(routine=routine):
+                addresses = {target: symbols[target][f'KERNAL_ROM_{routine}'] for target in TARGETS}
+                self.assertEqual(len(set(addresses.values())), 1, addresses)
+        self.assertEqual(symbols['c16']['KERNAL_ROM_CHROUT'], 0xffd2)
+        self.assertEqual({target: symbols[target]['KERNAL_ROM'] for target in TARGETS},
+                         {'c64': 0xe000, 'vic20': 0xe000, 'c16': 0xc000, 'plus4': 0xc000, 'c128': 0xc000})
+        self.assertEqual({symbols['c16']['KERNAL_ROM_SCINIT'], symbols['c16']['KERNAL_ROM_IOINIT'], symbols['c16']['KERNAL_ROM_RAMTAS']}, {0xff81, 0xff84, 0xff87})
+        self.assertNotIn('KERNAL_ROM_SCINIT', symbols['vic20'])                # the VIC-20 table starts at $ff8a
+
+    def testBasicRom(self):
+        """The BASIC ROM and its string output routine, on each target."""
+        for target, rom, strout in [('c64', 0xa000, 0xab1e), ('vic20', 0xc000, 0xcb1e), ('c16', 0x8000, 0x9088), ('plus4', 0x8000, 0x9088), ('c128', 0x4000, 0x55e2)]:
+            with self.subTest(target=target):
+                symbols = self._assembleForTarget('nop\n', target).symbols
+                self.assertEqual((symbols['BASIC_ROM'], symbols['BASIC_ROM_STROUT']), (rom, strout))
+
+    def testC16Machine(self):
+        """The screen and color RAM of the C16."""
+        symbols = self._assembleForTarget('nop\n', 'c16').symbols
+        self.assertEqual((symbols['SCREEN_RAM'], symbols['COLOR_RAM']), (0x0c00, 0x0800))
+
+    def testC128(self):
+        """The C128 has the chips of the C64, its own memory addresses, the MMU and the VDC."""
+        symbols = self._assembleForTarget('nop\n', 'c128').symbols
+        for name, value in [('VIC_BORDER_COLOR', 0xd020), ('SID_VOICE1_FREQUENCY_LO', 0xd400), ('CIA1_DATA_PORTA', 0xdc00), ('SCREEN_RAM', 0x0400),
+                            ('COLOR_RAM', 0xd800), ('MMU_CONFIGURATION', 0xd500), ('MMU_VERSION', 0xd50b), ('VDC_ADDRESS', 0xd600), ('VDC_DATA', 0xd601)]:
+            with self.subTest(name=name):
+                self.assertEqual(symbols[name], value)
+        self.assertNotIn('BASIC_TOKEN_RLUM', symbols)                  # $ce is a prefix for two byte tokens on the C128
+
+    def testPlus4(self):
+        """The Plus/4 has the same symbols as the C16, and no SID."""
+        symbols = {target: self._assembleForTarget('nop\n', target).symbols for target in ['c16', 'plus4']}
+        for name, value in symbols['c16'].items():
+            if name.isupper() and name != 'SOURCE_FOLDER':
+                with self.subTest(name=name):
+                    self.assertEqual(symbols['plus4'][name], value)
+        self.assertEqual(symbols['plus4']['TED_BORDER_COLOR'], 0xff19)
 
     def testTargetOnlyHasItsOwnImports(self):
         """The imports of one target are not available in another."""

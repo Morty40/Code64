@@ -42,7 +42,7 @@ Changelog = "https://github.com/Morty40/Code64/blob/main/CHANGELOG.md"
 code64 = "code64.main:main"
 
 [tool.setuptools]
-packages = ["code64", "code64.imports", "code64.imports.target.c16", "code64.imports.target.c64", "code64.imports.target.vic20"]
+packages = ["code64", "code64.imports", "code64.imports.target.c128", "code64.imports.target.c16", "code64.imports.target.c64", "code64.imports.target.plus4", "code64.imports.target.vic20"]
 zip-safe = false
 
 [tool.setuptools.dynamic]
