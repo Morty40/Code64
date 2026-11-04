@@ -491,21 +491,6 @@ Stores the contents of a binary file, with the path relative to the folder of th
             .binary "sprites.bin", 64, 128 ; the second and third sprite
 ```
 
-#### .music
-```
-.music "file", "prefix"
-```
-Stores the music data from a SID file, without the header. PSID versions 1 to 4 and RSID versions 2 to 4 are supported, but not Compute!'s Sidplayer MUS data. The symbols `prefix_LOAD`, `prefix_INIT` and `prefix_PLAY` are defined with the load, init and play addresses of the music. An init address of 0 in the file is the load address, and a play address of 0 means the init routine installs its own interrupt handler, as RSID music always does. The data must be stored at its load address:
-
-```
-            .org MUSIC_LOAD
-            .music "song.sid", "MUSIC"
-            ...
-            jsr MUSIC_INIT
-```
-
-The path is relative to the folder of the main source file.
-
 ### Repetition
 
 #### .repeat, .end
@@ -691,6 +676,8 @@ The Python files in `code64/imports/` are always imported, and are not specific 
             @basicEnd()
 ```
 
+`SOURCE_FOLDER` is the folder of the main source file, for generators that read files.
+
 `-t` or `--target` also imports all the files of a target machine, from `code64/imports/target/`. Without it, no target files are imported, so a symbol such as `VIC_BORDER_COLOR` is not defined.
 
 | Target | File | Contents |
@@ -701,10 +688,20 @@ The Python files in `code64/imports/` are always imported, and are not specific 
 | `c64` | `kernal.py` | KERNAL ROM routines, `KERNAL_ROM_...` |
 | `c64` | `keyboard.py` | keyboard matrix codes, `KEYBOARD_CODE_...` |
 | `c64` | `machine.py` | `CHAR_ROM` |
+| `c64` | `music.py` | SID music files, and the generator `importMusic(file, prefix)` |
 | `c64` | `sid.py` | SID registers, `SID_...` |
 | `c64` | `vic.py` | VIC-II registers, `VIC_...` |
 | `c16` | `basic.py` | `BASIC_START_ADDRESS` (`$1001`) |
 | `vic20` | `basic.py` | `BASIC_START_ADDRESS` (`$1001`, without a memory expansion) |
+
+`importMusic(file, prefix)`, with `-t c64`, stores the music data from a SID file, without the header. PSID versions 1 to 4 and RSID versions 2 to 4 are supported, but not Compute!'s Sidplayer MUS data. The symbols `prefix_LOAD`, `prefix_INIT` and `prefix_PLAY` are defined with the load, init and play addresses. The path is relative to the folder of the main source file:
+
+```
+            .org MUSIC_LOAD
+            @importMusic("song.sid", "MUSIC")
+            ...
+            jsr MUSIC_INIT
+```
 
 For example `@ldax(message)` loads the address of `message` into a (low byte) and x (high byte).
 

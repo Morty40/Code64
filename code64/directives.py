@@ -12,7 +12,6 @@ import unittest
 
 from . import evaluate
 from . import lexer
-from . import music
 from . import text
 from .context import Context
 
@@ -458,21 +457,6 @@ def binary(context, fileName: str, offset: int = 0, length: int = None):
         return
 
     for b in data[offset:None if length is None else offset+length]:
-        context.store(b)
-
-
-@directive('music')
-def loadMusic(context, fileName: str, prefix: str):
-    """Store the music from a SID file, and define prefix_LOAD, prefix_INIT and prefix_PLAY."""
-    mu = music.load(fileName, context)
-    if mu is None:
-        context.reportError(f'Music not loaded: "{fileName}"')
-        return
-
-    context.setSymbol(prefix+'_LOAD', mu.loadAddress)
-    context.setSymbol(prefix+'_INIT', mu.initAddress)
-    context.setSymbol(prefix+'_PLAY', mu.playAddress)
-    for b in mu.data:
         context.store(b)
 
 

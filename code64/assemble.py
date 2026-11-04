@@ -45,7 +45,8 @@ def assembleFile(inFile: str, outFile: str = None, target: str = None) -> Contex
         'ENCODING_SCREEN_UPPER': text.ENCODING_SCREEN_UPPER,
         'ENCODING_SCREEN_MIXED': text.ENCODING_SCREEN_MIXED,
         'ENCODING_PETSCII_UPPER': text.ENCODING_PETSCII_UPPER,
-        'ENCODING_PETSCII_MIXED': text.ENCODING_PETSCII_MIXED}
+        'ENCODING_PETSCII_MIXED': text.ENCODING_PETSCII_MIXED,
+        'SOURCE_FOLDER': path} # for generators that read files
 
     root = os.path.abspath(os.path.dirname(__file__))
     imports = sorted(glob.glob(os.path.join(root, 'imports/*.py')))
@@ -222,7 +223,7 @@ class TestAssemble(unittest.TestCase):
                     self.assertEqual(list(f.read()), expected)
 
     def testFilePaths(self):
-        """.binary and .music read files relative to the folder of the main source file, not the current folder."""
+        """.binary and @importMusic read files relative to the folder of the main source file, not the current folder."""
         with tempfile.TemporaryDirectory() as directory:
             sid = struct.pack('>4sHHHHHHHL32s32s32sHBBBB', b'PSID', 2, 0x7c, 0x2000, 0x2000, 0x2003, 1, 1, 0, b'', b'', b'', 0, 0, 0, 0, 0)
             for name, data in [('paths.bin', b'\x01\x02'), ('paths.sid', sid + b'\x60')]:
@@ -230,8 +231,8 @@ class TestAssemble(unittest.TestCase):
                     f.write(data)
             asmFile, prgFile = os.path.join(directory, 'paths.asm'), os.path.join(directory, 'paths.prg')
             with open(asmFile, 'w') as f:
-                f.write('.binary "paths.bin"\n.org M_LOAD\n.music "paths.sid", "M"\n')
-            context = assembleFile(asmFile, prgFile)
+                f.write('.binary "paths.bin"\n.org M_LOAD\n@importMusic("paths.sid", "M")\n')
+            context = assembleFile(asmFile, prgFile, target='c64')
             self.assertEqual(context.errors, [])
             self.assertEqual((context.memory[0x1000], context.memory[0x1001], context.memory[0x2000]), (0x01, 0x02, 0x60))
 
@@ -334,8 +335,6 @@ class TestAssemble(unittest.TestCase):
         self._assertMessages([
             ('.import "nothere.asm"\n',              'test.asm:1: error: File not found: "nothere.asm"'),
             ('.binary "nothere.bin"\n',              'test.asm:1: error: File not found: "nothere.bin"'),
-            ('.music "nothere.sid", "M"\n',          'test.asm:1: error: File not found: "nothere.sid"'),
-            ('.music "nothere.sid", "M"\n',          'test.asm:1: error: Music not loaded: "nothere.sid"'),
         ])
 
     def testUnclosedBlockMessages(self):
@@ -608,6 +607,174 @@ class TestAssemble(unittest.TestCase):
                     self.fail('ZeroDivisionError not raised')
                 except ZeroDivisionError as exception: # not assertRaises, which drops the traceback
                     self.assertEqual(traceback.extract_tb(exception.__traceback__)[-1].filename, fileName)
+
+class TestMusic(unittest.TestCase):
+    """Tests of reading SID files."""
+
+    def setUp(self):
+        """Create a temporary folder for the SID files."""
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.directory = directory.name
+        self._Music = self._assemble('nop\n').symbols.get('_Music')
+
+    def _sidFile(self, magicId=b'PSID', version=2, dataOffset=None, loadAddress=0x1000, initAddress=0x1000, playAddress=0x1003,
+                 songs=1, startSong=1, speed=0, name=b'', author=b'', released=b'',
+                 flags=0, startPage=0, pageLength=0, secondSid=0, thirdSid=0, data=b'\x4c\x00\x10\x60') -> str:
+        """Write a SID file, with the header of the version, and return its name."""
+        if dataOffset is None:
+            dataOffset = 0x76 if version == 1 else 0x7c
+        header = struct.pack('>4sHHHHHHHL32s32s32s', magicId, version, dataOffset, loadAddress, initAddress, playAddress,
+                             songs, startSong, speed, name, author, released)
+        if version >= 2:
+            header += struct.pack('>HBBBB', flags, startPage, pageLength, secondSid, thirdSid)
+        fileName = os.path.join(self.directory, f'{len(os.listdir(self.directory))}.sid')
+        with open(fileName, 'wb') as f:
+            f.write(header[:dataOffset] + data)
+        return fileName
+
+    def _load(self, fileName: str):
+        """Load the file, and return the Music, or None, and the errors."""
+        try:
+            return self._Music.load(fileName), []
+        except ValueError as exception:
+            return None, [str(exception)]
+
+    def _assemble(self, source: str, target: str = 'c64') -> Context:
+        """Assemble source in the temporary folder, and return the context."""
+        fileName = os.path.join(self.directory, 'test.asm')
+        with open(fileName, 'w') as f:
+            f.write(source)
+        return assembleFile(fileName, target=target)
+
+    def testImportMusic(self):
+        """@importMusic stores the music where .org says, and defines the addresses with the prefix."""
+        sid = os.path.basename(self._sidFile(loadAddress=0x2000, initAddress=0x2000, playAddress=0x2003, data=b'\x4c\x00\x20\x60'))
+        context = self._assemble(f'.org MUSIC_LOAD\n@importMusic("{sid}", "MUSIC")\njsr MUSIC_INIT\n')
+        self.assertEqual(context.errors, [])
+        memory = [context.memory[address] for address in sorted(context.memory)]
+        self.assertEqual(memory, [0x4c, 0x00, 0x20, 0x60, 0x20, 0x00, 0x20])
+        self.assertEqual(min(context.memory), 0x2000)
+        symbols = context.symbols
+        self.assertEqual((symbols['MUSIC_LOAD'], symbols['MUSIC_INIT'], symbols['MUSIC_PLAY']), (0x2000, 0x2000, 0x2003))
+
+    def testImportMusicWithLoadAddressInData(self):
+        """The load address in the first two bytes of the data is not stored."""
+        sid = os.path.basename(self._sidFile(loadAddress=0, initAddress=0x2000, data=b'\x00\x20\x60'))
+        context = self._assemble(f'.org M_LOAD\n@importMusic("{sid}", "M")\n')
+        self.assertEqual(context.errors, [])
+        self.assertEqual(context.memory, {0x2000: 0x60})
+
+    def testImportMusicMessages(self):
+        """A file that is not found or not valid is an error, and the generator needs the c64 target."""
+        sid = os.path.basename(self._sidFile(magicId=b'MSID'))
+        for source, target, message in [
+            ('@importMusic("nothere.sid", "M")\n', 'c64',   'test.asm:1: error: File not found: "nothere.sid"'),
+            (f'@importMusic("{sid}", "M")\n',      'c64',   f'test.asm:1: error: Not a valid sid file: "{sid}": not PSID or RSID'),
+            (f'@importMusic("{sid}", "M")\n',      None,    "test.asm:1: error: Name 'importMusic' is not defined"),
+            (f'@importMusic("{sid}", "M")\n',      'vic20', "test.asm:1: error: Name 'importMusic' is not defined"),
+            (f'.music "{sid}", "M"\n',             'c64',   'test.asm:1: error: Invalid directive: .music'),
+        ]:
+            with self.subTest(source=source, target=target):
+                self.assertIn(message, '\n'.join(self._assemble(source, target).errors).replace(self.directory + os.sep, ''))
+
+    def testImportsAreNotSymbols(self):
+        """The class and the Python modules in music.py don't take names from the source."""
+        symbols = self._assemble('nop\n').symbols
+        for name in ['Music', 'os', 'struct', 'dataclass', 'field']:
+            with self.subTest(name=name):
+                self.assertNotIn(name, symbols)
+
+    def testPsidVersion1(self):
+        """Version 1 has the shorter header, and no flags."""
+        music, errors = self._load(self._sidFile(version=1, songs=3, startSong=2, name=b'Song', author=b'Me', released=b'2021 Me'))
+        self.assertEqual(errors, [])
+        self.assertEqual((music.magicId, music.version), ('PSID', 1))
+        self.assertEqual((music.loadAddress, music.initAddress, music.playAddress), (0x1000, 0x1000, 0x1003))
+        self.assertEqual(music.data, b'\x4c\x00\x10\x60')
+        self.assertEqual((music.songs, music.startSong), (3, 2))
+        self.assertEqual((music.name, music.author, music.released), ('Song', 'Me', '2021 Me'))
+        self.assertEqual((music.flags, music.clock, music.sidModels, music.sidAddresses), (0, 'unknown', ['unknown'], [0xd400]))
+
+    def testLoadAddressInData(self):
+        """A load address of 0 means the first two bytes of the data are the load address."""
+        music, errors = self._load(self._sidFile(loadAddress=0, data=b'\x00\x20\x60'))
+        self.assertEqual(errors, [])
+        self.assertEqual((music.loadAddress, music.data), (0x2000, b'\x60'))
+
+    def testInitAddressDefault(self):
+        """An init address of 0 means the load address."""
+        music, errors = self._load(self._sidFile(loadAddress=0x1800, initAddress=0))
+        self.assertEqual(music.initAddress, 0x1800)
+
+    def testPsidVersion2(self):
+        """Version 2 adds the flags and the relocation range. Strings are Latin-1, and can fill all 32 bytes."""
+        flags = 0b01 << 2 | 0b10 << 4 # PAL, MOS8580
+        music, errors = self._load(self._sidFile(flags=flags, startPage=0x20, pageLength=0x10, name=b'J\xe4ger' + b'x'*27, author=b'A'*32))
+        self.assertEqual(errors, [])
+        self.assertEqual((music.clock, music.sidModels, music.isBasic, music.isPlaySidSpecific), ('PAL', ['MOS8580'], False, False))
+        self.assertEqual((music.startPage, music.pageLength), (0x20, 0x10))
+        self.assertEqual((music.name, music.author), ('Jäger' + 'x'*27, 'A'*32))
+        music, errors = self._load(self._sidFile(flags=0b11 << 2 | 0b11 << 4 | 0b10)) # PAL and NTSC, both SID models, PlaySID specific
+        self.assertEqual((music.clock, music.sidModels, music.isPlaySidSpecific), ('PAL and NTSC', ['MOS6581 and MOS8580'], True))
+
+    def testExtraSids(self):
+        """Version 3 adds a second SID, and version 4 a third, each with its own model and address."""
+        flags = 0b01 << 4 | 0b10 << 6 | 0b01 << 8 # MOS6581, MOS8580, MOS6581
+        music, errors = self._load(self._sidFile(version=3, flags=flags, secondSid=0x42))
+        self.assertEqual(errors, [])
+        self.assertEqual((music.sidAddresses, music.sidModels), ([0xd400, 0xd420], ['MOS6581', 'MOS8580']))
+        music, errors = self._load(self._sidFile(version=4, flags=flags, secondSid=0x42, thirdSid=0xe0))
+        self.assertEqual((music.sidAddresses, music.sidModels), ([0xd400, 0xd420, 0xde00], ['MOS6581', 'MOS8580', 'MOS6581']))
+        music, errors = self._load(self._sidFile(version=2, secondSid=0x42, thirdSid=0xe0)) # reserved before version 3 and 4
+        self.assertEqual(music.sidAddresses, [0xd400])
+        for address in [0x43, 0x40, 0x80, 0xd4, 0xff]: # odd, or outside $42-$7f and $e0-$fe
+            with self.subTest(address=address):
+                music, errors = self._load(self._sidFile(version=4, secondSid=address, thirdSid=address))
+                self.assertEqual(music.sidAddresses, [0xd400])
+
+    def testRsid(self):
+        """RSID has versions 2 to 4, with the load address in the data, and no play address."""
+        for version in [2, 3, 4]:
+            with self.subTest(version=version):
+                music, errors = self._load(self._sidFile(magicId=b'RSID', version=version, loadAddress=0, initAddress=0x1000, playAddress=0,
+                                                         data=b'\x00\x10\x60'))
+                self.assertEqual(errors, [])
+                self.assertEqual((music.magicId, music.version), ('RSID', version))
+                self.assertEqual((music.loadAddress, music.initAddress, music.playAddress, music.data), (0x1000, 0x1000, 0, b'\x60'))
+        music, errors = self._load(self._sidFile(magicId=b'RSID', loadAddress=0, initAddress=0, playAddress=0, flags=0b10,
+                                                 data=b'\x01\x08\x00')) # a BASIC program, started with RUN
+        self.assertEqual(errors, [])
+        self.assertEqual((music.isBasic, music.isPlaySidSpecific, music.initAddress), (True, False, 0))
+
+    def testSpeed(self):
+        """Bit n of the speed is set if song n+1 uses a CIA timer, with bit 31 for song 32 and later."""
+        music, errors = self._load(self._sidFile(songs=40, speed=0b101 | 1 << 31))
+        self.assertEqual([song for song in range(1, 41) if music.usesCiaTimer(song)], [1, 3] + list(range(32, 41)))
+
+    def testInvalid(self):
+        """Invalid files report an error, and return None."""
+        for name, fileName, error in [
+            ('not found',          os.path.join(self.directory, 'missing.sid'),                             'File not found'),
+            ('magic id',           self._sidFile(magicId=b'MSID'),                                          'Not a valid sid file'),
+            ('short header',       self._sidFile(dataOffset=0x20, data=b''),                                'Not a valid sid file'),
+            ('PSID version',       self._sidFile(version=5),                                                'unsupported PSID version 5'),
+            ('RSID version 1',     self._sidFile(magicId=b'RSID', version=1, loadAddress=0, playAddress=0), 'unsupported RSID version 1'),
+            ('data offset',        self._sidFile(version=2, dataOffset=0x76),                               'data offset'),
+            ('no data',            self._sidFile(data=b''),                                                 'no music data'),
+            ('no data after load', self._sidFile(loadAddress=0, data=b'\x00\x10'),                          'no music data'),
+            ('past $ffff',         self._sidFile(loadAddress=0xfffe, data=b'\x60\x60\x60'),                 'past $ffff'),
+            ('MUS data',           self._sidFile(flags=0b01),                                               'Sidplayer MUS'),
+            ('RSID load',          self._sidFile(magicId=b'RSID', loadAddress=0x1000, playAddress=0),       'RSID load address'),
+            ('RSID play',          self._sidFile(magicId=b'RSID', loadAddress=0, data=b'\x00\x10\x60'),     'RSID play address'),
+            ('RSID speed',         self._sidFile(magicId=b'RSID', loadAddress=0, playAddress=0, speed=1,
+                                                 data=b'\x00\x10\x60'),                                     'RSID speed')]:
+            with self.subTest(name=name):
+                music, errors = self._load(fileName)
+                self.assertIsNone(music)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn(error, errors[0])
+
 
 if __name__ == '__main__':
     unittest.main()
