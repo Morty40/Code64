@@ -4,13 +4,29 @@
 import errno
 import os
 import re
-import shlex
 import textwrap
 import unittest
 from dataclasses import dataclass
 from typing import Iterator
 
 from . import cpu
+
+
+# the tokens of a line, in the order they are tried, with the longest operators first
+_TOKEN = re.compile(r'''
+    ;.*                                         # comment
+  | [A-Za-z]*"(?:\\.|[^"\\])*"                  # strings, with any prefix
+  | [A-Za-z]*'(?:\\.|[^'\\])*'
+  | \$\w*                                       # hex number
+  | %[01]+\b                                    # binary number, or modulo and a number, see tokenize()
+  | \d[\w.]*(?:(?<=[eE])[-+]\d+)?               # number, with an optional signed exponent
+  | \w+                                         # name
+  | <<|>>|<=|>=|==|!=|\*\*|//|:=                 # operators of two characters
+  | \S                                          # anything else, including an unmatched quote
+''', re.VERBOSE)
+
+
+_KEYWORDS = ('if', 'else', 'or', 'not', 'in', 'is') # Python keywords that an operand follows
 
 
 @dataclass
@@ -103,15 +119,8 @@ def tokenize(text: str, fileName: str='') -> list:
                     pythonBlock.append(line)
                 continue
 
-            lex = shlex.shlex(line, punctuation_chars="|&<>.=")
-            lex.commenters = ';'
-            lex.wordchars += '$%'
-
-            # shlex raises ValueError when a line ends inside a quoted string. list() reads the
-            # whole line first, so a broken line is replaced before any of its tokens are used.
-            try:
-                words = list(lex)
-            except ValueError: # e.g. no closing quotation
+            words = [word for word in _TOKEN.findall(line) if not word.startswith(';')]
+            if '"' in words or "'" in words: # no closing quotation
                 words = [line] # one token, reported as invalid syntax when assembled
 
             if words[:2] == ['.', 'python'] and len(words) > 2: # Python code is only allowed in a block
@@ -125,10 +134,11 @@ def tokenize(text: str, fileName: str='') -> list:
             for token in words:
                 # % is modulo after a number, name or closing bracket (7 % 4), and
                 # otherwise a binary prefix (%101), e.g. after a directive or mnemonic
-                afterOperand = re.search(r'[\w)\]]$', prev[1]) and prev[0] != '.' and not cpu.isMnemonic(prev[1])
+                afterOperand = (re.search(r'[\w)\]}"\']$', prev[1]) and prev[1] not in _KEYWORDS
+                                and prev[0] != '.' and not cpu.isMnemonic(prev[1]))
                 if not (token.startswith('%') and afterOperand):
                     token = _fixPrefix(token)
-                tokens.append(Token(token, fileName, lex.lineno))
+                tokens.append(Token(token, fileName))
                 prev = [prev[1], token]
             tokens.append(Token('\n'))
         if pythonBlock is not None: # no .end, so the .python line is reported as an invalid directive
@@ -180,8 +190,8 @@ class TestLexer(unittest.TestCase):
             """The tokens of a line as strings, without the newline."""
             return [t.string for t in tokenize(line) if t.string != '\n']
         self.assertEqual(strings('7 % 4'),        ['7', '%', '4'])
-        self.assertEqual(strings('7%4'),          ['7%4'])
-        self.assertEqual(strings('10 %4'),        ['10', '%4'])
+        self.assertEqual(strings('7%4'),          ['7', '%', '4'])
+        self.assertEqual(strings('10 %4'),        ['10', '%', '4'])
         self.assertEqual(strings('x % 2'),        ['x', '%', '2'])
         self.assertEqual(strings('6 % %11'),      ['6', '%', '0b11'])
         self.assertEqual(strings('%101 % 3'),     ['0b101', '%', '3'])
@@ -189,8 +199,12 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(strings('7 %11'),        ['7', '%11'])
         self.assertEqual(strings('x %10'),        ['x', '%10'])
         self.assertEqual(strings('(5) %10'),      ['(', '5', ')', '%10'])
+        self.assertEqual(strings('"%d" %10'),     ['f"%d"', '%10'])
+        self.assertEqual(strings('True %10'),     ['True', '%10'])
         # binary prefix after directive, mnemonic and operators
         self.assertEqual(strings('.byte %11'),    ['.', 'byte', '0b11'])
+        self.assertEqual(strings('1 if %1 else %10'), ['1', 'if', '0b1', 'else', '0b10'])
+        self.assertEqual(strings('not %1'),       ['not', '0b1'])
         self.assertEqual(strings('.byte 1, %11'), ['.', 'byte', '1', ',', '0b11'])
         self.assertEqual(strings('lda %11'),      ['lda', '0b11'])
         self.assertEqual(strings('lda #%11'),     ['lda', '#', '0b11'])
@@ -214,6 +228,43 @@ class TestLexer(unittest.TestCase):
         """Tokens are split at the commas that are not inside brackets."""
         parts = splitByComma(tokenize('a=0, a<len([1, 2]), {"x": (3, 4)}')[:-1])
         self.assertEqual([join(part) for part in parts], ['a=0', 'a<len([1,2])', '{f"x":(3,4)}'])
+
+
+    def testScanner(self):
+        """Each token is the longest match, whichever characters are next to it."""
+        for line, expected in [
+            ('t-$10',         ['t', '-', '0x10']),
+            ('-$10',          ['-', '0x10']),
+            ('2*%11',         ['2', '*', '0b11']),
+            ('$20/$10',       ['0x20', '/', '0x10']),
+            ('~$10',          ['~', '0x10']),
+            ('2**$4',         ['2', '**', '0x4']),
+            ('16//$4',        ['16', '//', '0x4']),
+            ('7%$10',         ['7', '%', '0x10']),
+            ('%101%2',        ['0b101', '%', '2']),
+            ('a<<2',          ['a', '<<', '2']),
+            ('a<=2',          ['a', '<=', '2']),
+            ('a==-1',         ['a', '==', '-', '1']),
+            ('a!=b',          ['a', '!=', 'b']),
+            ('x=.5',          ['x', '=', '.', '5']),
+            ('a<.5',          ['a', '<', '.', '5']),
+            ('1.5',           ['1.5']),
+            ('1e3',           ['1e3']),
+            ('1.5e-3',        ['1.5e-3']),
+            ('1e-_x',         ['1e', '-', '__x']),
+            ('a-1',           ['a', '-', '1']),
+            ('.byte 1 ; c',   ['.', 'byte', '1']),
+            ('l:nop',         ['l', ':', 'nop']),
+            ('"a;b" ; c',     ['f"a;b"']),
+            ('"a\\"b"',       ['f"a\\"b"']),
+            ("'a;b'",         ["'a;b'"]),
+            ('r"a"',          ['r"a"']),
+            ('f"a"',          ['f"a"']),
+            ('x = "abc',      ['x = "abc']),   # no closing quote: one token, reported as invalid syntax
+            ("x = 'abc",      ["x = 'abc"]),
+        ]:
+            with self.subTest(line=line):
+                self.assertEqual([t.string for t in translateLocalLabels(tokenize(line))[:-1] if t.string != '\n'], expected)
 
 
     def testPythonBlock(self):

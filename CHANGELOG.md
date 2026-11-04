@@ -16,7 +16,8 @@ The first release.
 - PETSCII and screen code text encodings
 - `.assert` to check conditions while assembling, e.g. the memory layout
 - import of source files, Python files, binary files and SID music
-- built-in symbols for the C64 hardware (VIC, SID, CIA, KERNAL, BASIC)
+- generic 6502 generators and symbols, always imported
+- target imports with `-t c16|c64|vic20`, such as the C64 hardware (VIC, SID, CIA, KERNAL, BASIC)
 - `.prg` output, and a memory map after a successful assembly
 - labels file, as Python assignments: `code64 game.asm -l game.py`
 - VICE monitor commands file with labels and `.break` breakpoints: `code64 game.asm --vice game.vmc`

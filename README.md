@@ -35,7 +35,7 @@ python3 -m code64.main hello.asm -o hello.prg
 ## Usage
 
 ```
-code64 <asmFile> -o <outFile> [-i none|stable|all] [-l <labelsFile>] [--vice <viceFile>]
+code64 <asmFile> -o <outFile> [-t c16|c64|vic20] [-i none|stable|all] [-l <labelsFile>] [--vice <viceFile>]
 code64 -d <binFile> [-o <asmFile>] [-i none|stable|all] [-l <labelsFile>]
 code64 --version
 ```
@@ -45,6 +45,7 @@ code64 --version
 | `<asmFile>` | the source file to assemble |
 | `-d`, `--disassemble <binFile>` | disassemble the `.prg` or binary file instead, see [Disassembling](#disassembling) |
 | `-o`, `--output <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write. Without `-o` the source is printed |
+| `-t`, `--target <c16\|c64\|vic20>` | the target machine, whose [symbols and generators](#built-in-symbols) are imported. Without it, only the generic 6502 ones are |
 | `-i`, `--illegal <none\|stable\|all>` | the [illegal instructions](#illegal-instructions) to use: none, the stable ones (the default), or all |
 | `-l`, `--labels <labelsFile>` | the [labels](#labels-file) file to write, as Python assignments. When disassembling, the labels file to read |
 | `--vice <viceFile>` | the [VICE monitor commands](#vice-monitor-commands) file to write: labels and breakpoints |
@@ -112,14 +113,14 @@ The `code64` package has the same two functions as the command line:
 ```python
 import code64
 
-context = code64.assembleFile('game.asm', 'game.prg')
+context = code64.assembleFile('game.asm', 'game.prg', target='c64')
 for message in context.warnings + context.errors:
     print(message)
 
 source = code64.disassembleFile('game.prg')
 ```
 
-`assembleFile(inFile, outFile=None)` assembles `inFile`, saves `outFile` if given and there are no errors, and returns the `Context` of the last pass. Its `memory` is a dict of address to byte, `symbols` has the labels and other symbols, `printed` the `.print` output, and `warnings` and `errors` the messages.
+`assembleFile(inFile, outFile=None, target=None)` assembles `inFile` for the target (`'c16'`, `'c64'`, `'vic20'` or none), saves `outFile` if given and there are no errors, and returns the `Context` of the last pass. Its `memory` is a dict of address to byte, `symbols` has the labels and other symbols, `printed` the `.print` output, and `warnings` and `errors` the messages.
 
 `disassembleFile(inFile, outFile=None)` returns the source, and saves it to `outFile` if given.
 
@@ -132,7 +133,7 @@ Both raise `OSError` if a file can't be read or written. Errors in the source do
 ; hello.asm - prints a message, makes the border red, and returns to BASIC
 
             @basicStart()
-            @basicSys(10, start)    ; 10 SYS2061
+            @basicLine(10, "SYS {start}")    ; 10 SYS 2062
             @basicEnd()
 
 start:      ldx #0
@@ -150,7 +151,7 @@ message:    .string "HELLO WORLD"
 ```
 
 ```bash
-code64 hello.asm -o hello.prg
+code64 hello.asm -t c64 -o hello.prg
 ```
 
 Load `hello.prg` in an emulator such as [VICE](https://vice-emu.sourceforge.io), and type `RUN`.
@@ -672,21 +673,38 @@ irq:        .break                      ; stop each time the interrupt starts
 
 ## Built-in symbols
 
-The Python files in `code64/imports/` are imported automatically, and define symbols for the C64 hardware and a set of generators. The upper case symbols are [constants](#constants):
+The Python files in `code64/imports/` are always imported, and are not specific to one machine. The upper case symbols are [constants](#constants):
 
 | File | Contents |
 |---|---|
-| `basic.py` | BASIC ROM addresses and tokens, and generators for a BASIC start line: `basicStart()`, `basicSys(lineNumber, address)`, `basicRem(lineNumber, text)`, `basicEnd()` |
-| `cia.py` | CIA 1 and 2 registers, `CIA1_...` and `CIA2_...` |
-| `ioport.py` | the 6510 processor port at `$00` and `$01`, `IO_PORT_DATA_DIRECTION` and `IO_PORT_DATA`, which chooses RAM, ROM or I/O at `$a000`, `$d000` and `$e000` |
-| `kernal.py` | KERNAL ROM routines, `KERNAL_ROM_...` |
-| `keyboard.py` | keyboard matrix codes, `KEYBOARD_CODE_...` |
-| `sid.py` | SID registers, `SID_...` |
+| `basic.py` | all BASIC tokens, `BASIC_TOKEN_...`, with comments for those only on the C16 and for keywords with other characters, such as `BASIC_TOKEN_CHR` for `CHR$`, and generators for a BASIC start line: `basicStart()`, `basicLine(lineNumber, text)`, `basicSys(lineNumber, address)` (kept for compatibility, the same as `basicLine` with a `SYS`), `basicEnd()`. `basicStart()` needs a target, for its start address |
 | `stack.py` | `STACK_ADDRESS`, and generators: `pushRegisters()`, `pullRegisters()`, `storeRegisters(restore)`, `restoreRegisters()` |
-| `std.py` | `CHAR_ROM` |
 | `utility.py` | generators: `nop(n)`, `ldax(value)`, `lday(value)`, `ldxy(value)`, `stax(address)`, `stay(address)`, `stxy(address)` |
 | `vector.py` | interrupt vectors, `INTERRUPT_VECTOR_...` |
-| `vic.py` | VIC-II registers, `VIC_...` |
+
+`basicLine` writes any BASIC line, with the keywords of BASIC 2 as tokens. Keywords only on the C16, such as `COLOR`, don't become tokens, and give a syntax error when the program runs:
+
+```
+            @basicStart()
+            @basicLine(10, 'POKE 53280,0:PRINT "HELLO"')
+            @basicLine(20, "SYS {start}")
+            @basicEnd()
+```
+
+`-t` or `--target` also imports all the files of a target machine, from `code64/imports/target/`. Without it, no target files are imported, so a symbol such as `VIC_BORDER_COLOR` is not defined.
+
+| Target | File | Contents |
+|---|---|---|
+| `c64` | `basic.py` | `BASIC_START_ADDRESS` (`$0801`), and BASIC ROM addresses |
+| `c64` | `cia.py` | CIA 1 and 2 registers, `CIA1_...` and `CIA2_...` |
+| `c64` | `ioport.py` | the 6510 processor port at `$00` and `$01`, `IO_PORT_DATA_DIRECTION` and `IO_PORT_DATA`, which chooses RAM, ROM or I/O at `$a000`, `$d000` and `$e000` |
+| `c64` | `kernal.py` | KERNAL ROM routines, `KERNAL_ROM_...` |
+| `c64` | `keyboard.py` | keyboard matrix codes, `KEYBOARD_CODE_...` |
+| `c64` | `machine.py` | `CHAR_ROM` |
+| `c64` | `sid.py` | SID registers, `SID_...` |
+| `c64` | `vic.py` | VIC-II registers, `VIC_...` |
+| `c16` | `basic.py` | `BASIC_START_ADDRESS` (`$1001`) |
+| `vic20` | `basic.py` | `BASIC_START_ADDRESS` (`$1001`, without a memory expansion) |
 
 For example `@ldax(message)` loads the address of `message` into a (low byte) and x (high byte).
 

@@ -76,12 +76,16 @@ def main():
     parser.add_argument('-o', '--output', dest='outFile', help='the .prg file to write, or the source file when disassembling (default: print it)')
     parser.add_argument('-i', '--illegal', dest='illegal', choices=['none', 'stable', 'all'], default='stable',
                         help='the illegal instructions to use: none, the stable ones (default), or all')
+    parser.add_argument('-t', '--target', dest='target', choices=assemble.TARGETS,
+                        help='the target machine, whose symbols and generators are imported (default: none)')
     parser.add_argument('-l', '--labels', dest='labelsFile', help='the labels file, as Python assignments: written when assembling, read when disassembling')
     parser.add_argument('--vice', dest='viceFile', help='the VICE monitor commands file to write: labels and breakpoints')
     parser.add_argument('--version', action='version', version=f'Code64 v{__version__} (c) Morten Perriard 2021-2026')
     arguments = parser.parse_args()
     if arguments.disassemble and arguments.viceFile:
         parser.error('--vice can only be used when assembling')
+    if arguments.disassemble and arguments.target:
+        parser.error('--target can only be used when assembling')
     cpu.setIllegalInstructions(arguments.illegal)
     try:
         if arguments.disassemble:
@@ -90,7 +94,7 @@ def main():
                 print(source, end='')
             anyErrors = False
         else:
-            context = assemble.assembleFile(arguments.file, arguments.outFile)
+            context = assemble.assembleFile(arguments.file, arguments.outFile, arguments.target)
             for message in context.printed:
                 print(message)
             sys.stdout.flush() # keep the order when stdout and stderr go to the same pipe or file
@@ -127,7 +131,7 @@ class TestMain(unittest.TestCase):
     def testUsage(self):
         """Missing or incorrect arguments print the usage, and exit with 2."""
         for arguments in [[], ['-o', 'x.prg'], ['-d'], ['x.asm', 'extra'], ['-x'],
-                          ['x.asm', '-i', 'some'], ['x.asm', '-i'], ['x.asm', '--vice'],
+                          ['x.asm', '-i', 'some'], ['x.asm', '-i'], ['x.asm', '--vice'], ['x.asm', '-t'], ['x.asm', '-t', 'amiga'], ['-d', 'x.prg', '-t', 'c64'],
                           ['x.asm', '-l'], ['x.asm', '--labels']]:
             with self.subTest(arguments=arguments):
                 code, output, errors = self._main(arguments)
@@ -168,6 +172,21 @@ class TestMain(unittest.TestCase):
                         f.write(source + '\n')
                     code, output, errors = self._main([asmFile] + arguments)
                     self.assertEqual(code, expected, output)
+
+    def testTarget(self):
+        """-t and --target choose the target imports, and without them there are none."""
+        with tempfile.TemporaryDirectory() as directory:
+            asmFile = os.path.join(directory, 'test.asm')
+            with open(asmFile, 'w') as f:
+                f.write('.print BASIC_START_ADDRESS\n')
+            for arguments, expected in [(['-t', 'c64'], '2049'), (['--target', 'vic20'], '4097'), (['-t', 'c16'], '4097'), (['--target=c64'], '2049')]:
+                with self.subTest(arguments=arguments):
+                    code, output, errors = self._main([asmFile] + arguments)
+                    self.assertEqual(code, 0, errors)
+                    self.assertEqual(output.splitlines()[0], expected)
+            code, output, errors = self._main([asmFile])
+            self.assertEqual(code, 1)
+            self.assertIn("Name 'BASIC_START_ADDRESS' is not defined", errors)
 
     def testAssemble(self):
         """Assembling prints the .print output and the memory use, sends warnings to stderr, and saves the -o file."""

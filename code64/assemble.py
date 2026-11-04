@@ -24,15 +24,21 @@ MAX_PASSES = 42
 
 DEFAULT_ORIGIN = 0x1000 # the address when there is no .org
 
+TARGETS = ('c16', 'c64', 'vic20') # the folders in imports/target
 
-def assembleFile(inFile: str, outFile: str = None) -> Context:
+
+def assembleFile(inFile: str, outFile: str = None, target: str = None) -> Context:
     """Assemble inFile, and save it to outFile, if given and there are no errors. Returns the
-    context of the last pass: memory, symbols, messages and errors.
-    Raises OSError if inFile can't be read, or outFile can't be written.
+    context of the last pass: memory, symbols, messages and errors. The target is one of TARGETS,
+    whose imports are added to the generic ones.
+    Raises OSError if inFile can't be read, or outFile can't be written, and ValueError for an unknown target.
 
     Passes are repeated until the output stops changing (max. MAX_PASSES), so
     labels can be used before they are defined.
     """
+    if target is not None and target not in TARGETS:
+        raise ValueError(f'Unknown target: {target}')
+
     path = os.path.dirname(inFile)
 
     symbols = {'lo': lo, 'hi': hi,
@@ -43,6 +49,8 @@ def assembleFile(inFile: str, outFile: str = None) -> Context:
 
     root = os.path.abspath(os.path.dirname(__file__))
     imports = sorted(glob.glob(os.path.join(root, 'imports/*.py')))
+    if target:
+        imports += sorted(glob.glob(os.path.join(root, 'imports/target', target, '*.py')))
 
     for fileName in imports:
         with open(fileName) as f:
@@ -155,10 +163,10 @@ class TestAssemble(unittest.TestCase):
         self.assertFalse(anyErrors, output)
 
         # built-in constants, from the imports folder
-        anyErrors, output = self._assemble('VIC_BORDER_COLOR = $d020\n')
+        anyErrors, output = self._assemble('STACK_ADDRESS = $100\n')
         self.assertFalse(anyErrors, output)
-        anyErrors, output = self._assemble('VIC_BORDER_COLOR = 1\n')
-        self.assertIn('test.asm:1: error: Constant "VIC_BORDER_COLOR" cannot be changed from 53280 to 1', output)
+        anyErrors, output = self._assemble('STACK_ADDRESS = 1\n')
+        self.assertIn('test.asm:1: error: Constant "STACK_ADDRESS" cannot be changed from 256 to 1', output)
 
     def testSymbolTypes(self):
         """A symbol keeps its type, e.g. an int can't become a str."""
@@ -425,6 +433,23 @@ class TestAssemble(unittest.TestCase):
             ('.optional\nf: nop\nK = 2\n.end\nlda #K\n',  "test.asm:5: error: Name 'K' is not defined"),
         ])
 
+    def testOperatorsNextToOperands(self):
+        """Number prefixes and local labels work next to any operator, without spaces."""
+        for source, expected in [
+            ('t = $20\nlda t-$10\n',         [0xa5, 0x10]),
+            ('.byte -$10\n',                 [0xf0]),
+            ('.byte 2*$10\n',                [0x20]),
+            ('.byte 8-%10\n',                [6]),
+            ('.byte %101%2\n',               [1]),
+            ('.byte 7%$10\n',                [7]),
+            ('x =.5\n.byte x*2\n',           [1]),
+            ('g:\n_a: nop\n_b: nop\n.byte _b-_a\n', [0xea, 0xea, 1]),
+            ('g:\n_a: nop\n.word 2*_a\n',    [0xea, 0x00, 0x20]),
+            ('nop\n.word _-1\n',             [0xea, 0x00, 0x10]),
+        ]:
+            with self.subTest(source=source):
+                self.assertEqual(self._memory(source), expected)
+
     def testZeroPageMessages(self):
         """.zpbyte and .zpword names that are used twice, or that do not fit."""
         self._assertMessages([
@@ -463,6 +488,111 @@ class TestAssemble(unittest.TestCase):
             context = assembleFile(fileName)
         self.assertEqual(context.breakpoints, [(0x1001, None), (0x1002, 'RL > $40 && A == $00')])
         self.assertEqual([e.split('/')[-1] for e in context.errors], ['test.asm:6: error: Invalid directive: .break 5'])
+
+    def _assembleForTarget(self, source: str, target: str = None) -> Context:
+        """Assemble source for the target, and return the context."""
+        with tempfile.TemporaryDirectory() as directory:
+            fileName = os.path.join(directory, 'test.asm')
+            with open(fileName, 'w') as f:
+                f.write(source)
+            return assembleFile(fileName, target=target)
+
+    def testNoTarget(self):
+        """Without a target only the generic 6502 imports are available."""
+        self.assertEqual(self._assembleForTarget('@ldax($1234)\n@pushRegisters()\nlda INTERRUPT_VECTOR_NMI\n').errors, [])
+        for name in ['VIC_BORDER_COLOR', 'KERNAL_ROM', 'BASIC_START_ADDRESS', 'BASIC_ROM', 'CHAR_ROM', 'IO_PORT_DATA']:
+            with self.subTest(name=name):
+                self.assertIn(f"Name '{name}' is not defined", self._assembleForTarget(f'.word {name}\n').errors[0])
+
+    def testBasicTokens(self):
+        """The BASIC tokens are available without a target, including those of a single machine."""
+        tokens = {'END': 0x80, 'INPUT_FILE': 0x84, 'INPUT': 0x85, 'REM': 0x8f, 'PRINT_FILE': 0x98, 'PRINT': 0x99, 'SYS': 0x9e,
+                  'TAB': 0xa3, 'PLUS': 0xaa, 'LESS': 0xb3, 'CHR': 0xc7, 'GO': 0xcb, 'RGR': 0xcc, 'HEX': 0xd2, 'WHILE': 0xfd, 'PI': 0xff}
+        symbols = self._assembleForTarget('nop\n').symbols
+        for name, value in tokens.items():
+            with self.subTest(name=name):
+                self.assertEqual(symbols[f'BASIC_TOKEN_{name}'], value)
+
+    def testBasicLine(self):
+        """@basicLine writes the text, with keywords as tokens, except in strings, after REM, and in DATA."""
+        def code(*values):
+            """The bytes of the values: a token, or text."""
+            return [b for value in values for b in ([value] if type(value) is int else value.encode('ascii'))]
+        for text, expected in [
+            ('SYS 2061',              code(0x9e, ' 2061')),
+            ('POKE 53280,0:SYS 2061', code(0x97, ' 53280,0:', 0x9e, ' 2061')),
+            ('poke 1,2',              code(0x97, ' 1,2')),
+            ('GOTO 10',               code(0x89, ' 10')),              # not GO and TO
+            ('INPUT#1,A',             code(0x84, '1,A')),              # not INPUT and #
+            ('PRINT#1',               code(0x98, '1')),
+            ('A=1+2',                 code('A', 0xb2, '1', 0xaa, '2')),
+            ('FOR I=1 TO 3',          code(0x81, ' I', 0xb2, '1 ', 0xa4, ' 3')),
+            ('PRINT CHR$(147)',       code(0x99, ' ', 0xc7, '(147)')),
+            ('PRINT "POKE":SYS 1',    code(0x99, ' "POKE":', 0x9e, ' 1')),
+            ('REM POKE:SYS "X',       code(0x8f, ' POKE:SYS "X')),
+            ('DATA POKE,"A:B":SYS 1', code(0x83, ' POKE,"A:B":', 0x9e, ' 1')),
+            ('',                      []),
+        ]:
+            with self.subTest(text=text):
+                memory = self._memory(f""".org $1001\n@basicLine(10, '{text}')\n""")
+                end = 0x1001 + len(expected) + 5
+                self.assertEqual(memory, [end & 0xff, end >> 8, 10, 0] + expected + [0])
+
+    def testBasicLineProgram(self):
+        """Each line links to the next, labels can be used, and the text encoding is unchanged."""
+        memory = self._memory('.org $1001\n@basicLine(10, "SYS {start}")\n@basicLine(20, "END")\n@basicEnd()\nstart: .text "A"\n')
+        self.assertEqual(memory[:2], [0x0c, 0x10])                     # 2 + 2 + 7 bytes of text and the end, from $1001
+        self.assertEqual(memory[4:11], [0x9e, *b' 4116', 0])           # start is $1014
+        self.assertEqual(memory[11:13], [0x12, 0x10])                  # the next line, at $100c
+        self.assertEqual(memory[-1], 1)                                # a screen code, the default
+
+    def testBasicSys(self):
+        """@basicSys is a @basicLine with a SYS, so it has the same link to the next line, and text encoding."""
+        memory = self._memory('.org $1001\n@basicSys(10, start)\n@basicEnd()\nstart: .text "A"\n')
+        self.assertEqual(memory, [0x0b, 0x10, 10, 0, 0x9e, *b'4109', 0, 0, 0, 1])
+
+    def testBasicLineMessages(self):
+        """Text that BASIC can't store is an error."""
+        self._assertMessages([('@basicLine(10, "PRINT \\"é\\"")\n', "test.asm:1: error: 'ascii' codec can't encode")])
+
+    def testBasicKeywords(self):
+        """The keywords of @basicLine have the values of the BASIC_TOKEN_ symbols."""
+        symbols = self._assembleForTarget('nop\n').symbols
+        keywords = symbols['_BASIC_KEYWORDS']
+        self.assertEqual(len(keywords), 76)
+        for index, keyword in enumerate(keywords):
+            if keyword.isalpha():
+                with self.subTest(keyword=keyword):
+                    self.assertEqual(symbols[f'BASIC_TOKEN_{keyword}'], 0x80 + index)
+
+    def testBasicWithoutTarget(self):
+        """The BASIC tokens and generators are generic, but the start address needs a target."""
+        context = self._assembleForTarget('.org $1001\n@basicLine(5, "REM A")\n@basicLine(10, "SYS 4096")\n@basicEnd()\n.byte BASIC_TOKEN_REM, BASIC_TOKEN_SYS\n')
+        self.assertEqual(context.errors, [])
+        self.assertIn("Name 'BASIC_START_ADDRESS' is not defined", self._assembleForTarget('@basicStart()\n').errors[0])
+
+    def testTargets(self):
+        """A target adds the imports of its folder, to the generic ones."""
+        source = '@basicStart()\n@basicLine(10, "SYS {start}")\n@basicEnd()\nstart: @ldax($1234)\n'
+        for target, start in [('c64', 0x0801), ('vic20', 0x1001), ('c16', 0x1001)]:
+            with self.subTest(target=target):
+                context = self._assembleForTarget(source, target)
+                self.assertEqual(context.errors, [])
+                self.assertEqual(min(context.memory), start)
+                self.assertEqual(context.symbols['BASIC_START_ADDRESS'], start)
+        self.assertEqual(self._assembleForTarget('.word VIC_BORDER_COLOR, CHAR_ROM\n', 'c64').errors, [])
+
+    def testTargetOnlyHasItsOwnImports(self):
+        """The imports of one target are not available in another."""
+        for target in ['vic20', 'c16']:
+            with self.subTest(target=target):
+                self.assertIn("Name 'SID_", self._assembleForTarget('.word SID_VOICE1_FREQUENCY_LO\n', target).errors[0])
+
+    def testUnknownTarget(self):
+        """A target without a folder is an error."""
+        with self.assertRaises(ValueError) as raised:
+            self._assembleForTarget('nop\n', 'amiga')
+        self.assertEqual(str(raised.exception), 'Unknown target: amiga')
 
     def testBrokenBuiltinImport(self):
         """A built-in import that fails raises its exception, with the import file in the traceback."""
