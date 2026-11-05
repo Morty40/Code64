@@ -17,6 +17,7 @@ def assemble(tokens: list, context: Context):
     operand = lexer.join(tokens[1:])
 
     instruction = cpu.instructionWithMnemonic(mnemonic)
+    assert instruction is not None # the caller checked that it is a mnemonic
     opcodes = instruction.opcodes
 
     data = []

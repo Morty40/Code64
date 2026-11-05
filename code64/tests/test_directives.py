@@ -14,7 +14,7 @@ from ..directives import assemble, byte, bytefill, _matches, org, printValues
 class TestDirectives(unittest.TestCase):
     """Tests of the directive arguments, and what the directives store."""
 
-    def _memory(self, source: str, files: dict = None) -> dict:
+    def _memory(self, source: str, files: dict | None = None) -> dict:
         """Assemble source without errors, with the files {name: text} beside it, and return the memory."""
         with tempfile.TemporaryDirectory() as directory:
             for name, text in {'test.asm': source, **(files or {})}.items():
@@ -24,7 +24,7 @@ class TestDirectives(unittest.TestCase):
         self.assertEqual(context.errors, [])
         return context.memory
 
-    def _assertBytes(self, source: str, expected: list, files: dict = None):
+    def _assertBytes(self, source: str, expected: list, files: dict | None = None):
         """Source stores exactly the expected bytes, without gaps, from the default address $1000."""
         memory = self._memory(source, files)
         self.assertEqual([memory.get(0x1000 + i) for i in range(len(expected))], expected)
@@ -39,6 +39,8 @@ class TestDirectives(unittest.TestCase):
         self.assertFalse(_matches(org, [True]))              # a bool is not an int
         self.assertTrue(_matches(bytefill, [3]))             # optional argument
         self.assertTrue(_matches(bytefill, [3, 'x: x']))
+        self.assertTrue(_matches(bytefill, [3, None]))       # one of the types in an optional argument
+        self.assertFalse(_matches(bytefill, [3, 5]))         # none of them
         self.assertTrue(_matches(byte, []))                  # any number of any type
         self.assertTrue(_matches(byte, [1, 'a', 2.5]))
         self.assertFalse(_matches(printValues, []))          # at least one

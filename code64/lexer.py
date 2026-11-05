@@ -81,7 +81,8 @@ def join(tokens: list) -> str:
 
 def splitByComma(tokens: list) -> list:
     """Split tokens at the commas that are not inside brackets, e.g. i<len([1, 2])."""
-    parts, depth = [[]], 0
+    parts: list[list[Token]] = [[]]
+    depth = 0
     for token in tokens:
         if token.string in ('(', '[', '{'):
             depth += 1
@@ -105,7 +106,7 @@ def tokenize(text: str, fileName: str='') -> list:
     tokens = []
 
     if type(text) is str:
-        pythonBlock = None # the lines of a .python block, while they are collected
+        pythonBlock: list[str] | None = None # the lines of a .python block, while they are collected
         for line in text.splitlines():
             if pythonBlock is not None:
                 if re.fullmatch(r'\s*\.end\s*(;.*)?', line): # the end of the .python block

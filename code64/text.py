@@ -87,10 +87,10 @@ _chr = { # value: character, for each encoding
 # character: value, for each encoding: the reverse of _chr
 _ord = {encoding: {char: value for value, char in table.items()} for encoding, table in _chr.items()}
 
-def chr(value: int, encoding: int) -> str:
+def chr(value: int, encoding: int) -> str | None:
     """Return the character for a value in the encoding, or None if there is none."""
     return _chr[encoding].get(value)
 
-def ord(char: str, encoding: int) -> int:
+def ord(char: str, encoding: int) -> int | None:
     """Return the value of a character in the encoding, or None if it has none."""
     return _ord[encoding].get(char)

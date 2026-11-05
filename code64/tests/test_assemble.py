@@ -435,7 +435,7 @@ class TestAssemble(unittest.TestCase):
         self.assertEqual(context.breakpoints, [(0x1001, None), (0x1002, 'RL > $40 && A == $00')])
         self.assertEqual([e.split('/')[-1] for e in context.errors], ['test.asm:6: error: Invalid directive: .break 5'])
 
-    def _assembleForTarget(self, source: str, target: str = None) -> Context:
+    def _assembleForTarget(self, source: str, target: str | None = None) -> Context:
         """Assemble source for the target, and return the context."""
         with tempfile.TemporaryDirectory() as directory:
             fileName = os.path.join(directory, 'test.asm')

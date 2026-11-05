@@ -17,7 +17,7 @@ class Context:
 
     def __init__(self, symbols: dict):
         """Create the state for a pass. The symbols are shared by all passes."""
-        self.readPointerStack = []
+        self.readPointerStack: list[tuple[str, int]] = []
 
         # math, and ord/chr in the current text encoding, for expressions
         symbols.update(math.__dict__)
@@ -25,19 +25,19 @@ class Context:
         symbols['chr'] = lambda value: text.chr(value, self.encoding)
         symbols['ref'] = lambda label: label in self.lastReferences
         self.symbols = symbols
-        self.labels = set() # labels defined in this pass, to find duplicates
-        self.memory = {} # address: byte
-        self.printed = [] # from .print, shown after the last pass
-        self.warnings = []
-        self.errors = []
-        self.blockStack = [] # per open .repeat, .for or .if: (kind, ...), see directives.py
+        self.labels: set[str] = set() # labels defined in this pass, to find duplicates
+        self.memory: dict[int, int] = {} # address: byte
+        self.printed: list[object] = [] # from .print, shown after the last pass
+        self.warnings: list[str] = []
+        self.errors: list[str] = []
+        self.blockStack: list[tuple] = [] # per open .repeat, .for or .if: (kind, ...), see directives.py
         self.zpAddress = 2 # $0 and $1 are reserved
-        self.generatorCounts = {} # generator name: calls, gives each call its own local label scope
-        self.breakpoints = [] # (address, VICE condition or None) for each .break
+        self.generatorCounts: dict[str, int] = {} # generator name: calls, gives each call its own local label scope
+        self.breakpoints: list[tuple[int, str | None]] = [] # (address, VICE condition or None) for each .break
         self.path = '' # folder of the main source file, for .import and .binary
-        self.encoding = text.ENCODING_SCREEN_UPPER
-        self.references = set() # the names used by the Python code and expressions in this pass
-        self.lastReferences = set() # the same from the last pass, for ref()
+        self.encoding: int = text.ENCODING_SCREEN_UPPER
+        self.references: set[str] = set() # the names used by the Python code and expressions in this pass
+        self.lastReferences: set[str] = set() # the same from the last pass, for ref()
 
 
     def noteReferences(self, code):

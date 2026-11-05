@@ -22,7 +22,7 @@ DEFAULT_ORIGIN = 0x1000 # the address when there is no .org
 TARGETS = ('c128', 'c16', 'c64', 'plus4', 'vic20') # the folders in imports/target
 
 
-def assembleFile(inFile: str, outFile: str = None, target: str = None) -> Context:
+def assembleFile(inFile: str, outFile: str | None = None, target: str | None = None) -> Context:
     """Assemble inFile, and save it to outFile, if given and there are no errors. Returns the
     context of the last pass: memory, symbols, messages and errors. The target is one of TARGETS,
     whose imports are added to the generic ones.
@@ -52,8 +52,8 @@ def assembleFile(inFile: str, outFile: str = None, target: str = None) -> Contex
         with open(fileName) as f:
             exec(compile(f.read(), fileName, 'exec'), symbols) # the file name shows in tracebacks
 
-    lastMemory = {}
-    lastReferences = set()
+    lastMemory: dict[int, int] = {}
+    lastReferences: set[str] = set()
     chunks = {} # the tokenized files and generated code, by name: tokenized once, for all passes
 
     for _ in range(MAX_PASSES):

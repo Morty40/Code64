@@ -153,6 +153,10 @@ _unstableIllegalInstructionSet = {
     Instruction('tas', absoluteY=0x9b)}
 
 
+_mnemonicMap: dict[str, Instruction] = {}
+_opcodeMap: dict[int, tuple[Instruction, AddressMode]] = {}
+
+
 def setIllegalInstructions(illegal: str):
     """Choose the illegal instructions to use with the regular ones: 'none', 'stable' or 'all'."""
     global _mnemonicMap, _opcodeMap
@@ -166,12 +170,12 @@ def setIllegalInstructions(illegal: str):
 setIllegalInstructions('stable') # the default
 
 
-def instructionWithMnemonic(mnemonic: str) -> Instruction:
+def instructionWithMnemonic(mnemonic: str) -> Instruction | None:
     """Return the instruction for a lower case mnemonic, e.g. 'lda', or None."""
     return _mnemonicMap.get(mnemonic)
 
 
-def instructionForOpcode(opcode: int) -> tuple:
+def instructionForOpcode(opcode: int) -> tuple[Instruction, AddressMode] | None:
     """Return the (instruction, address mode) of an opcode, e.g. 0xa9 is lda immediate, or None."""
     return _opcodeMap.get(opcode)
 

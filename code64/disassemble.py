@@ -39,7 +39,8 @@ def _trace(data: bytes, start: int, entry: int, code: dict, used: set):
     with jmp, rts or rti, or in known code, before it runs into an unknown opcode, brk, the middle of an
     instruction, or the end.
     """
-    new, newUsed = {}, set()
+    new: dict[int, tuple] = {}
+    newUsed: set[int] = set()
     todo = [entry]
     while todo:
         address = todo.pop()
@@ -66,7 +67,8 @@ def _findCode(data: bytes, start: int) -> dict:
 
     Returns {address: (instruction, mode, operand, size)} for each instruction.
     """
-    code, used = {}, set()
+    code: dict[int, tuple] = {}
+    used: set[int] = set()
     for address in range(start, start + len(data)):
         if address not in used and (new := _trace(data, start, address, code, used)):
             code.update(new)
@@ -74,7 +76,7 @@ def _findCode(data: bytes, start: int) -> dict:
     return code
 
 
-def disassemble(data: bytes, start: int, names: dict = None) -> str:
+def disassemble(data: bytes, start: int, names: dict[int, str] | None = None) -> str:
     """Disassemble data at the start address into Code64 source.
 
     Code is found anywhere, other bytes are data, and branch and jump destinations get labels.
@@ -150,7 +152,7 @@ def disassemble(data: bytes, start: int, names: dict = None) -> str:
 def readLabels(labelsFile: str) -> dict:
     """Read a labels file, Python like the one -l writes, and return {address: name} for its int values.
     The first name is used for each address. Raises OSError if the file can't be read or executed."""
-    symbols = {}
+    symbols: dict[str, object] = {}
     try:
         with open(labelsFile) as f:
             exec(compile(f.read(), labelsFile, 'exec'), symbols)
@@ -158,14 +160,14 @@ def readLabels(labelsFile: str) -> dict:
         raise
     except Exception as exception:
         raise OSError(errno.EINVAL, f'Invalid labels file ({type(exception).__name__}: {exception})', labelsFile)
-    labels = {}
+    labels: dict[int, str] = {}
     for name, value in symbols.items():
         if type(value) is int and 0 <= value <= 0xffff:
             labels.setdefault(value, name)
     return labels
 
 
-def disassembleFile(inFile: str, outFile: str = None, labelsFile: str = None) -> str:
+def disassembleFile(inFile: str, outFile: str | None = None, labelsFile: str | None = None) -> str:
     """Disassemble a .prg file, which starts with its load address, or another binary file
     loaded at the default address, with the names from labelsFile, if given. Saves the source
     to outFile, if given, and returns it. Raises OSError if a file can't be read or written.

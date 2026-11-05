@@ -8,6 +8,8 @@ without an annotation accept any type.
 
 import inspect
 import os
+import typing
+from collections.abc import Callable
 
 from . import evaluate
 from . import lexer
@@ -15,8 +17,8 @@ from . import text
 from .context import Context
 
 
-DIRECTIVES = {} # directive name: function
-_rawDirectives = set() # directives that get their arguments as tokens, e.g. .for a=0, a<10, a+=1
+DIRECTIVES: dict[str, Callable[..., object]] = {} # directive name: function
+_rawDirectives: set[str] = set() # directives that get their arguments as tokens, e.g. .for a=0, a<10, a+=1
 
 
 def directive(name: str, raw: bool = False):
@@ -43,12 +45,13 @@ def _matches(function, arguments: list) -> bool:
     for name, value in list(bound.arguments.items())[1:]:
         expected = parameters[name].annotation
         values = value if parameters[name].kind == inspect.Parameter.VAR_POSITIONAL else [value]
-        if expected is not inspect.Parameter.empty and any(type(v) is not expected for v in values):
+        allowed = typing.get_args(expected) or (expected,) # the types of a union, e.g. str | None
+        if expected is not inspect.Parameter.empty and any(type(v) not in allowed for v in values):
             return False
     return True
 
 
-def assemble(tokens: list, context: Context, chunks: dict = None) -> bool:
+def assemble(tokens: list, context: Context, chunks: dict | None = None) -> bool:
     """Assemble a directive line, e.g. .byte 1, 2.
 
     The arguments are evaluated as one expression, a tuple if several.
@@ -131,18 +134,18 @@ def bits(context, pattern: str):
 
 
 @directive('bytefill')
-def bytefill(context, n: int, function: str = None):
+def bytefill(context, n: int, function: str | None = None):
     """Store n bytes: zero, or the values of a lambda, e.g. "x: x * 2"."""
     _fill(context, n, function, context.store, evaluate.byteExpression)
 
 
 @directive('wordfill')
-def wordfill(context, n: int, function: str = None):
+def wordfill(context, n: int, function: str | None = None):
     """Store n words: zero, or the values of a lambda, e.g. "x: x * 2"."""
     _fill(context, n, function, context.storeWord, evaluate.wordExpression)
 
 
-def _fill(context, n: int, function: str, store, valueExpression):
+def _fill(context, n: int, function: str | None, store, valueExpression):
     """Store n values, using the store function, each checked by valueExpression."""
     f = evaluate.lambdaExpression(function, context) if function is not None else lambda x: 0
     for x in range(0, n):
@@ -232,7 +235,7 @@ def assertion(context, condition, message: str = 'Assertion failed'):
 # VICE
 
 @directive('break')
-def setBreakpoint(context, condition: str = None):
+def setBreakpoint(context, condition: str | None = None):
     """Set a VICE breakpoint at the current address, with an optional condition in VICE's format, e.g. "RL > $40"."""
     context.breakpoints.append((context.symbols['_'], condition))
 
@@ -282,7 +285,7 @@ def forLoop(context, tokens: list, chunks: dict):
         _skipBlock(context, chunks, 'for')
 
 
-def _skipBlock(context, chunks: dict, name: str, stopAtElse: bool = False) -> str:
+def _skipBlock(context, chunks: dict, name: str, stopAtElse: bool = False) -> str | None:
     """Skip lines, and continue after the matching .end, or .else if stopAtElse.
 
     Returns 'end' or 'else', where it continues, or None if there is none.
@@ -303,6 +306,7 @@ def _skipBlock(context, chunks: dict, name: str, stopAtElse: bool = False) -> st
                 context.jumpReadPointer( (fileName, index) ) # then advances past the .end or .else
                 return line[1].string
     context.reportError(f'{name.capitalize()} without matching end')
+    return None
 
 
 @directive('end')
@@ -446,7 +450,7 @@ def importFile(context, fileName: str):
 
 
 @directive('binary')
-def binary(context, fileName: str, offset: int = 0, length: int = None):
+def binary(context, fileName: str, offset: int = 0, length: int | None = None):
     """Store the contents of a binary file, optionally from an offset, and with a length."""
     try:
         with open(os.path.join(context.path, fileName), 'rb') as f:
