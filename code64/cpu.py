@@ -20,41 +20,41 @@ def hi(x):
 class AddressMode(Enum):
     """The 6502 address modes. The values are the operand syntax, see syntax()."""
 
-    absolute    = 'absolute'
-    absoluteX   = 'absolute,x'
-    absoluteY   = 'absolute,y'
-    accumulator = 'accumulator'
-    immediate   = 'immediate'
-    implied     = 'implied'
-    indirect    = '(indirect)'
-    indirectX   = '(indirect,x)'
-    indirectY   = '(indirect),y'
-    relative    = 'relative'
-    zeroPage    = 'zeropage'
-    zeroPageX   = 'zeropage,x'
-    zeroPageY   = 'zeropage,y'
+    ABSOLUTE    = 'absolute'
+    ABSOLUTE_X  = 'absolute,x'
+    ABSOLUTE_Y  = 'absolute,y'
+    ACCUMULATOR = 'accumulator'
+    IMMEDIATE   = 'immediate'
+    IMPLIED     = 'implied'
+    INDIRECT    = '(indirect)'
+    INDIRECT_X  = '(indirect,x)'
+    INDIRECT_Y  = '(indirect),y'
+    RELATIVE    = 'relative'
+    ZERO_PAGE   = 'zeropage'
+    ZERO_PAGE_X = 'zeropage,x'
+    ZERO_PAGE_Y = 'zeropage,y'
 
     @property
     def size(self) -> int:
         """The size of an instruction in this mode: the opcode, and a byte or word operand."""
-        if self in (AddressMode.implied, AddressMode.accumulator):
+        if self in (AddressMode.IMPLIED, AddressMode.ACCUMULATOR):
             return 1
-        if self in (AddressMode.absolute, AddressMode.absoluteX, AddressMode.absoluteY, AddressMode.indirect):
+        if self in (AddressMode.ABSOLUTE, AddressMode.ABSOLUTE_X, AddressMode.ABSOLUTE_Y, AddressMode.INDIRECT):
             return 3
         return 2
 
     @property
     def zeroPageMode(self):
         """The zero page mode the assembler chooses instead of this mode for addresses below $100, or None."""
-        return {AddressMode.absolute: AddressMode.zeroPage,
-                AddressMode.absoluteX: AddressMode.zeroPageX,
-                AddressMode.absoluteY: AddressMode.zeroPageY}.get(self)
+        return {AddressMode.ABSOLUTE: AddressMode.ZERO_PAGE,
+                AddressMode.ABSOLUTE_X: AddressMode.ZERO_PAGE_X,
+                AddressMode.ABSOLUTE_Y: AddressMode.ZERO_PAGE_Y}.get(self)
 
     def syntax(self, operand: str) -> str:
-        """Write the operand in this mode, e.g. '($10),y' for indirectY and '$10'."""
-        if self in (AddressMode.implied, AddressMode.accumulator):
+        """Write the operand in this mode, e.g. '($10),y' for INDIRECT_Y and '$10'."""
+        if self in (AddressMode.IMPLIED, AddressMode.ACCUMULATOR):
             return ''
-        if self is AddressMode.immediate:
+        if self is AddressMode.IMMEDIATE:
             return '#' + operand
         return re.sub(r'[a-z]+', lambda _: operand, self.value, count=1) # e.g. (indirect),y
 
@@ -63,94 +63,94 @@ class Instruction:
     """An instruction mnemonic, and its opcode for each address mode it supports."""
 
     def __init__(self, mnemonic, **opcodes):
-        """Opcodes are given by address mode name, e.g. immediate=0xa9."""
+        """Opcodes are given by address mode name, e.g. IMMEDIATE=0xa9."""
         self.mnemonic = mnemonic
         self.opcodes = {AddressMode[mode]: opcode for mode, opcode in opcodes.items()}
 
 
 _instructionSet = {
-    Instruction('adc', absolute=0x6d, absoluteX=0x7d, absoluteY=0x79, immediate=0x69, indirectX=0x61, indirectY=0x71, zeroPage=0x65, zeroPageX=0x75),
-    Instruction('and', absolute=0x2d, absoluteX=0x3d, absoluteY=0x39, immediate=0x29, indirectX=0x21, indirectY=0x31, zeroPage=0x25, zeroPageX=0x35),
-    Instruction('asl', absolute=0x0e, absoluteX=0x1e, accumulator=0x0a, zeroPage=0x06, zeroPageX=0x16),
-    Instruction('bcc', relative=0x90),
-    Instruction('bcs', relative=0xb0),
-    Instruction('beq', relative=0xf0),
-    Instruction('bit', absolute=0x2c, zeroPage=0x24),
-    Instruction('bmi', relative=0x30),
-    Instruction('bne', relative=0xd0),
-    Instruction('bpl', relative=0x10),
-    Instruction('brk', implied=0x00),
-    Instruction('bvc', relative=0x50),
-    Instruction('bvs', relative=0x70),
-    Instruction('clc', implied=0x18),
-    Instruction('cld', implied=0xd8),
-    Instruction('cli', implied=0x58),
-    Instruction('clv', implied=0xb8),
-    Instruction('cmp', absolute=0xcd, absoluteX=0xdd, absoluteY=0xd9, immediate=0xc9, indirectX=0xc1, indirectY=0xd1, zeroPage=0xc5, zeroPageX=0xd5),
-    Instruction('cpx', absolute=0xec, immediate=0xe0, zeroPage=0xe4),
-    Instruction('cpy', absolute=0xcc, immediate=0xc0, zeroPage=0xc4),
-    Instruction('dec', absolute=0xce, absoluteX=0xde, zeroPage=0xc6, zeroPageX=0xd6),
-    Instruction('dex', implied=0xca),
-    Instruction('dey', implied=0x88),
-    Instruction('eor', absolute=0x4d, absoluteX=0x5d, absoluteY=0x59, immediate=0x49, indirectX=0x41, indirectY=0x51, zeroPage=0x45, zeroPageX=0x55),
-    Instruction('inc', absolute=0xee, absoluteX=0xfe, zeroPage=0xe6, zeroPageX=0xf6),
-    Instruction('inx', implied=0xe8),
-    Instruction('iny', implied=0xc8),
-    Instruction('jmp', absolute=0x4c, indirect=0x6c),
-    Instruction('jsr', absolute=0x20),
-    Instruction('lda', absolute=0xad, absoluteX=0xbd, absoluteY=0xb9, immediate=0xa9, indirectX=0xa1, indirectY=0xb1, zeroPage=0xa5, zeroPageX=0xb5),
-    Instruction('ldx', absolute=0xae, absoluteY=0xbe, immediate=0xa2, zeroPage=0xa6, zeroPageY=0xb6),
-    Instruction('ldy', absolute=0xac, absoluteX=0xbc, immediate=0xa0, zeroPage=0xa4, zeroPageX=0xb4),
-    Instruction('lsr', absolute=0x4e, absoluteX=0x5e, accumulator=0x4a, zeroPage=0x46, zeroPageX=0x56),
-    Instruction('nop', implied=0xea),
-    Instruction('ora', absolute=0x0d, absoluteX=0x1d, absoluteY=0x19, immediate=0x09, indirectX=0x01, indirectY=0x11, zeroPage=0x05, zeroPageX=0x15),
-    Instruction('pha', implied=0x48),
-    Instruction('php', implied=0x08),
-    Instruction('pla', implied=0x68),
-    Instruction('plp', implied=0x28),
-    Instruction('rol', absolute=0x2e, absoluteX=0x3e, accumulator=0x2a, zeroPage=0x26, zeroPageX=0x36),
-    Instruction('ror', absolute=0x6e, absoluteX=0x7e, accumulator=0x6a, zeroPage=0x66, zeroPageX=0x76),
-    Instruction('rti', implied=0x40),
-    Instruction('rts', implied=0x60),
-    Instruction('sbc', absolute=0xed, absoluteX=0xfd, absoluteY=0xf9, immediate=0xe9, indirectX=0xe1, indirectY=0xf1, zeroPage=0xe5, zeroPageX=0xf5),
-    Instruction('sec', implied=0x38),
-    Instruction('sed', implied=0xf8),
-    Instruction('sei', implied=0x78),
-    Instruction('sta', absolute=0x8d, absoluteX=0x9d, absoluteY=0x99, indirectX=0x81, indirectY=0x91, zeroPage=0x85, zeroPageX=0x95),
-    Instruction('stx', absolute=0x8e, zeroPage=0x86, zeroPageY=0x96),
-    Instruction('sty', absolute=0x8c, zeroPage=0x84, zeroPageX=0x94),
-    Instruction('tax', implied=0xaa),
-    Instruction('tay', implied=0xa8),
-    Instruction('tsx', implied=0xba),
-    Instruction('txa', implied=0x8a),
-    Instruction('txs', implied=0x9a),
-    Instruction('tya', implied=0x98)}
+    Instruction('adc', ABSOLUTE=0x6d, ABSOLUTE_X=0x7d, ABSOLUTE_Y=0x79, IMMEDIATE=0x69, INDIRECT_X=0x61, INDIRECT_Y=0x71, ZERO_PAGE=0x65, ZERO_PAGE_X=0x75),
+    Instruction('and', ABSOLUTE=0x2d, ABSOLUTE_X=0x3d, ABSOLUTE_Y=0x39, IMMEDIATE=0x29, INDIRECT_X=0x21, INDIRECT_Y=0x31, ZERO_PAGE=0x25, ZERO_PAGE_X=0x35),
+    Instruction('asl', ABSOLUTE=0x0e, ABSOLUTE_X=0x1e, ACCUMULATOR=0x0a, ZERO_PAGE=0x06, ZERO_PAGE_X=0x16),
+    Instruction('bcc', RELATIVE=0x90),
+    Instruction('bcs', RELATIVE=0xb0),
+    Instruction('beq', RELATIVE=0xf0),
+    Instruction('bit', ABSOLUTE=0x2c, ZERO_PAGE=0x24),
+    Instruction('bmi', RELATIVE=0x30),
+    Instruction('bne', RELATIVE=0xd0),
+    Instruction('bpl', RELATIVE=0x10),
+    Instruction('brk', IMPLIED=0x00),
+    Instruction('bvc', RELATIVE=0x50),
+    Instruction('bvs', RELATIVE=0x70),
+    Instruction('clc', IMPLIED=0x18),
+    Instruction('cld', IMPLIED=0xd8),
+    Instruction('cli', IMPLIED=0x58),
+    Instruction('clv', IMPLIED=0xb8),
+    Instruction('cmp', ABSOLUTE=0xcd, ABSOLUTE_X=0xdd, ABSOLUTE_Y=0xd9, IMMEDIATE=0xc9, INDIRECT_X=0xc1, INDIRECT_Y=0xd1, ZERO_PAGE=0xc5, ZERO_PAGE_X=0xd5),
+    Instruction('cpx', ABSOLUTE=0xec, IMMEDIATE=0xe0, ZERO_PAGE=0xe4),
+    Instruction('cpy', ABSOLUTE=0xcc, IMMEDIATE=0xc0, ZERO_PAGE=0xc4),
+    Instruction('dec', ABSOLUTE=0xce, ABSOLUTE_X=0xde, ZERO_PAGE=0xc6, ZERO_PAGE_X=0xd6),
+    Instruction('dex', IMPLIED=0xca),
+    Instruction('dey', IMPLIED=0x88),
+    Instruction('eor', ABSOLUTE=0x4d, ABSOLUTE_X=0x5d, ABSOLUTE_Y=0x59, IMMEDIATE=0x49, INDIRECT_X=0x41, INDIRECT_Y=0x51, ZERO_PAGE=0x45, ZERO_PAGE_X=0x55),
+    Instruction('inc', ABSOLUTE=0xee, ABSOLUTE_X=0xfe, ZERO_PAGE=0xe6, ZERO_PAGE_X=0xf6),
+    Instruction('inx', IMPLIED=0xe8),
+    Instruction('iny', IMPLIED=0xc8),
+    Instruction('jmp', ABSOLUTE=0x4c, INDIRECT=0x6c),
+    Instruction('jsr', ABSOLUTE=0x20),
+    Instruction('lda', ABSOLUTE=0xad, ABSOLUTE_X=0xbd, ABSOLUTE_Y=0xb9, IMMEDIATE=0xa9, INDIRECT_X=0xa1, INDIRECT_Y=0xb1, ZERO_PAGE=0xa5, ZERO_PAGE_X=0xb5),
+    Instruction('ldx', ABSOLUTE=0xae, ABSOLUTE_Y=0xbe, IMMEDIATE=0xa2, ZERO_PAGE=0xa6, ZERO_PAGE_Y=0xb6),
+    Instruction('ldy', ABSOLUTE=0xac, ABSOLUTE_X=0xbc, IMMEDIATE=0xa0, ZERO_PAGE=0xa4, ZERO_PAGE_X=0xb4),
+    Instruction('lsr', ABSOLUTE=0x4e, ABSOLUTE_X=0x5e, ACCUMULATOR=0x4a, ZERO_PAGE=0x46, ZERO_PAGE_X=0x56),
+    Instruction('nop', IMPLIED=0xea),
+    Instruction('ora', ABSOLUTE=0x0d, ABSOLUTE_X=0x1d, ABSOLUTE_Y=0x19, IMMEDIATE=0x09, INDIRECT_X=0x01, INDIRECT_Y=0x11, ZERO_PAGE=0x05, ZERO_PAGE_X=0x15),
+    Instruction('pha', IMPLIED=0x48),
+    Instruction('php', IMPLIED=0x08),
+    Instruction('pla', IMPLIED=0x68),
+    Instruction('plp', IMPLIED=0x28),
+    Instruction('rol', ABSOLUTE=0x2e, ABSOLUTE_X=0x3e, ACCUMULATOR=0x2a, ZERO_PAGE=0x26, ZERO_PAGE_X=0x36),
+    Instruction('ror', ABSOLUTE=0x6e, ABSOLUTE_X=0x7e, ACCUMULATOR=0x6a, ZERO_PAGE=0x66, ZERO_PAGE_X=0x76),
+    Instruction('rti', IMPLIED=0x40),
+    Instruction('rts', IMPLIED=0x60),
+    Instruction('sbc', ABSOLUTE=0xed, ABSOLUTE_X=0xfd, ABSOLUTE_Y=0xf9, IMMEDIATE=0xe9, INDIRECT_X=0xe1, INDIRECT_Y=0xf1, ZERO_PAGE=0xe5, ZERO_PAGE_X=0xf5),
+    Instruction('sec', IMPLIED=0x38),
+    Instruction('sed', IMPLIED=0xf8),
+    Instruction('sei', IMPLIED=0x78),
+    Instruction('sta', ABSOLUTE=0x8d, ABSOLUTE_X=0x9d, ABSOLUTE_Y=0x99, INDIRECT_X=0x81, INDIRECT_Y=0x91, ZERO_PAGE=0x85, ZERO_PAGE_X=0x95),
+    Instruction('stx', ABSOLUTE=0x8e, ZERO_PAGE=0x86, ZERO_PAGE_Y=0x96),
+    Instruction('sty', ABSOLUTE=0x8c, ZERO_PAGE=0x84, ZERO_PAGE_X=0x94),
+    Instruction('tax', IMPLIED=0xaa),
+    Instruction('tay', IMPLIED=0xa8),
+    Instruction('tsx', IMPLIED=0xba),
+    Instruction('txa', IMPLIED=0x8a),
+    Instruction('txs', IMPLIED=0x9a),
+    Instruction('tya', IMPLIED=0x98)}
 
 # the "illegal" instructions that work the same on all 6510, 8500 and 8502 cpus. Left out are anc 0x2b
 # and usbc 0xeb, which do the same as anc 0x0b and sbc 0xe9, and the nops, which would conflict with nop
 _stableIllegalInstructionSet = {
-    Instruction('alr', immediate=0x4b),
-    Instruction('anc', immediate=0x0b),
-    Instruction('arr', immediate=0x6b),
-    Instruction('dcp', absolute=0xcf, absoluteX=0xdf, absoluteY=0xdb, indirectX=0xc3, indirectY=0xd3, zeroPage=0xc7, zeroPageX=0xd7),
-    Instruction('isc', absolute=0xef, absoluteX=0xff, absoluteY=0xfb, indirectX=0xe3, indirectY=0xf3, zeroPage=0xe7, zeroPageX=0xf7),
-    Instruction('las', absoluteY=0xbb),
-    Instruction('lax', absolute=0xaf, absoluteY=0xbf, indirectX=0xa3, indirectY=0xb3, zeroPage=0xa7, zeroPageY=0xb7),
-    Instruction('rla', absolute=0x2f, absoluteX=0x3f, absoluteY=0x3b, indirectX=0x23, indirectY=0x33, zeroPage=0x27, zeroPageX=0x37),
-    Instruction('rra', absolute=0x6f, absoluteX=0x7f, absoluteY=0x7b, indirectX=0x63, indirectY=0x73, zeroPage=0x67, zeroPageX=0x77),
-    Instruction('sax', absolute=0x8f, indirectX=0x83, zeroPage=0x87, zeroPageY=0x97),
-    Instruction('sbx', immediate=0xcb),
-    Instruction('slo', absolute=0x0f, absoluteX=0x1f, absoluteY=0x1b, indirectX=0x03, indirectY=0x13, zeroPage=0x07, zeroPageX=0x17),
-    Instruction('sre', absolute=0x4f, absoluteX=0x5f, absoluteY=0x5b, indirectX=0x43, indirectY=0x53, zeroPage=0x47, zeroPageX=0x57)}
+    Instruction('alr', IMMEDIATE=0x4b),
+    Instruction('anc', IMMEDIATE=0x0b),
+    Instruction('arr', IMMEDIATE=0x6b),
+    Instruction('dcp', ABSOLUTE=0xcf, ABSOLUTE_X=0xdf, ABSOLUTE_Y=0xdb, INDIRECT_X=0xc3, INDIRECT_Y=0xd3, ZERO_PAGE=0xc7, ZERO_PAGE_X=0xd7),
+    Instruction('isc', ABSOLUTE=0xef, ABSOLUTE_X=0xff, ABSOLUTE_Y=0xfb, INDIRECT_X=0xe3, INDIRECT_Y=0xf3, ZERO_PAGE=0xe7, ZERO_PAGE_X=0xf7),
+    Instruction('las', ABSOLUTE_Y=0xbb),
+    Instruction('lax', ABSOLUTE=0xaf, ABSOLUTE_Y=0xbf, INDIRECT_X=0xa3, INDIRECT_Y=0xb3, ZERO_PAGE=0xa7, ZERO_PAGE_Y=0xb7),
+    Instruction('rla', ABSOLUTE=0x2f, ABSOLUTE_X=0x3f, ABSOLUTE_Y=0x3b, INDIRECT_X=0x23, INDIRECT_Y=0x33, ZERO_PAGE=0x27, ZERO_PAGE_X=0x37),
+    Instruction('rra', ABSOLUTE=0x6f, ABSOLUTE_X=0x7f, ABSOLUTE_Y=0x7b, INDIRECT_X=0x63, INDIRECT_Y=0x73, ZERO_PAGE=0x67, ZERO_PAGE_X=0x77),
+    Instruction('sax', ABSOLUTE=0x8f, INDIRECT_X=0x83, ZERO_PAGE=0x87, ZERO_PAGE_Y=0x97),
+    Instruction('sbx', IMMEDIATE=0xcb),
+    Instruction('slo', ABSOLUTE=0x0f, ABSOLUTE_X=0x1f, ABSOLUTE_Y=0x1b, INDIRECT_X=0x03, INDIRECT_Y=0x13, ZERO_PAGE=0x07, ZERO_PAGE_X=0x17),
+    Instruction('sre', ABSOLUTE=0x4f, ABSOLUTE_X=0x5f, ABSOLUTE_Y=0x5b, INDIRECT_X=0x43, INDIRECT_Y=0x53, ZERO_PAGE=0x47, ZERO_PAGE_X=0x57)}
 
 # the "illegal" instructions that depend on the cpu, its temperature, or dma, e.g. vic badlines
 _unstableIllegalInstructionSet = {
-    Instruction('ane', immediate=0x8b),
-    Instruction('lxa', immediate=0xab),
-    Instruction('sha', absoluteY=0x9f, indirectY=0x93),
-    Instruction('shx', absoluteY=0x9e),
-    Instruction('shy', absoluteX=0x9c),
-    Instruction('tas', absoluteY=0x9b)}
+    Instruction('ane', IMMEDIATE=0x8b),
+    Instruction('lxa', IMMEDIATE=0xab),
+    Instruction('sha', ABSOLUTE_Y=0x9f, INDIRECT_Y=0x93),
+    Instruction('shx', ABSOLUTE_Y=0x9e),
+    Instruction('shy', ABSOLUTE_X=0x9c),
+    Instruction('tas', ABSOLUTE_Y=0x9b)}
 
 
 _mnemonicMap: dict[str, Instruction] = {}

@@ -37,9 +37,9 @@ class TestCpu(unittest.TestCase):
     def testInstructionForOpcode(self):
         """Each opcode gives its instruction and address mode, the reverse of the instruction set table."""
         instruction, mode = instructionForOpcode(0xa9)
-        self.assertEqual((instruction.mnemonic, mode), ('lda', AddressMode.immediate))
+        self.assertEqual((instruction.mnemonic, mode), ('lda', AddressMode.IMMEDIATE))
         instruction, mode = instructionForOpcode(0x60)
-        self.assertEqual((instruction.mnemonic, mode), ('rts', AddressMode.implied))
+        self.assertEqual((instruction.mnemonic, mode), ('rts', AddressMode.IMPLIED))
         self.assertEqual(instructionForOpcode(0x02), None) # jam, freezes the cpu
 
 
@@ -76,7 +76,7 @@ class TestCpu(unittest.TestCase):
         """'stable' adds the stable illegal instructions, but not the illegal nops, usbc, or the unstable ones."""
         self._setIllegalInstructions('stable')
         self.assertEqual(self._opcodeCount(), 208)
-        self.assertEqual(instructionForOpcode(0xa7), (instructionWithMnemonic('lax'), AddressMode.zeroPage))
+        self.assertEqual(instructionForOpcode(0xa7), (instructionWithMnemonic('lax'), AddressMode.ZERO_PAGE))
         self.assertEqual(instructionForOpcode(0x04), None) # an illegal nop
         self.assertEqual(instructionForOpcode(0xeb), None) # usbc, the same as sbc #
         self.assertEqual(isMnemonic('sha'), False)         # unstable
@@ -86,8 +86,8 @@ class TestCpu(unittest.TestCase):
         """'all' also adds the unstable illegal instructions, but still not the illegal nops."""
         self._setIllegalInstructions('all')
         self.assertEqual(self._opcodeCount(), 215)
-        self.assertEqual(instructionWithMnemonic('nop').opcodes, {AddressMode.implied: 0xea})
-        self.assertEqual(instructionForOpcode(0x9f), (instructionWithMnemonic('sha'), AddressMode.absoluteY))
+        self.assertEqual(instructionWithMnemonic('nop').opcodes, {AddressMode.IMPLIED: 0xea})
+        self.assertEqual(instructionForOpcode(0x9f), (instructionWithMnemonic('sha'), AddressMode.ABSOLUTE_Y))
 
 
     def testIllegalUnknown(self):
@@ -107,35 +107,35 @@ class TestCpu(unittest.TestCase):
 
     def testSize(self):
         """The size of an instruction, by address mode: the opcode, and a byte or word operand."""
-        self.assertEqual(AddressMode.implied.size, 1)        # rts
-        self.assertEqual(AddressMode.accumulator.size, 1)    # asl
-        self.assertEqual(AddressMode.immediate.size, 2)      # lda #$01
-        self.assertEqual(AddressMode.relative.size, 2)       # bne label
-        self.assertEqual(AddressMode.indirectY.size, 2)      # lda ($10),y
-        self.assertEqual(AddressMode.absoluteX.size, 3)      # lda $1234,x
-        self.assertEqual(AddressMode.indirect.size, 3)       # jmp ($1234)
+        self.assertEqual(AddressMode.IMPLIED.size, 1)        # rts
+        self.assertEqual(AddressMode.ACCUMULATOR.size, 1)    # asl
+        self.assertEqual(AddressMode.IMMEDIATE.size, 2)      # lda #$01
+        self.assertEqual(AddressMode.RELATIVE.size, 2)       # bne label
+        self.assertEqual(AddressMode.INDIRECT_Y.size, 2)      # lda ($10),y
+        self.assertEqual(AddressMode.ABSOLUTE_X.size, 3)      # lda $1234,x
+        self.assertEqual(AddressMode.INDIRECT.size, 3)       # jmp ($1234)
 
 
     def testSyntax(self):
         """The operand of each address mode, written in assembler syntax."""
-        for mode, expected in [(AddressMode.implied, ''),        (AddressMode.accumulator, ''),
-                               (AddressMode.immediate, '#$10'),  (AddressMode.relative, '$10'),
-                               (AddressMode.zeroPage, '$10'),    (AddressMode.zeroPageX, '$10,x'),
-                               (AddressMode.zeroPageY, '$10,y'), (AddressMode.indirectX, '($10,x)'),
-                               (AddressMode.indirectY, '($10),y'), (AddressMode.absolute, '$10'),
-                               (AddressMode.absoluteX, '$10,x'), (AddressMode.absoluteY, '$10,y'),
-                               (AddressMode.indirect, '($10)')]:
+        for mode, expected in [(AddressMode.IMPLIED, ''),        (AddressMode.ACCUMULATOR, ''),
+                               (AddressMode.IMMEDIATE, '#$10'),  (AddressMode.RELATIVE, '$10'),
+                               (AddressMode.ZERO_PAGE, '$10'),    (AddressMode.ZERO_PAGE_X, '$10,x'),
+                               (AddressMode.ZERO_PAGE_Y, '$10,y'), (AddressMode.INDIRECT_X, '($10,x)'),
+                               (AddressMode.INDIRECT_Y, '($10),y'), (AddressMode.ABSOLUTE, '$10'),
+                               (AddressMode.ABSOLUTE_X, '$10,x'), (AddressMode.ABSOLUTE_Y, '$10,y'),
+                               (AddressMode.INDIRECT, '($10)')]:
             with self.subTest(mode=mode):
                 self.assertEqual(mode.syntax('$10'), expected)
 
 
     def testZeroPageMode(self):
         """The zero page mode that is chosen instead of an absolute mode, for addresses below $100."""
-        self.assertEqual(AddressMode.absolute.zeroPageMode, AddressMode.zeroPage)
-        self.assertEqual(AddressMode.absoluteX.zeroPageMode, AddressMode.zeroPageX)
-        self.assertEqual(AddressMode.absoluteY.zeroPageMode, AddressMode.zeroPageY)
-        self.assertEqual(AddressMode.indirect.zeroPageMode, None) # always a word
-        self.assertEqual(AddressMode.zeroPage.zeroPageMode, None)
+        self.assertEqual(AddressMode.ABSOLUTE.zeroPageMode, AddressMode.ZERO_PAGE)
+        self.assertEqual(AddressMode.ABSOLUTE_X.zeroPageMode, AddressMode.ZERO_PAGE_X)
+        self.assertEqual(AddressMode.ABSOLUTE_Y.zeroPageMode, AddressMode.ZERO_PAGE_Y)
+        self.assertEqual(AddressMode.INDIRECT.zeroPageMode, None) # always a word
+        self.assertEqual(AddressMode.ZERO_PAGE.zeroPageMode, None)
 
 
     def testUnknownAddressMode(self):

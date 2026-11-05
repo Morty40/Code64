@@ -68,7 +68,7 @@ class TestDisassemble(unittest.TestCase):
                 if not (found := cpu.instructionForOpcode(opcode)):
                     continue
                 instruction, mode = found
-                operand = '_' if mode is AddressMode.relative else '$1234' if mode.size == 3 else '$12'
+                operand = '_' if mode is AddressMode.RELATIVE else '$1234' if mode.size == 3 else '$12'
                 source = f'{instruction.mnemonic} {mode.syntax(operand)}\nrts\n'
                 with self.subTest(source=source):
                     with open(asmFile, 'w') as f:

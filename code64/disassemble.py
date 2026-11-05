@@ -20,7 +20,7 @@ def _decode(data: bytes, start: int, address: int):
     if index + size > len(data):
         return None
     operand = int.from_bytes(data[index+1:index+size], 'little')
-    if mode is AddressMode.relative:
+    if mode is AddressMode.RELATIVE:
         operand = address + 2 + (operand ^ 0x80) - 0x80 # signed offset, from the next instruction
         if not 0 <= operand <= 0xffff:
             return None
@@ -29,7 +29,7 @@ def _decode(data: bytes, start: int, address: int):
 
 def _jumpsTo(instruction, mode) -> bool:
     """Check if the operand is a code address: a branch, jmp or jsr destination."""
-    return mode is AddressMode.relative or (instruction.mnemonic in ('jmp', 'jsr') and mode is AddressMode.absolute)
+    return mode is AddressMode.RELATIVE or (instruction.mnemonic in ('jmp', 'jsr') and mode is AddressMode.ABSOLUTE)
 
 
 def _trace(data: bytes, start: int, entry: int, code: dict, used: set):
@@ -120,9 +120,9 @@ def disassemble(data: bytes, start: int, names: dict[int, str] | None = None) ->
             if mode.zeroPageMode in instruction.opcodes and operand < 0x100:
                 text = byteList(data[address-start:address-start+size]) # would assemble as zero page
             else:
-                if size == 3 or mode is AddressMode.relative:
+                if size == 3 or mode is AddressMode.RELATIVE:
                     operand = symbol(operand, 4)
-                elif mode is AddressMode.immediate:
+                elif mode is AddressMode.IMMEDIATE:
                     operand = f'${operand:02x}'
                 elif size == 2:
                     operand = symbol(operand, 2)
