@@ -94,13 +94,13 @@ def word(context, *values):
 
 
 @directive('text')
-def storeText(context, *texts):
+def storeText(context, *texts: str):
     """Store texts, in the current text encoding."""
     _storeTexts(context, texts, zeroTerminated=False)
 
 
 @directive('string')
-def storeString(context, *texts):
+def storeString(context, *texts: str):
     """Store texts, each followed by a zero byte."""
     _storeTexts(context, texts, zeroTerminated=True)
 

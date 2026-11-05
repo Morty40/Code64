@@ -156,6 +156,9 @@ class TestAssemble(unittest.TestCase):
         """Directive and instruction values that are unknown or not allowed."""
         self._assertMessages([
             ('.text "a"\n',                          'test.asm:1: error: Unknown character "a" in text "a"'),
+            ('.text 65\n',                           'test.asm:1: error: Invalid directive: .text 65'),
+            ('.string "A", 65\n',                     'test.asm:1: error: Invalid directive: .string f"A",65'),
+            ('.text ["A"]\n',                        'test.asm:1: error: Invalid directive: .text [f"A"]'),
             ('.align 0\n',                           'test.asm:1: error: Alignment must be positive: 0'),
             ('.org undefinedSymbol\n',               'test.asm:1: error: Invalid directive: .org undefinedSymbol'),
             ('hello world\n',                        'test.asm:1: error: Invalid syntax'),
