@@ -62,7 +62,7 @@ def viceMonitorCommands(context: Context) -> str:
 
 
 def main():
-    """Assemble or disassemble the file given on the command line. Exits with 1 on errors, and 2 on incorrect arguments."""
+    """Assemble or disassemble the file given on the command line. Exits with 1 on errors, 2 on incorrect arguments, and 130 after Ctrl-C."""
     parser = argparse.ArgumentParser(prog='code64', description=f'Code64 v{__version__}: a 6502/Python hybrid cross assembler for Commodore computers.')
     parser.add_argument('file', help='the source file to assemble, or with -d the .prg or binary file to disassemble')
     parser.add_argument('-d', '--disassemble', dest='disassemble', action='store_true', help='disassemble the file instead of assembling it')
@@ -105,6 +105,9 @@ def main():
     except OSError as exception:
         print(f'error: {exception.strerror}: "{exception.filename}"', file=sys.stderr)
         anyErrors = True
+    except KeyboardInterrupt:
+        print('error: Interrupted', file=sys.stderr)
+        sys.exit(130) # the usual exit code after Ctrl-C
     sys.exit(1 if anyErrors else 0)
 
 

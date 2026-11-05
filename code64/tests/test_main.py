@@ -40,6 +40,16 @@ class TestMain(unittest.TestCase):
                 self.assertEqual(code, 2)
                 self.assertIn('usage: code64', errors)
 
+    def testInterrupted(self):
+        """Ctrl-C prints a message, without a traceback, and exits with 130."""
+        for module, function, arguments in [(assemble, 'assembleFile', ['x.asm']),
+                                            (disassemble, 'disassembleFile', ['-d', 'x.prg'])]:
+            with self.subTest(function=function), mock.patch.object(module, function, side_effect=KeyboardInterrupt):
+                code, output, errors = self._main(arguments)
+                self.assertEqual(code, 130)
+                self.assertEqual(output, '')
+                self.assertEqual(errors, 'error: Interrupted\n')
+
     def testHelp(self):
         """-h prints the help, with each option, and exits with 0."""
         code, output, errors = self._main(['-h'])
