@@ -13,12 +13,6 @@ are not in an encoding, and chr() and ord() return None for them.
 # https://en.wikipedia.org/wiki/PETSCII
 
 
-# the encodings, as used by .encoding, e.g. .encoding ENCODING_PETSCII_UPPER
-ENCODING_SCREEN_UPPER = 0
-ENCODING_SCREEN_MIXED = 1
-ENCODING_PETSCII_UPPER = 2
-ENCODING_PETSCII_MIXED = 3
-
 # screen codes, upper case with graphics: A-Z at 1-26, card suits and pi at 65-94
 _chrScreenUpper = {
     0x00: '@', 0x01: 'A', 0x02: 'B', 0x03: 'C', 0x04: 'D', 0x05: 'E', 0x06: 'F', 0x07: 'G',
@@ -77,20 +71,20 @@ _chrPetsciiMixed = {
    120: 'X',121: 'Y',122: 'Z',
 }
 
-_chr = { # value: character, for each encoding
-    ENCODING_SCREEN_UPPER: _chrScreenUpper,
-    ENCODING_SCREEN_MIXED: _chrScreenMixed,
-    ENCODING_PETSCII_UPPER: _chrPetsciiUpper,
-    ENCODING_PETSCII_MIXED: _chrPetsciiMixed,
-}
+def _encoding(table: dict[int, str]) -> dict[str, int]:
+    """An encoding is a table of characters and their values: the reverse of a table above."""
+    return {char: value for value, char in table.items()}
 
-# character: value, for each encoding: the reverse of _chr
-_ord = {encoding: {char: value for value, char in table.items()} for encoding, table in _chr.items()}
+# the encodings, as used by .encoding, e.g. .encoding ENCODING_PETSCII_UPPER
+ENCODING_SCREEN_UPPER = _encoding(_chrScreenUpper)
+ENCODING_SCREEN_MIXED = _encoding(_chrScreenMixed)
+ENCODING_PETSCII_UPPER = _encoding(_chrPetsciiUpper)
+ENCODING_PETSCII_MIXED = _encoding(_chrPetsciiMixed)
 
-def chr(value: int, encoding: int) -> str | None:
-    """Return the character for a value in the encoding, or None if there is none."""
-    return _chr[encoding].get(value)
+def chr(value: int, encoding: dict[str, int]) -> str | None:
+    """Return the first character with a value in the encoding, or None if there is none."""
+    return next((char for char, v in encoding.items() if v == value), None)
 
-def ord(char: str, encoding: int) -> int | None:
+def ord(char: str, encoding: dict[str, int]) -> int | None:
     """Return the value of a character in the encoding, or None if it has none."""
-    return _ord[encoding].get(char)
+    return encoding.get(char)

@@ -448,7 +448,13 @@ Sets the text encoding used by `.text`, `.string`, `ord()` and `chr()`. The enco
 | `ENCODING_PETSCII_UPPER` | PETSCII, upper case and graphics character set |
 | `ENCODING_PETSCII_MIXED` | PETSCII, lower and upper case character set |
 
-Use screen codes for text written directly to screen memory, and PETSCII for text printed with the KERNAL. Note that the built-in BASIC generators switch the encoding to PETSCII.
+An encoding is a table of characters and their values, so you can also use your own, e.g. for a custom font:
+```
+MY_FONT = {"A": 0, "B": 1, " ": 32}
+            .encoding MY_FONT
+            .text "AB A"
+```
+Use screen codes for text written directly to screen memory, and PETSCII for text printed with the KERNAL.
 
 ### Zero page variables
 

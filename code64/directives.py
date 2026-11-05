@@ -111,7 +111,7 @@ def _storeTexts(context, texts, zeroTerminated: bool):
         for char in t:
             o = text.ord(char, context.encoding)
             if o is not None:
-                context.store(o)
+                context.store(evaluate.byteExpression(repr(o), context)) # your own encoding can have any value
             else:
                 context.reportError(f'Unknown character "{char}" in text "{t}"')
         if zeroTerminated:
@@ -119,8 +119,8 @@ def _storeTexts(context, texts, zeroTerminated: bool):
 
 
 @directive('encoding')
-def encoding(context, encoding: int):
-    """Set the text encoding."""
+def encoding(context, encoding: dict):
+    """Set the text encoding: a table of characters and their values."""
     context.encoding = encoding
 
 

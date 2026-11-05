@@ -4,7 +4,6 @@
 import unittest
 
 from ..text import (
-    _chr,
     chr,
     ENCODING_PETSCII_MIXED,
     ENCODING_PETSCII_UPPER,
@@ -18,20 +17,25 @@ class TestText(unittest.TestCase):
     """The encoding tables, and chr() and ord() in each encoding."""
 
     def testOrdReversesChr(self):
-        """In every encoding, ord gives back the value of every character."""
-        for encoding, table in _chr.items():
-            for value, char in table.items():
-                with self.subTest(encoding=encoding, value=value):
+        """In every encoding, ord gives the value of every character, and chr gives the character back."""
+        for encoding in [ENCODING_SCREEN_UPPER, ENCODING_SCREEN_MIXED, ENCODING_PETSCII_UPPER, ENCODING_PETSCII_MIXED]:
+            for char, value in encoding.items():
+                with self.subTest(char=char, value=value):
                     self.assertEqual(ord(char, encoding), value)
+                    self.assertEqual(chr(value, encoding), char)
 
     def testUnknown(self):
         """A value or character that is not in the encoding gives None."""
         self.assertEqual(chr(255, ENCODING_SCREEN_UPPER), None)
         self.assertEqual(ord('€', ENCODING_PETSCII_MIXED), None)
 
+    def testFirstCharacter(self):
+        """If two characters have the same value, chr gives the first of them."""
+        self.assertEqual(chr(1, {'A': 1, 'a': 1}), 'A')
+
     def testApostrophe(self):
         """The apostrophe is code 39 in every encoding."""
-        for encoding in _chr:
+        for encoding in [ENCODING_SCREEN_UPPER, ENCODING_SCREEN_MIXED, ENCODING_PETSCII_UPPER, ENCODING_PETSCII_MIXED]:
             self.assertEqual(ord("'", encoding), 39)
 
     def testGraphics(self):

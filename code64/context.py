@@ -35,7 +35,7 @@ class Context:
         self.generatorCounts: dict[str, int] = {} # generator name: calls, gives each call its own local label scope
         self.breakpoints: list[tuple[int, str | None]] = [] # (address, VICE condition or None) for each .break
         self.path = '' # folder of the main source file, for .import and .binary
-        self.encoding: int = text.ENCODING_SCREEN_UPPER
+        self.encoding: dict[str, int] = text.ENCODING_SCREEN_UPPER
         self.references: set[str] = set() # the names used by the Python code and expressions in this pass
         self.lastReferences: set[str] = set() # the same from the last pass, for ref()
 

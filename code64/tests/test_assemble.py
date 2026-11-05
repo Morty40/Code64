@@ -258,6 +258,22 @@ class TestAssemble(unittest.TestCase):
             .text "A"
             """), [0x01, 0x01, 0x01, 0x41, 0x41, 0x01, 0x01, 0x61])
 
+    def testCustomEncoding(self):
+        """An encoding is a table of characters and values, so .encoding also takes your own, for .text, ord() and chr()."""
+        self.assertEqual(self._memory('MY_FONT = {"A": 0, "B": 1}\n.encoding MY_FONT\n.text "BA"\n'
+                                      '.byte ord("B")\n.byte int(chr(0) == "A")\n'), [1, 0, 1, 1])
+        self.assertEqual(self._memory('.encoding {"A": -1}\n.string "A"\n'), [0xff, 0])
+
+    def testEncodingMessages(self):
+        """.encoding needs an encoding, and its values must fit in a byte."""
+        self._assertMessages([
+            ('.encoding 7\n',                        'test.asm:1: error: Invalid directive: .encoding 7'),
+            ('.encoding "A"\n',                      'test.asm:1: error: Invalid directive: .encoding f"A"'),
+            ('.encoding {"A": 1}\n.text "B"\n',       'test.asm:2: error: Unknown character "B" in text "B"'),
+            ('.encoding {"A": 300}\n.text "A"\n',     'test.asm:2: error: Byte value out of range: 300'),
+            ('.encoding {"A": "x"}\n.text "A"\n',     'test.asm:2: error: Expected an int value instead of: "\'x\'"'),
+        ])
+
     def testLocalLabels(self):
         """A local label belongs to the global label before it, so a name can be used again after the next one."""
         self.assertEqual(self._memory('aa: nop\n_0: jmp _1\nnop\n_1: jmp _0\nbb: nop\n_0: jmp _0\n'),
