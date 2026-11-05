@@ -232,6 +232,78 @@ class TestAssemble(unittest.TestCase):
         self.assertEqual(context.errors, [])
         return [context.memory[address] for address in sorted(context.memory)]
 
+    def testEncoding(self):
+        """.encoding chooses the text encoding, for .text, ord() and chr()."""
+        self.assertEqual(self._memory('.encoding ENCODING_SCREEN_UPPER\n.text "A"\n'
+                                      '.encoding ENCODING_SCREEN_MIXED\n.text "A"\n'
+                                      '.encoding ENCODING_PETSCII_UPPER\n.text "A"\n'
+                                      '.encoding ENCODING_PETSCII_MIXED\n.text "A"\n'), [0x01, 0x41, 0x41, 0x61])
+
+    def testEncodingEachPass(self):
+        """Every pass starts with the default encoding, whichever encoding the previous pass ended with."""
+        self.assertEqual(self._memory("""
+            .text "A"                           ; default encoding, screen code upper
+            .byte ord("A")
+            .byte int(chr(1) == "A")
+
+            .encoding ENCODING_PETSCII_UPPER
+            .text "A"
+            .byte ord("A")
+            .byte int(chr(65) == "A")
+
+            .encoding ENCODING_SCREEN_UPPER     ; switching back to screen code
+            .text "A"
+
+            .encoding ENCODING_PETSCII_MIXED    ; would leak into the next pass
+            .text "A"
+            """), [0x01, 0x01, 0x01, 0x41, 0x41, 0x01, 0x01, 0x61])
+
+    def testLocalLabels(self):
+        """A local label belongs to the global label before it, so a name can be used again after the next one."""
+        self.assertEqual(self._memory('aa: nop\n_0: jmp _1\nnop\n_1: jmp _0\nbb: nop\n_0: jmp _0\n'),
+                         [0xea, 0x4c, 0x05, 0x10, 0xea, 0x4c, 0x01, 0x10, 0xea, 0x4c, 0x09, 0x10])
+
+    def testPythonKeywords(self):
+        """Python keywords work in directives, instructions, assignments and generators."""
+        for source, expected in [
+            ('.byte 1 if flag else 2\n',                  [1]),
+            ('.byte 3 if not flag else 4\n',              [4]),
+            ('.byte flag and 5, flag or 6\n',             [5, 1]),
+            ('.byte 7 if 3 in [1, 2, 3] else 8\n',        [7]),
+            ('.word $1234 if flag is not None else 0\n',  [0x34, 0x12]),
+            ('lda #9 if flag else 10\n',                  [0xa9, 9]),
+            ('squares = [x * x for x in range(4)]\n.byte squares[3]\n', [9]),
+            ('.python\n    def fill(x, n):\n        return f".byte {x}\\n" * n\n.end\n@fill(11, 2) if flag else ""\n', [11, 11]),
+        ]:
+            with self.subTest(source=source):
+                self.assertEqual(self._memory(f'flag = 1\n{source}'), expected)
+
+    def testFormattedStrings(self):
+        """A double-quoted string can use symbols, as in a Python f-string."""
+        self.assertEqual(self._memory('a = "ABC"\n\tb = 123\n.text "{a} {b}"\n'), [1, 2, 3, 0x20, 0x31, 0x32, 0x33])
+
+    def testLoHi(self):
+        """lo() and hi() are the low and the high byte of a value."""
+        self.assertEqual(self._memory('.byte lo($1234)\n.byte hi($1234)\n'), [0x34, 0x12])
+
+    def testModulo(self):
+        """% is both the binary prefix and the Python modulo operator."""
+        for source, expected in [
+            ('.byte 7 % 4\n',      [3]),          # spaces on both sides
+            ('.byte 7%4\n',        [3]),          # no spaces
+            ('.byte 10 %4\n',      [2]),          # %4 is not binary
+            ('.byte 6 % %11\n',    [0]),          # 6 % 3
+            ('.byte %101 % 3\n',   [2]),          # 5 % 3
+            ('.byte (%101) % 3\n', [2]),          # 5 % 3, binary inside parentheses
+            ('.byte 7 %11\n',      [7]),          # 7 % 11, after a number
+            ('.byte x %10\n',      [7]),          # 7 % 10, after a name
+            ('.byte (5) %10\n',    [5]),          # 5 % 10, after a parenthesis
+            ('.byte %11\n',        [3]),          # a binary prefix right after a directive
+            ('lda %11\n',          [0xa5, 0x03]), # and after a mnemonic
+        ]:
+            with self.subTest(source=source):
+                self.assertEqual(self._memory(f'x = 7\n{source}'), expected)
+
     def testRef(self):
         """ref(label) is true if the label was referenced in the last pass, wherever and however."""
         block = '.if ref("t")\nt: .byte 8\n.end\n'

@@ -2,7 +2,6 @@
 """Tests of the disassembler."""
 
 import contextlib
-import glob
 import io
 import os
 import tempfile
@@ -37,13 +36,23 @@ class TestDisassemble(unittest.TestCase):
         return [' '.join(line.split()) for line in disassemble(bytes(data), start).splitlines()[4:]]
 
     def testRoundtrip(self):
-        """asm -> prg -> asm -> prg -> asm gives the same .prg and the same source, for every test case."""
-        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        """asm -> prg -> asm -> prg -> asm gives the same .prg and the same source, for code and data."""
         with tempfile.TemporaryDirectory() as directory:
-            for asmFile in sorted(glob.glob(os.path.join(root, 'testcases', '*.asm'))):
-                name = os.path.join(directory, os.path.basename(asmFile)[:-4])
-                with self.subTest(asmFile=os.path.basename(asmFile)):
-                    prg1 = self._assemble(asmFile, name + '1.prg')
+            name = os.path.join(directory, 'test')
+            for source in [
+                '',                                                   # nothing stored
+                '.byte 1, 2, 3\n',                                    # only data
+                '.word $1234, 0\n.text "ABC"\n.string "DEF"\n',       # data from other directives
+                '.org $2000\n.byte 1\n.org $2010\n.byte 2\n',         # a gap in the memory
+                '.align 16\n.byte 1\n.align 16\nrts\n',               # code after a gap
+                'lda $02\nlda $1234\nlda #$12\nlda $02,x\nldx $02,y\nlda ($02,x)\nlda ($02),y\nrts\n', # operands
+                'start: ldx #3\n_loop: dex\nbne _loop\njsr sub\njmp start\n.byte 1, 2\nsub: rts\n', # labels, code and data
+                '.python\n    def delay(n):\n        return f"ldx #{n}\\n_loop: dex\\nbne _loop\\n"\n.end\n@delay(3)\n@delay(5)\nrts\n', # a generator
+            ]:
+                with self.subTest(source=source):
+                    with open(name + '.asm', 'w') as f:
+                        f.write(source)
+                    prg1 = self._assemble(name + '.asm', name + '1.prg')
                     source1 = self._disassemble(name + '1.prg', name + '1.asm')
                     prg2 = self._assemble(name + '1.asm', name + '2.prg')
                     source2 = self._disassemble(name + '2.prg', name + '2.asm')

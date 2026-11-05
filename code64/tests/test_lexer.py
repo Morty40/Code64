@@ -99,6 +99,10 @@ class TestLexer(unittest.TestCase):
             ('1e-_x',         ['1e', '-', '__x']),
             ('a-1',           ['a', '-', '1']),
             ('.byte 1 ; c',   ['.', 'byte', '1']),
+            ('; c',           []),             # a line with only a comment
+            ('.byte %10, 0b10', ['.', 'byte', '0b10', ',', '0b10']),
+            ('.byte $10, 0x10', ['.', 'byte', '0x10', ',', '0x10']),
+            ('.byte 10',      ['.', 'byte', '10']),
             ('l:nop',         ['l', ':', 'nop']),
             ('"a;b" ; c',     ['f"a;b"']),
             ('"a\\"b"',       ['f"a\\"b"']),

@@ -25,6 +25,6 @@ The first release.
 - Python API: `code64.assembleFile`, `code64.disassembleFile` and `code64.Context`
 - warnings and errors on stderr, and exit code 1 on errors
 - `code64 --version` and `code64 -h`
-- requires Python 3.9 or later
+- requires Python 3.11 or later
 
 [0.1.0]: https://github.com/Morty40/Code64/releases/tag/v0.1.0

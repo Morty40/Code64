@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "code64"
 dynamic = ["version"]
-description = "a 6502 Python hybrid assembler for C64 cross development"
-keywords = ["6502", "6510", "c64", "commodore 64", "assembler", "cross assembler", "disassembler", "retro computing"]
+description = "a 6502/Python hybrid cross assembler for Commodore computers"
+keywords = ["6502", "6510", "commodore", "c64", "commodore 64", "c128", "c16", "plus4", "vic20", "assembler", "cross assembler", "disassembler", "retro computing"]
 readme = "README.md"
 authors = [{name = "Morten Perriard", email = "morten@perriard.dk"}]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE.txt"]
 # standard PyPI tags, from https://pypi.org/classifiers: shown on the project page, and used by PyPI search filters.
@@ -22,8 +22,6 @@ classifiers = [
     "Programming Language :: Assembly",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",

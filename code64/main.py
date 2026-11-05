@@ -63,7 +63,7 @@ def viceMonitorCommands(context: Context) -> str:
 
 def main():
     """Assemble or disassemble the file given on the command line. Exits with 1 on errors, and 2 on incorrect arguments."""
-    parser = argparse.ArgumentParser(prog='code64', description=f'Code64 v{__version__}: a 6502/Python hybrid assembler for C64 cross development.')
+    parser = argparse.ArgumentParser(prog='code64', description=f'Code64 v{__version__}: a 6502/Python hybrid cross assembler for Commodore computers.')
     parser.add_argument('file', help='the source file to assemble, or with -d the .prg or binary file to disassemble')
     parser.add_argument('-d', '--disassemble', dest='disassemble', action='store_true', help='disassemble the file instead of assembling it')
     parser.add_argument('-o', '--output', dest='outFile', help='the .prg file to write, or the source file when disassembling (default: print it)')
