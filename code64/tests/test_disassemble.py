@@ -9,6 +9,8 @@ import tempfile
 import unittest
 
 from .. import assemble
+from .. import cpu
+from ..cpu import AddressMode
 from ..disassemble import disassemble, disassembleFile, readLabels
 
 
@@ -48,6 +50,25 @@ class TestDisassemble(unittest.TestCase):
                     self.assertEqual(prg1, prg2)
                     self.assertEqual(source1, source2)
                     self.assertNotIn('@', source1) # no generators
+
+    def testRoundtripInstructions(self):
+        """Every instruction in every address mode is disassembled as code, and assembles to the same bytes."""
+        with tempfile.TemporaryDirectory() as directory:
+            asmFile, prgFile = os.path.join(directory, 'test.asm'), os.path.join(directory, 'test.prg')
+            for opcode in range(0x100):
+                if not (found := cpu.instructionForOpcode(opcode)):
+                    continue
+                instruction, mode = found
+                operand = '_' if mode is AddressMode.relative else '$1234' if mode.size == 3 else '$12'
+                source = f'{instruction.mnemonic} {mode.syntax(operand)}\nrts\n'
+                with self.subTest(source=source):
+                    with open(asmFile, 'w') as f:
+                        f.write(source)
+                    prg = self._assemble(asmFile, prgFile)
+                    self._disassemble(prgFile, asmFile)
+                    self.assertEqual(self._assemble(asmFile, prgFile), prg)
+                    if instruction.mnemonic != 'brk': # brk is treated as data
+                        self.assertIn(instruction.mnemonic, [line.partition(' ')[0] for line in self._lines(prg[2:])])
 
     def testLabels(self):
         """Branch, jmp and jsr destinations in the code get labels."""

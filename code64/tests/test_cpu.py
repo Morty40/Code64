@@ -19,8 +19,8 @@ from ..cpu import (
 class TestCpu(unittest.TestCase):
     """Tests of the instruction set table and lookups.
 
-    The opcodes themselves are tested by the regression tests in testcases/,
-    which assemble every instruction in every address mode.
+    The opcodes themselves are tested by testOpcodes and testIllegalOpcodes in
+    test_instructions.py, which assemble every instruction in every address mode.
     """
 
     def testInstructionSet(self):
