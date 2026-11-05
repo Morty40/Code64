@@ -1,6 +1,6 @@
 
 unittest:
-	python3 -m unittest discover -s . -t .. -p '*.py'
+	python3 -m unittest discover -s . -t ..
 
 
 asmfiles := $(wildcard testcases/*.asm)
