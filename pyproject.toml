@@ -42,6 +42,7 @@ code64 = "code64.main:main"
 [tool.setuptools]
 packages = ["code64", "code64.imports", "code64.imports.target.c128", "code64.imports.target.c16", "code64.imports.target.c64", "code64.imports.target.plus4", "code64.imports.target.vic20"]
 zip-safe = false
+include-package-data = false # the tests in MANIFEST.in are for the source distribution only, not the installed package
 
 [tool.setuptools.dynamic]
 version = {attr = "code64.__version__"}
