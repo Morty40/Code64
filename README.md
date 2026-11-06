@@ -32,7 +32,7 @@ This installs the `code64` command. Run `pipx install --force .` to update after
 Code64 can also run directly from the repository folder, without installing:
 
 ```bash
-python3 -m code64.main hello.asm -o hello.prg
+python3 -m code64 hello.asm -o hello.prg
 ```
 
 

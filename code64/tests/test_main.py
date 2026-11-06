@@ -301,6 +301,15 @@ class TestMain(unittest.TestCase):
         self.assertNotIn('cpu', modules)
         self.assertNotIn('assemble', modules)
 
+    def testRunAsModule(self):
+        """python -m code64 runs the command line, the same as python -m code64.main."""
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        for module in ['code64', 'code64.main']:
+            with self.subTest(module=module):
+                output = subprocess.run([sys.executable, '-m', module, '--version'], cwd=root, capture_output=True, text=True)
+                self.assertEqual((output.returncode, output.stderr), (0, ''))
+                self.assertEqual(output.stdout, f'Code64 v{__version__} (c) Morten Perriard 2021-2026\n')
+
     def testPublicApi(self):
         """The package exports assembleFile, disassembleFile and Context, and its modules stay importable."""
         import code64
