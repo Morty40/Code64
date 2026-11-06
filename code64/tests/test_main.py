@@ -180,7 +180,7 @@ class TestMain(unittest.TestCase):
             self.assertEqual(code, 0, errors)
             code, output, errors = self._main(['-d', prgFile, '-l', labelsFile])
             self.assertEqual(code, 0, errors)
-            lines = [line.strip() for line in output.splitlines()]
+            lines = [line.split(';')[0].strip() for line in output.splitlines()] # without the monitor comments
             for line in ['start:', 'start_loop:', 'bne start_loop']:
                 self.assertIn(line, lines)
 

@@ -104,6 +104,81 @@ x64sc -moncommands game.vmc game.prg
 - With `-l game.py`, the names from a [labels file](#labels-file) are used instead, for the operands and as labels, also in the data: `jsr irq`, `lda sinTable,x`. A name the code uses for an address outside the program, such as a zero page variable, is assigned at the top: `frame = $02`. Local labels keep their `global_local` names.
 - Bytes the code doesn't reach are written as `.byte`, and 16 or more of the same byte as `.bytefill`. Code that is only reached through jump tables or self-modifying code becomes data too.
 - An absolute address below `$100`, e.g. `lda $0010` as `ad 10 00`, is written as `.byte`, as Code64 assembles it with zero page addressing.
+- Each instruction ends with a comment showing the instruction as a machine code monitor does, with its address, bytes and the operand as a number: `sta border ; 1000  8D 20 D0  STA $D020`. The comments are aligned, as a second column.
+
+#### Uses
+
+The disassembler reads any program as source, your own or someone else's, with a monitor view of every instruction beside it. The output is always source that Code64 assembles to the same bytes, so it is a starting point for further work, not just something to read.
+
+**Listing your own program.** Assemble with a labels file, and disassemble with the same file, to see the program exactly as it was assembled: generators and blocks such as `.repeat`, `.for` and `.if` expanded, your label names, and the address and bytes of each instruction:
+
+```bash
+code64 game.asm -o game.prg -l game.py
+```
+
+```bash
+code64 -d game.prg -l game.py
+```
+
+For example, this source:
+```
+start:      ldx #8
+_loop:      inc BORDER
+            @nop(2)
+            dex
+            bne _loop
+            rts
+
+BORDER = $d020
+```
+is listed as:
+```
+; disassembled by Code64
+
+            .org $1000
+
+start:
+            ldx #$08       ; 1000  A2 08     LDX #$08
+start_loop:
+            inc $d020      ; 1002  EE 20 D0  INC $D020
+            nop            ; 1005  EA        NOP
+            nop            ; 1006  EA        NOP
+            dex            ; 1007  CA        DEX
+            bne start_loop ; 1008  D0 F8     BNE $1002
+            rts            ; 100A  60        RTS
+```
+
+The listing shows the program as the machine sees it: labels keep their names, and symbols from assignments, such as `BORDER`, show as their values, here `$d020`.
+
+**Debugging in VICE.** The addresses are the ones the VICE monitor shows, so a listing next to the emulator tells you which part of your code you are looking at. With `--vice`, the monitor uses the same label names:
+
+```bash
+code64 game.asm -o game.prg -l game.py --vice game.vmc
+```
+
+```bash
+code64 -d game.prg -l game.py -o game.lst
+```
+
+```bash
+x64sc -moncommands game.vmc game.prg
+```
+
+The listing also shows what the assembler chose for you, such as zero page or absolute addressing, and makes self-modifying code easy to follow, as the address column shows which instruction a store writes into.
+
+**Reverse engineering.** Disassemble a program you don't have the source for. Branch, `jmp` and `jsr` destinations get labels such as `l08ec` to start with. As you find out what the code does, name the addresses in a labels file of your own, and disassemble again:
+
+```python
+frame = 0x0002
+irq = 0x08c3
+drawFrame = 0x08ec
+```
+
+```bash
+code64 -d game.prg -l names.py -o game.asm
+```
+
+Each round gives more readable source, and as it assembles to the same program, you can change it and assemble it again, e.g. to fix or extend the program.
 
 
 ### From Python

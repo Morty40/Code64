@@ -32,8 +32,8 @@ class TestDisassemble(unittest.TestCase):
         return source
 
     def _lines(self, data: bytes, start: int=0x1000) -> list:
-        """Disassemble, and return the lines after the header, with single spaces."""
-        return [' '.join(line.split()) for line in disassemble(bytes(data), start).splitlines()[4:]]
+        """Disassemble, and return the lines after the header, with single spaces, and without the monitor comments."""
+        return [' '.join(line.split(';')[0].split()) for line in disassemble(bytes(data), start).splitlines()[4:]]
 
     def testRoundtrip(self):
         """asm -> prg -> asm -> prg -> asm gives the same .prg and the same source, for code and data."""
@@ -112,18 +112,36 @@ class TestDisassemble(unittest.TestCase):
             '\n'
             '            .org $1000\n'
             '\n'
-            '            lda counter\n'
-            '            jsr draw\n'
+            '            lda counter ; 1000  A5 02     LDA $02\n'
+            '            jsr draw    ; 1002  20 08 10  JSR $1008\n'
             'l1005:\n'
-            '            jmp l1005\n'
+            '            jmp l1005   ; 1005  4C 05 10  JMP $1005\n'
             'draw:\n'
-            '            lda table,x\n'
-            '            rts\n'
+            '            lda table,x ; 1008  BD 0C 10  LDA $100C,X\n'
+            '            rts         ; 100B  60        RTS\n'
             '\n'
             'table:\n'
             '            .byte $01, $02\n'
             'table_end:\n'
             '            .byte $03\n')
+
+    def testMonitorComments(self):
+        """Each line of code ends with the instruction as a monitor shows it: its address, bytes, and the operand as a number.
+        The comments are aligned, as a second column, and .byte lines have none, also when they are code."""
+        self.assertEqual(disassemble(bytes([0xad, 0x10, 0x00,   # $1000 lda $0010, written as .byte
+                                            0x0a,               # $1003 asl
+                                            0xa9, 0x7f,         # $1004 lda #$7f
+                                            0xd0, 0xfb,         # $1006 bne $1003
+                                            0x60,               # $1008 rts
+                                            0x02]), 0x1000).splitlines()[4:],   # $1009 data
+            ['            .byte $ad, $10, $00',
+             'l1003:',
+             '            asl       ; 1003  0A        ASL',
+             '            lda #$7f  ; 1004  A9 7F     LDA #$7F',
+             '            bne l1003 ; 1006  D0 FB     BNE $1003',
+             '            rts       ; 1008  60        RTS',
+             '',
+             '            .byte $02'])
 
     def testReadLabels(self):
         """A labels file is Python: its int values are names for addresses, the first name for each address."""

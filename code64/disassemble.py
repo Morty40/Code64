@@ -32,6 +32,14 @@ def _jumpsTo(instruction, mode) -> bool:
     return mode is AddressMode.RELATIVE or (instruction.mnemonic in ('jmp', 'jsr') and mode is AddressMode.ABSOLUTE)
 
 
+def _monitorComment(address: int, data: bytes, instruction, mode, operand: int) -> str:
+    """The instruction as a machine code monitor shows it: its address, bytes, and the operand as a number,
+    e.g. 1000  AD 20 D0  STA $D020."""
+    digits = 4 if mode.size == 3 or mode is AddressMode.RELATIVE else 2
+    text = f'{instruction.mnemonic} {mode.syntax(f"${operand:0{digits}x}")}'.strip()
+    return f'{address:04x}  {data.hex(" "):<8}  {text}'.upper()
+
+
 def _trace(data: bytes, start: int, entry: int, code: dict, used: set):
     """Find the new code that can be reached from entry, by following branches, jumps and subroutine calls.
 
@@ -109,17 +117,19 @@ def disassemble(data: bytes, start: int, names: dict[int, str] | None = None) ->
         """A .byte directive with the values."""
         return '.byte ' + ', '.join(f'${b:02x}' for b in values)
 
-    lines = ['']
+    lines: list[str | tuple[str, str]] = [''] # a line of code is (code, monitor comment)
     address, wasCode = start, None
     while address < end:
         if lines[-1] and (address in code) != wasCode:
             lines.append('') # between code and data
         wasCode = address in code
+        comment = None # only for lines of code that are instructions, not .byte
         if wasCode:
             instruction, mode, operand, size = code[address]
             if mode.zeroPageMode in instruction.opcodes and operand < 0x100:
                 text = byteList(data[address-start:address-start+size]) # would assemble as zero page
             else:
+                comment = _monitorComment(address, data[address-start:address-start+size], instruction, mode, operand)
                 if size == 3 or mode is AddressMode.RELATIVE:
                     operand = symbol(operand, 4)
                 elif mode is AddressMode.IMMEDIATE:
@@ -137,16 +147,25 @@ def disassemble(data: bytes, start: int, names: dict[int, str] | None = None) ->
             else:
                 size = min(len(chunk), 16)
                 text = byteList(chunk[:size])
-        lines.append(line(address, text))
+        lines.append((line(address, text), comment) if comment else line(address, text))
         if wasCode and instruction.mnemonic in ('rts', 'rti'):
             lines.append('') # something new most likely starts here
         address += size
+
+    def lastLength(code: str) -> int:
+        """The length of the line of code, after its label if it has one."""
+        return len(code) - code.rfind('\n') - 1
+
+    # the monitor comments are aligned after the longest line of code, as a second column
+    width = max((lastLength(entry[0]) for entry in lines if isinstance(entry, tuple)), default=0)
+    source = [entry if isinstance(entry, str) else entry[0] + ' ' * (width - lastLength(entry[0])) + ' ; ' + entry[1]
+              for entry in lines]
 
     header = ['; disassembled by Code64', '']
     header += [f'{name} = ${address:0{2 if address < 0x100 else 4}x}' for address, name in sorted(assigned.items())]
     header += [''] if assigned else []
     header += [f'{"":<12}.org ${start:04x}']
-    return '\n'.join(header + lines).rstrip() + '\n'
+    return '\n'.join(header + source).rstrip() + '\n'
 
 
 def readLabels(labelsFile: str) -> dict:
