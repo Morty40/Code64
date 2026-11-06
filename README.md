@@ -206,6 +206,117 @@ source = code64.disassembleFile('game.prg')
 Both raise `OSError` if a file can't be read or written. Errors in the source don't raise, they are returned in `context.errors`. The illegal instructions are set with `code64.cpu.setIllegalInstructions('none' | 'stable' | 'all')`, which is `stable` by default.
 
 
+### Testing 6502 code
+
+As Code64 is a Python library, your 6502 routines can have unit tests, run in the [py65](https://github.com/mnaberez/py65) 6502 emulator. A test assembles the source, loads it into the emulator, calls a routine, and checks the registers, the memory, and the cycles it took. Python itself is the reference to compare with, so a routine can be tested with every input.
+
+The tests need py65, and Code64 as a library, e.g. in a virtual environment, with Code64 from its repository folder:
+
+```bash
+python3 -m venv .venv
+```
+
+```bash
+.venv/bin/pip install py65 ./Code64
+```
+
+Two routines to test:
+
+```
+; routines.asm - two small routines, tested by test_routines.py
+
+            .zpbyte "temp"
+
+; A = A * 10, for A from 0 to 25
+mul10:      sta temp
+            asl                 ; A * 2
+            asl                 ; A * 4
+            clc
+            adc temp            ; A * 5
+            asl                 ; A * 10
+            rts
+
+; X = the number of 1 bits in A
+countBits:  ldx #0
+_loop:      lsr
+            bcc _zero
+            inx
+_zero:      cmp #0
+            bne _loop
+            rts
+```
+
+And their tests:
+
+```python
+"""Tests of routines.asm, run in the py65 6502 emulator."""
+
+import unittest
+
+import code64
+from py65.devices.mpu6502 import MPU
+
+
+class Program:
+    """An assembled program, loaded into a 6502 emulator."""
+
+    def __init__(self, asmFile):
+        context = code64.assembleFile(asmFile)
+        assert not context.errors, context.errors
+        self.labels = context.symbols
+        self.cpu = MPU()
+        for address, value in context.memory.items():
+            self.cpu.memory[address] = value
+
+    def call(self, label, a=0, x=0, y=0):
+        """Run the routine with jsr, and return the cycles it took, including the jsr."""
+        address = self.labels[label]
+        self.cpu.memory[0x0200:0x0203] = [0x20, address & 0xff, address >> 8] # jsr label
+        self.cpu.pc, self.cpu.sp = 0x0200, 0xff
+        self.cpu.a, self.cpu.x, self.cpu.y = a, x, y
+        start = self.cpu.processorCycles
+        while self.cpu.pc != 0x0203: # back after the jsr
+            self.cpu.step()
+        return self.cpu.processorCycles - start
+
+
+class TestRoutines(unittest.TestCase):
+
+    def setUp(self):
+        self.program = Program('routines.asm')
+
+    def testMul10(self):
+        """Every input gives the same result as Python."""
+        for a in range(26):
+            with self.subTest(a=a):
+                self.program.call('mul10', a=a)
+                self.assertEqual(self.program.cpu.a, a * 10)
+
+    def testCountBits(self):
+        """All 256 values, each within a budget of 110 cycles."""
+        for a in range(256):
+            with self.subTest(a=a):
+                cycles = self.program.call('countBits', a=a)
+                self.assertEqual(self.program.cpu.x, bin(a).count('1'))
+                self.assertLessEqual(cycles, 110)
+
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+```bash
+.venv/bin/python -m unittest -v test_routines
+```
+
+Each test shows a different idea:
+
+- `testMul10` compares every input with the same calculation in Python.
+- `testCountBits` tries all 256 values, and keeps the routine within a cycle budget, which is often what matters most in a demo or a game.
+
+The same approach scales to larger code, e.g. comparing a line drawing routine with a Python version of the algorithm for thousands of random lines.
+
+
 ## Example
 
 ```
