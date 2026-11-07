@@ -97,13 +97,15 @@ class TestCpu(unittest.TestCase):
 
     def testSize(self):
         """The size of an instruction, by address mode: the opcode, and a byte or word operand."""
-        self.assertEqual(AddressMode.IMPLIED.size, 1)        # rts
-        self.assertEqual(AddressMode.ACCUMULATOR.size, 1)    # asl
-        self.assertEqual(AddressMode.IMMEDIATE.size, 2)      # lda #$01
-        self.assertEqual(AddressMode.RELATIVE.size, 2)       # bne label
-        self.assertEqual(AddressMode.INDIRECT_Y.size, 2)      # lda ($10),y
-        self.assertEqual(AddressMode.ABSOLUTE_X.size, 3)      # lda $1234,x
-        self.assertEqual(AddressMode.INDIRECT.size, 3)       # jmp ($1234)
+        self.assertEqual(AddressMode.IMPLIED.size, 1)                # rts
+        self.assertEqual(AddressMode.ACCUMULATOR.size, 1)            # asl
+        self.assertEqual(AddressMode.IMMEDIATE.size, 2)              # lda #$01
+        self.assertEqual(AddressMode.RELATIVE.size, 2)               # bne label
+        self.assertEqual(AddressMode.ZERO_PAGE_INDIRECT_Y.size, 2)   # lda ($10),y
+        self.assertEqual(AddressMode.ZERO_PAGE_INDIRECT.size, 2)     # lda ($10), on the 65C02
+        self.assertEqual(AddressMode.ABSOLUTE_X.size, 3)             # lda $1234,x
+        self.assertEqual(AddressMode.ABSOLUTE_INDIRECT.size, 3)      # jmp ($1234)
+        self.assertEqual(AddressMode.ABSOLUTE_INDIRECT_X.size, 3)    # jmp ($1234,x), on the 65C02
 
 
     def testSyntax(self):
@@ -111,10 +113,11 @@ class TestCpu(unittest.TestCase):
         for mode, expected in [(AddressMode.IMPLIED, ''),        (AddressMode.ACCUMULATOR, ''),
                                (AddressMode.IMMEDIATE, '#$10'),  (AddressMode.RELATIVE, '$10'),
                                (AddressMode.ZERO_PAGE, '$10'),    (AddressMode.ZERO_PAGE_X, '$10,x'),
-                               (AddressMode.ZERO_PAGE_Y, '$10,y'), (AddressMode.INDIRECT_X, '($10,x)'),
-                               (AddressMode.INDIRECT_Y, '($10),y'), (AddressMode.ABSOLUTE, '$10'),
+                               (AddressMode.ZERO_PAGE_Y, '$10,y'), (AddressMode.ZERO_PAGE_INDIRECT_X, '($10,x)'),
+                               (AddressMode.ZERO_PAGE_INDIRECT_Y, '($10),y'), (AddressMode.ABSOLUTE, '$10'),
                                (AddressMode.ABSOLUTE_X, '$10,x'), (AddressMode.ABSOLUTE_Y, '$10,y'),
-                               (AddressMode.INDIRECT, '($10)')]:
+                               (AddressMode.ABSOLUTE_INDIRECT, '($10)'), (AddressMode.ZERO_PAGE_INDIRECT, '($10)'),
+                               (AddressMode.ABSOLUTE_INDIRECT_X, '($10,x)')]:
             with self.subTest(mode=mode):
                 self.assertEqual(mode.syntax('$10'), expected)
 
@@ -124,7 +127,8 @@ class TestCpu(unittest.TestCase):
         self.assertEqual(AddressMode.ABSOLUTE.zeroPageMode, AddressMode.ZERO_PAGE)
         self.assertEqual(AddressMode.ABSOLUTE_X.zeroPageMode, AddressMode.ZERO_PAGE_X)
         self.assertEqual(AddressMode.ABSOLUTE_Y.zeroPageMode, AddressMode.ZERO_PAGE_Y)
-        self.assertEqual(AddressMode.INDIRECT.zeroPageMode, None) # always a word
+        self.assertEqual(AddressMode.ABSOLUTE_INDIRECT.zeroPageMode, None) # always a word
+        self.assertEqual(AddressMode.ABSOLUTE_INDIRECT_X.zeroPageMode, None) # always a word, on the 65C02
         self.assertEqual(AddressMode.ZERO_PAGE.zeroPageMode, None)
 
 

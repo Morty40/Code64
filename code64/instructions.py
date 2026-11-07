@@ -32,19 +32,19 @@ def assemble(tokens: list, context: Context):
         v = evaluate.byteExpression(operand[1:], context)
         data = [opcodes[cpu.AddressMode.IMMEDIATE], v]
 
-    elif cpu.AddressMode.INDIRECT_X in opcodes and operand.startswith('(') and operand.endswith(',x)'):
+    elif cpu.AddressMode.ZERO_PAGE_INDIRECT_X in opcodes and operand.startswith('(') and operand.endswith(',x)'):
         v = evaluate.byteExpression(operand[1:-3], context)
-        data = [opcodes[cpu.AddressMode.INDIRECT_X], v]
+        data = [opcodes[cpu.AddressMode.ZERO_PAGE_INDIRECT_X], v]
 
-    elif cpu.AddressMode.INDIRECT_Y in opcodes and operand.startswith('(') and operand.endswith('),y'):
+    elif cpu.AddressMode.ZERO_PAGE_INDIRECT_Y in opcodes and operand.startswith('(') and operand.endswith('),y'):
         v = evaluate.byteExpression(operand[1:-3], context)
-        data = [opcodes[cpu.AddressMode.INDIRECT_Y], v]
+        data = [opcodes[cpu.AddressMode.ZERO_PAGE_INDIRECT_Y], v]
 
-    elif cpu.AddressMode.INDIRECT in opcodes and operand.startswith('(') and operand.endswith(')'):
+    elif cpu.AddressMode.ABSOLUTE_INDIRECT in opcodes and operand.startswith('(') and operand.endswith(')'):
         v = evaluate.wordExpression(operand[1:-1], context)
         if lo(v) == 0xff:
             context.reportWarning(f'Indirect address located on page boundary: ${v:04x}')
-        data = [opcodes[cpu.AddressMode.INDIRECT], lo(v), hi(v)]
+        data = [opcodes[cpu.AddressMode.ABSOLUTE_INDIRECT], lo(v), hi(v)]
 
     elif cpu.AddressMode.RELATIVE in opcodes: # TODO: give warning about branching across page boundary
         v = evaluate.wordExpression(operand, context)
