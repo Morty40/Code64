@@ -36,6 +36,10 @@ def assemble(tokens: list, context: Context):
         v = evaluate.byteExpression(operand[1:-3], context)
         data = [opcodes[cpu.AddressMode.ZERO_PAGE_INDIRECT_X], v]
 
+    elif cpu.AddressMode.ABSOLUTE_INDIRECT_X in opcodes and operand.startswith('(') and operand.endswith(',x)'): # 65C02
+        v = evaluate.wordExpression(operand[1:-3], context)
+        data = [opcodes[cpu.AddressMode.ABSOLUTE_INDIRECT_X], lo(v), hi(v)]
+
     elif cpu.AddressMode.ZERO_PAGE_INDIRECT_Y in opcodes and operand.startswith('(') and operand.endswith('),y'):
         v = evaluate.byteExpression(operand[1:-3], context)
         data = [opcodes[cpu.AddressMode.ZERO_PAGE_INDIRECT_Y], v]
@@ -45,6 +49,10 @@ def assemble(tokens: list, context: Context):
         if lo(v) == 0xff:
             context.reportWarning(f'Indirect address located on page boundary: ${v:04x}')
         data = [opcodes[cpu.AddressMode.ABSOLUTE_INDIRECT], lo(v), hi(v)]
+
+    elif cpu.AddressMode.ZERO_PAGE_INDIRECT in opcodes and operand.startswith('(') and operand.endswith(')'): # 65C02
+        v = evaluate.byteExpression(operand[1:-1], context)
+        data = [opcodes[cpu.AddressMode.ZERO_PAGE_INDIRECT], v]
 
     elif cpu.AddressMode.RELATIVE in opcodes: # TODO: give warning about branching across page boundary
         v = evaluate.wordExpression(operand, context)

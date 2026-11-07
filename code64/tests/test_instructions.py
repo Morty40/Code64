@@ -2,9 +2,12 @@
 """Tests of the 6502 instructions."""
 
 import unittest
+from unittest import mock
 
+from .. import cpu
 from .. import lexer
 from ..context import Context
+from ..cpu import Instruction
 from ..instructions import assemble
 
 
@@ -39,6 +42,23 @@ class TestInstructions(unittest.TestCase):
                 data, context = self._assemble(line)
                 self.assertEqual(data, expected)
                 self.assertEqual(context.errors + context.warnings, [])
+
+    def testIndirect65C02(self):
+        """The 65C02's lda ($12) and jmp ($1234,x), chosen by the instruction's modes, next to the 6502's ones."""
+        lda = Instruction('lda', ZERO_PAGE_INDIRECT=0xb2, ZERO_PAGE_INDIRECT_X=0xa1, ZERO_PAGE_INDIRECT_Y=0xb1, ZERO_PAGE=0xa5, ABSOLUTE=0xad)
+        jmp = Instruction('jmp', ABSOLUTE=0x4c, ABSOLUTE_INDIRECT=0x6c, ABSOLUTE_INDIRECT_X=0x7c)
+        for line, instruction, expected, errors in [
+            ('lda ($12)',     lda, [0xb2, 0x12],       []),
+            ('lda ($12,x)',   lda, [0xa1, 0x12],       []),
+            ('lda ($12),y',   lda, [0xb1, 0x12],       []),
+            ('jmp ($1234,x)', jmp, [0x7c, 0x34, 0x12], []),
+            ('jmp ($1234)',   jmp, [0x6c, 0x34, 0x12], []),
+            ('lda ($1234)',   lda, [0xb2, 0x34],       ['error: Byte value out of range: 4660']), # (zp) is a zero page address
+        ]:
+            with self.subTest(line=line), mock.patch.object(cpu, 'instructionWithMnemonic', return_value=instruction):
+                data, context = self._assemble(line)
+                self.assertEqual(data, expected)
+                self.assertEqual(context.errors + context.warnings, errors)
 
     def testIndirectPageBoundary(self):
         """jmp ($xxff) is assembled, with a warning, as the 6502 does not cross the page."""
