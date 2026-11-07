@@ -143,6 +143,31 @@ _illegalInstructionSet = {
     Instruction('slo', ABSOLUTE=0x0f, ABSOLUTE_X=0x1f, ABSOLUTE_Y=0x1b, ZERO_PAGE_INDIRECT_X=0x03, ZERO_PAGE_INDIRECT_Y=0x13, ZERO_PAGE=0x07, ZERO_PAGE_X=0x17),
     Instruction('sre', ABSOLUTE=0x4f, ABSOLUTE_X=0x5f, ABSOLUTE_Y=0x5b, ZERO_PAGE_INDIRECT_X=0x43, ZERO_PAGE_INDIRECT_Y=0x53, ZERO_PAGE=0x47, ZERO_PAGE_X=0x57)}
 
+# the instructions the 65C02 adds to the documented 6502 ones: new instructions, and new address modes for some
+# of the 6502's, to add to their 6502 modes. Not used yet. Left out are the Rockwell and WDC bit instructions,
+# rmb, smb, bbr and bbs, and WDC's wai and stp
+_cmosInstructionSet = {
+    Instruction('adc', ZERO_PAGE_INDIRECT=0x72),
+    Instruction('and', ZERO_PAGE_INDIRECT=0x32),
+    Instruction('bit', ABSOLUTE_X=0x3c, IMMEDIATE=0x89, ZERO_PAGE_X=0x34),
+    Instruction('bra', RELATIVE=0x80),
+    Instruction('cmp', ZERO_PAGE_INDIRECT=0xd2),
+    Instruction('dec', ACCUMULATOR=0x3a),
+    Instruction('eor', ZERO_PAGE_INDIRECT=0x52),
+    Instruction('inc', ACCUMULATOR=0x1a),
+    Instruction('jmp', ABSOLUTE_INDIRECT_X=0x7c),
+    Instruction('lda', ZERO_PAGE_INDIRECT=0xb2),
+    Instruction('ora', ZERO_PAGE_INDIRECT=0x12),
+    Instruction('phx', IMPLIED=0xda),
+    Instruction('phy', IMPLIED=0x5a),
+    Instruction('plx', IMPLIED=0xfa),
+    Instruction('ply', IMPLIED=0x7a),
+    Instruction('sbc', ZERO_PAGE_INDIRECT=0xf2),
+    Instruction('sta', ZERO_PAGE_INDIRECT=0x92),
+    Instruction('stz', ABSOLUTE=0x9c, ABSOLUTE_X=0x9e, ZERO_PAGE=0x64, ZERO_PAGE_X=0x74),
+    Instruction('trb', ABSOLUTE=0x1c, ZERO_PAGE=0x14),
+    Instruction('tsb', ABSOLUTE=0x0c, ZERO_PAGE=0x04)}
+
 
 _mnemonicMap: dict[str, Instruction] = {}
 _opcodeMap: dict[int, tuple[Instruction, AddressMode]] = {}

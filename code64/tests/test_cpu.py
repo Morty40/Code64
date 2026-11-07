@@ -6,6 +6,7 @@ import unittest
 from ..cpu import (
     AddressMode,
     Instruction,
+    _cmosInstructionSet,
     _illegalInstructionSet,
     instructionForOpcode,
     _instructionSet,
@@ -56,6 +57,15 @@ class TestCpu(unittest.TestCase):
     def testIllegalInstructionSets(self):
         """The number of stable illegal instructions."""
         self.assertEqual(len(_illegalInstructionSet), 13)
+
+
+    def testCmosInstructionSet(self):
+        """The 65C02 adds 27 opcodes, on opcodes the 6502 doesn't use, and only modes the 6502 doesn't have."""
+        added = {(i.mnemonic, mode): opcode for i in _cmosInstructionSet for mode, opcode in i.opcodes.items()}
+        documented = {(i.mnemonic, mode): opcode for i in _instructionSet for mode, opcode in i.opcodes.items()}
+        self.assertEqual(len(added), 27)
+        self.assertEqual(set(added.values()) & set(documented.values()), set())
+        self.assertEqual(set(added) & set(documented), set())
 
 
     def testIllegalDefault(self):
