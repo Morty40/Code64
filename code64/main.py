@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""Code64 command line: code64 <asmFile> -o <outFile>, or code64 -d <prgFile> -o <asmFile>, with -i <none | stable | all>"""
+"""Code64 command line: code64 <asmFile> -o <outFile>, or code64 -d <prgFile> -o <asmFile>, with -i <none | stable>"""
 
 import argparse
 import sys
@@ -67,8 +67,8 @@ def main():
     parser.add_argument('file', help='the source file to assemble, or with -d the .prg or binary file to disassemble')
     parser.add_argument('-d', '--disassemble', dest='disassemble', action='store_true', help='disassemble the file instead of assembling it')
     parser.add_argument('-o', '--output', dest='outFile', help='the .prg file to write, or the source file when disassembling (default: print it)')
-    parser.add_argument('-i', '--illegal', dest='illegal', choices=['none', 'stable', 'all'], default='stable',
-                        help='the illegal instructions to use: none, the stable ones (default), or all')
+    parser.add_argument('-i', '--illegal', dest='illegal', choices=['none', 'stable'], default='stable',
+                        help='the illegal instructions to use: none, or the stable ones (default)')
     parser.add_argument('-t', '--target', dest='target', choices=assemble.TARGETS,
                         help='the target machine, whose symbols and generators are imported (default: none)')
     parser.add_argument('-l', '--labels', dest='labelsFile', help='the labels file, as Python assignments: written when assembling, read when disassembling')

@@ -6,13 +6,12 @@ import unittest
 from ..cpu import (
     AddressMode,
     Instruction,
+    _illegalInstructionSet,
     instructionForOpcode,
     _instructionSet,
     instructionWithMnemonic,
     isMnemonic,
     setIllegalInstructions,
-    _stableIllegalInstructionSet,
-    _unstableIllegalInstructionSet,
 )
 
 
@@ -55,9 +54,8 @@ class TestCpu(unittest.TestCase):
 
 
     def testIllegalInstructionSets(self):
-        """The number of stable and unstable illegal instructions."""
-        self.assertEqual(len(_stableIllegalInstructionSet), 13)
-        self.assertEqual(len(_unstableIllegalInstructionSet), 6)
+        """The number of stable illegal instructions."""
+        self.assertEqual(len(_illegalInstructionSet), 13)
 
 
     def testIllegalDefault(self):
@@ -80,14 +78,6 @@ class TestCpu(unittest.TestCase):
         self.assertEqual(instructionForOpcode(0x04), None) # an illegal nop
         self.assertEqual(instructionForOpcode(0xeb), None) # usbc, the same as sbc #
         self.assertEqual(isMnemonic('sha'), False)         # unstable
-
-
-    def testIllegalAll(self):
-        """'all' also adds the unstable illegal instructions, but still not the illegal nops."""
-        self._setIllegalInstructions('all')
-        self.assertEqual(self._opcodeCount(), 215)
-        self.assertEqual(instructionWithMnemonic('nop').opcodes, {AddressMode.IMPLIED: 0xea})
-        self.assertEqual(instructionForOpcode(0x9f), (instructionWithMnemonic('sha'), AddressMode.ABSOLUTE_Y))
 
 
     def testIllegalUnknown(self):

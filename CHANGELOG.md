@@ -7,7 +7,7 @@ Whats new in Code64.
 The first release.
 
 ### Added
-- multi-pass 6502 assembler, with automatic zero page addressing and the illegal instructions (`-i none | stable | all`)
+- multi-pass 6502 assembler, with automatic zero page addressing and the illegal instructions (`-i none | stable`)
 - Python expressions, f-strings and lambdas in operands and directives
 - generators: Python functions that return assembly code
 - local labels, zero page variable allocation, `.repeat`, `.for` and `.if` blocks

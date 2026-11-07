@@ -39,8 +39,8 @@ python3 -m code64 hello.asm -o hello.prg
 ## Usage
 
 ```
-code64 <asmFile> -o <outFile> [-t c128|c16|c64|plus4|vic20] [-i none|stable|all] [-l <labelsFile>] [--vice <viceFile>]
-code64 -d <binFile> [-o <asmFile>] [-i none|stable|all] [-l <labelsFile>]
+code64 <asmFile> -o <outFile> [-t c128|c16|c64|plus4|vic20] [-i none|stable] [-l <labelsFile>] [--vice <viceFile>]
+code64 -d <binFile> [-o <asmFile>] [-i none|stable] [-l <labelsFile>]
 code64 --version
 ```
 
@@ -50,7 +50,7 @@ code64 --version
 | `-d`, `--disassemble <binFile>` | disassemble the `.prg` or binary file instead, see [Disassembling](#disassembling) |
 | `-o`, `--output <outFile>` | the `.prg` file to write. Without `-o` the source is assembled and checked, but nothing is saved. When disassembling, the source file to write. Without `-o` the source is printed |
 | `-t`, `--target <c128\|c16\|c64\|plus4\|vic20>` | the target machine, whose [symbols and generators](#built-in-symbols) are imported. Without it, only the generic 6502 ones are |
-| `-i`, `--illegal <none\|stable\|all>` | the [illegal instructions](#illegal-instructions) to use: none, the stable ones (the default), or all |
+| `-i`, `--illegal <none\|stable>` | the [illegal instructions](#illegal-instructions) to use: none, or the stable ones (the default) |
 | `-l`, `--labels <labelsFile>` | the [labels](#labels-file) file to write, as Python assignments. When disassembling, the labels file to read |
 | `--vice <viceFile>` | the [VICE monitor commands](#vice-monitor-commands) file to write: labels and breakpoints |
 | `-h`, `--help` | print the usage |
@@ -203,7 +203,7 @@ source = code64.disassembleFile('game.prg')
 
 `disassembleFile(inFile, outFile=None)` returns the source, and saves it to `outFile` if given.
 
-Both raise `OSError` if a file can't be read or written. Errors in the source don't raise, they are returned in `context.errors`. The illegal instructions are set with `code64.cpu.setIllegalInstructions('none' | 'stable' | 'all')`, which is `stable` by default.
+Both raise `OSError` if a file can't be read or written. Errors in the source don't raise, they are returned in `context.errors`. The illegal instructions are set with `code64.cpu.setIllegalInstructions('none' | 'stable')`, which is `stable` by default.
 
 
 ### Testing 6502 code
@@ -386,10 +386,9 @@ The accumulator mode of `asl`, `lsr`, `rol` and `ror` is written without an oper
 The 6510 also runs the "illegal" opcodes of the NMOS 6502, see the [6502 instruction set](https://www.masswerk.at/6502/6502_instruction_set.html). The `-i` option chooses which ones are instructions, both when assembling and disassembling:
 
 - `-i stable` (the default): the illegal instructions that work the same on all C64 and C128 cpus: `alr`, `anc`, `arr`, `dcp`, `isc`, `las`, `lax`, `rla`, `rra`, `sax`, `sbx`, `slo` and `sre`.
-- `-i all`: also the unstable ones, which depend on the cpu, its temperature, or the vic: `ane`, `lxa`, `sha`, `shx`, `shy` and `tas`.
 - `-i none`: only the documented instructions, so the illegal mnemonics can be used as labels.
 
-Left out are `anc` `$2b` and `usbc` `$eb`, which do the same as `anc` `$0b` and `sbc #`, and the illegal nops, which would conflict with `nop`. When disassembling they are data.
+Left out are `anc` `$2b` and `usbc` `$eb`, which do the same as `anc` `$0b` and `sbc #`, and the illegal nops, which would conflict with `nop`. Also left out are the unstable ones, `ane`, `lxa`, `sha`, `shx`, `shy` and `tas`, as they depend on the cpu, its temperature, or the vic. If you need one anyway, store its bytes with `.byte`, or write a generator for it. When disassembling they are data.
 
 ### Numbers
 

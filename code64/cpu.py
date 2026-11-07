@@ -127,8 +127,9 @@ _instructionSet = {
     Instruction('tya', IMPLIED=0x98)}
 
 # the "illegal" instructions that work the same on all 6510, 8500 and 8502 cpus. Left out are anc 0x2b
-# and usbc 0xeb, which do the same as anc 0x0b and sbc 0xe9, and the nops, which would conflict with nop
-_stableIllegalInstructionSet = {
+# and usbc 0xeb, which do the same as anc 0x0b and sbc 0xe9, the nops, which would conflict with nop, and
+# the unstable ane, lxa, sha, shx, shy and tas, which depend on the cpu, its temperature, or dma
+_illegalInstructionSet = {
     Instruction('alr', IMMEDIATE=0x4b),
     Instruction('anc', IMMEDIATE=0x0b),
     Instruction('arr', IMMEDIATE=0x6b),
@@ -143,26 +144,16 @@ _stableIllegalInstructionSet = {
     Instruction('slo', ABSOLUTE=0x0f, ABSOLUTE_X=0x1f, ABSOLUTE_Y=0x1b, INDIRECT_X=0x03, INDIRECT_Y=0x13, ZERO_PAGE=0x07, ZERO_PAGE_X=0x17),
     Instruction('sre', ABSOLUTE=0x4f, ABSOLUTE_X=0x5f, ABSOLUTE_Y=0x5b, INDIRECT_X=0x43, INDIRECT_Y=0x53, ZERO_PAGE=0x47, ZERO_PAGE_X=0x57)}
 
-# the "illegal" instructions that depend on the cpu, its temperature, or dma, e.g. vic badlines
-_unstableIllegalInstructionSet = {
-    Instruction('ane', IMMEDIATE=0x8b),
-    Instruction('lxa', IMMEDIATE=0xab),
-    Instruction('sha', ABSOLUTE_Y=0x9f, INDIRECT_Y=0x93),
-    Instruction('shx', ABSOLUTE_Y=0x9e),
-    Instruction('shy', ABSOLUTE_X=0x9c),
-    Instruction('tas', ABSOLUTE_Y=0x9b)}
-
 
 _mnemonicMap: dict[str, Instruction] = {}
 _opcodeMap: dict[int, tuple[Instruction, AddressMode]] = {}
 
 
 def setIllegalInstructions(illegal: str):
-    """Choose the illegal instructions to use with the regular ones: 'none', 'stable' or 'all'."""
+    """Choose the illegal instructions to use with the regular ones: 'none' or 'stable'."""
     global _mnemonicMap, _opcodeMap
     instructions = {'none': _instructionSet,
-                    'stable': _instructionSet | _stableIllegalInstructionSet,
-                    'all': _instructionSet | _stableIllegalInstructionSet | _unstableIllegalInstructionSet}[illegal]
+                    'stable': _instructionSet | _illegalInstructionSet}[illegal]
     _mnemonicMap = {instruction.mnemonic: instruction for instruction in instructions}
     _opcodeMap = {opcode: (instruction, mode) for instruction in instructions for mode, opcode in instruction.opcodes.items()}
 
