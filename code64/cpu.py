@@ -169,20 +169,12 @@ _cmosInstructionSet = {
     Instruction('tsb', ABSOLUTE=0x0c, ZERO_PAGE=0x04)}
 
 
-_mnemonicMap: dict[str, Instruction] = {}
-_opcodeMap: dict[int, tuple[Instruction, AddressMode]] = {}
-
-
-def setIllegalInstructions(illegal: str):
-    """Choose the illegal instructions to use with the regular ones: 'none' or 'stable'."""
-    global _mnemonicMap, _opcodeMap
-    instructions = {'none': _instructionSet,
-                    'stable': _instructionSet | _illegalInstructionSet}[illegal]
-    _mnemonicMap = {instruction.mnemonic: instruction for instruction in instructions}
-    _opcodeMap = {opcode: (instruction, mode) for instruction in instructions for mode, opcode in instruction.opcodes.items()}
-
-
-setIllegalInstructions('stable') # the default
+# the 6502 instructions, the documented ones and the stable illegal ones, by mnemonic and by opcode
+_mnemonicMap: dict[str, Instruction] = {instruction.mnemonic: instruction
+                                        for instruction in _instructionSet | _illegalInstructionSet}
+_opcodeMap: dict[int, tuple[Instruction, AddressMode]] = {opcode: (instruction, mode)
+                                                          for instruction in _instructionSet | _illegalInstructionSet
+                                                          for mode, opcode in instruction.opcodes.items()}
 
 
 def instructionWithMnemonic(mnemonic: str) -> Instruction | None:

@@ -12,7 +12,6 @@ from ..cpu import (
     _instructionSet,
     instructionWithMnemonic,
     isMnemonic,
-    setIllegalInstructions,
 )
 
 
@@ -43,12 +42,6 @@ class TestCpu(unittest.TestCase):
         self.assertEqual(instructionForOpcode(0x02), None) # jam, freezes the cpu
 
 
-    def _setIllegalInstructions(self, illegal: str):
-        """Choose the illegal instructions for this test only."""
-        self.addCleanup(setIllegalInstructions, 'stable')
-        setIllegalInstructions(illegal)
-
-
     def _opcodeCount(self) -> int:
         """The number of opcodes in use."""
         return sum(instructionForOpcode(opcode) is not None for opcode in range(256))
@@ -68,31 +61,13 @@ class TestCpu(unittest.TestCase):
         self.assertEqual(set(added) & set(documented), set())
 
 
-    def testIllegalDefault(self):
-        """The stable illegal instructions are the default."""
-        self.assertEqual(self._opcodeCount(), 208)
-
-
-    def testIllegalNone(self):
-        """'none' leaves only the documented 6502 opcodes."""
-        self._setIllegalInstructions('none')
-        self.assertEqual(self._opcodeCount(), 151)
-        self.assertEqual((isMnemonic('lax'), instructionForOpcode(0xa7)), (False, None))
-
-
-    def testIllegalStable(self):
-        """'stable' adds the stable illegal instructions, but not the illegal nops, usbc, or the unstable ones."""
-        self._setIllegalInstructions('stable')
+    def testIllegalInstructions(self):
+        """The stable illegal instructions are instructions, but not the illegal nops, usbc, or the unstable ones."""
         self.assertEqual(self._opcodeCount(), 208)
         self.assertEqual(instructionForOpcode(0xa7), (instructionWithMnemonic('lax'), AddressMode.ZERO_PAGE))
         self.assertEqual(instructionForOpcode(0x04), None) # an illegal nop
         self.assertEqual(instructionForOpcode(0xeb), None) # usbc, the same as sbc #
         self.assertEqual(isMnemonic('sha'), False)         # unstable
-
-
-    def testIllegalUnknown(self):
-        """Any other choice is an error."""
-        self.assertRaises(KeyError, setIllegalInstructions, 'some')
 
 
     def testIsMnemonic(self):

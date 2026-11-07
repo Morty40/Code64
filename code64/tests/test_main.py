@@ -12,7 +12,6 @@ from unittest import mock
 
 from .. import __version__
 from .. import assemble
-from .. import cpu
 from .. import disassemble
 from ..context import Context
 from ..main import main, printMemoryUse, sortedLabels
@@ -33,7 +32,7 @@ class TestMain(unittest.TestCase):
     def testUsage(self):
         """Missing or incorrect arguments print the usage, and exit with 2."""
         for arguments in [[], ['-o', 'x.prg'], ['-d'], ['x.asm', 'extra'], ['-x'],
-                          ['x.asm', '-i', 'some'], ['x.asm', '-i'], ['x.asm', '--vice'], ['x.asm', '-t'], ['x.asm', '-t', 'amiga'], ['-d', 'x.prg', '-t', 'c64'],
+                          ['x.asm', '--vice'], ['x.asm', '-t'], ['x.asm', '-t', 'amiga'], ['-d', 'x.prg', '-t', 'c64'],
                           ['x.asm', '-l'], ['x.asm', '--labels']]:
             with self.subTest(arguments=arguments):
                 code, output, errors = self._main(arguments)
@@ -58,7 +57,6 @@ class TestMain(unittest.TestCase):
         self.assertIn('positional arguments:\n  file ', output)
         self.assertIn('-d, --disassemble', output)
         self.assertIn('--output OUTFILE', output) # Python 3.13 shows '-o, --output OUTFILE', older versions '-o OUTFILE, --output OUTFILE'
-        self.assertIn('--illegal {none,stable}', output)
         self.assertIn('--labels LABELSFILE', output)
         self.assertIn('--vice VICEFILE', output)
         self.assertIn('--version', output)
@@ -70,20 +68,6 @@ class TestMain(unittest.TestCase):
         code, output, errors = self._main(['--version'])
         self.assertEqual(code, 0)
         self.assertEqual(output, f'Code64 v{code64.__version__} (c) Morten Perriard 2021-2026\n')
-
-    def testIllegalInstructions(self):
-        """-i chooses the illegal instructions: none, or stable (the default)."""
-        self.addCleanup(cpu.setIllegalInstructions, 'stable')
-        with tempfile.TemporaryDirectory() as directory:
-            for arguments, source, expected in [([], 'lax $10', 0), (['-i', 'stable'], 'lax $10', 0), (['-i', 'none'], 'lax $10', 1),
-                                                (['-i', 'stable'], 'sha $1000,y', 1), (['--illegal', 'none'], 'lax $10', 1),
-                                                (['--illegal=stable'], 'lax $10', 0)]:
-                with self.subTest(arguments=arguments, source=source):
-                    asmFile = os.path.join(directory, 'test.asm')
-                    with open(asmFile, 'w') as f:
-                        f.write(source + '\n')
-                    code, output, errors = self._main([asmFile] + arguments)
-                    self.assertEqual(code, expected, output)
 
     def testTarget(self):
         """-t and --target choose the target imports, and without them there are none."""

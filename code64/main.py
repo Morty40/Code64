@@ -1,12 +1,11 @@
 #! /usr/bin/env python3
-"""Code64 command line: code64 <asmFile> -o <outFile>, or code64 -d <prgFile> -o <asmFile>, with -i <none | stable>"""
+"""Code64 command line: code64 <asmFile> -o <outFile>, or code64 -d <prgFile> -o <asmFile>"""
 
 import argparse
 import sys
 
 from . import __version__
 from . import assemble
-from . import cpu
 from . import disassemble
 from .context import Context
 
@@ -67,8 +66,6 @@ def main():
     parser.add_argument('file', help='the source file to assemble, or with -d the .prg or binary file to disassemble')
     parser.add_argument('-d', '--disassemble', dest='disassemble', action='store_true', help='disassemble the file instead of assembling it')
     parser.add_argument('-o', '--output', dest='outFile', help='the .prg file to write, or the source file when disassembling (default: print it)')
-    parser.add_argument('-i', '--illegal', dest='illegal', choices=['none', 'stable'], default='stable',
-                        help='the illegal instructions to use: none, or the stable ones (default)')
     parser.add_argument('-t', '--target', dest='target', choices=assemble.TARGETS,
                         help='the target machine, whose symbols and generators are imported (default: none)')
     parser.add_argument('-l', '--labels', dest='labelsFile', help='the labels file, as Python assignments: written when assembling, read when disassembling')
@@ -79,7 +76,6 @@ def main():
         parser.error('--vice can only be used when assembling')
     if arguments.disassemble and arguments.target:
         parser.error('--target can only be used when assembling')
-    cpu.setIllegalInstructions(arguments.illegal)
     try:
         if arguments.disassemble:
             source = disassemble.disassembleFile(arguments.file, arguments.outFile, arguments.labelsFile)
