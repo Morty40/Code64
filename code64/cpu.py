@@ -4,7 +4,7 @@
 # https://en.wikipedia.org/wiki/MOS_Technology_6502
 # https://www.masswerk.at/6502/6502_instruction_set.html
 
-from enum import Enum
+from enum import Enum, unique
 import re
 
 # the low and high byte of a 16-bit value, the 6502 stores words low byte first
@@ -17,31 +17,28 @@ def hi(x):
     return (x>>8)&0xff
 
 
+@unique
 class AddressMode(Enum):
-    """The 6502 address modes. The values are the operand syntax, see syntax()."""
+    """The 6502 address modes. Each has the operand syntax, see syntax(), and the size of an instruction:
+    the opcode, and a byte or word operand."""
 
-    ABSOLUTE    = 'absolute'
-    ABSOLUTE_X  = 'absolute,x'
-    ABSOLUTE_Y  = 'absolute,y'
-    ACCUMULATOR = 'accumulator'
-    IMMEDIATE   = 'immediate'
-    IMPLIED     = 'implied'
-    INDIRECT    = '(indirect)'
-    INDIRECT_X  = '(indirect,x)'
-    INDIRECT_Y  = '(indirect),y'
-    RELATIVE    = 'relative'
-    ZERO_PAGE   = 'zeropage'
-    ZERO_PAGE_X = 'zeropage,x'
-    ZERO_PAGE_Y = 'zeropage,y'
+    ABSOLUTE    = ('absolute', 3)
+    ABSOLUTE_X  = ('absolute,x', 3)
+    ABSOLUTE_Y  = ('absolute,y', 3)
+    ACCUMULATOR = ('accumulator', 1)
+    IMMEDIATE   = ('immediate', 2)
+    IMPLIED     = ('implied', 1)
+    INDIRECT    = ('(indirect)', 3)
+    INDIRECT_X  = ('(indirect,x)', 2)
+    INDIRECT_Y  = ('(indirect),y', 2)
+    RELATIVE    = ('relative', 2)
+    ZERO_PAGE   = ('zeropage', 2)
+    ZERO_PAGE_X = ('zeropage,x', 2)
+    ZERO_PAGE_Y = ('zeropage,y', 2)
 
-    @property
-    def size(self) -> int:
-        """The size of an instruction in this mode: the opcode, and a byte or word operand."""
-        if self in (AddressMode.IMPLIED, AddressMode.ACCUMULATOR):
-            return 1
-        if self in (AddressMode.ABSOLUTE, AddressMode.ABSOLUTE_X, AddressMode.ABSOLUTE_Y, AddressMode.INDIRECT):
-            return 3
-        return 2
+    def __init__(self, template: str, size: int):
+        self.template = template # the operand syntax, with the operand as a word, e.g. (indirect),y
+        self.size = size
 
     @property
     def zeroPageMode(self):
@@ -56,7 +53,7 @@ class AddressMode(Enum):
             return ''
         if self is AddressMode.IMMEDIATE:
             return '#' + operand
-        return re.sub(r'[a-z]+', lambda _: operand, self.value, count=1) # e.g. (indirect),y
+        return re.sub(r'[a-z]+', lambda _: operand, self.template, count=1) # e.g. (indirect),y
 
 
 class Instruction:
